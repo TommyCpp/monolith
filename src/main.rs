@@ -1,11 +1,12 @@
-pub mod common;
-pub mod database;
+pub mod time_point;
+pub mod chunk;
+pub mod time_series;
+pub mod label;
 
-use common::Timestamp;
-use crate::common::TimePoint;
+use time_point::Timestamp;
+use crate::time_point::TimePoint;
 
 
 fn main() {
-    println!("Hello, world!");
-    let t: TimePoint = TimePoint::new(12.0, 12.0);
+    let t: TimePoint = TimePoint::new(12, 12.0);
 }
