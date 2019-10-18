@@ -1,9 +1,10 @@
 use std::collections::BTreeMap;
 use std::time::{Duration, UNIX_EPOCH};
 
-use crate::time_series::TimeSeriesId;
+use crate::time_series::{TimeSeriesId, IdGenerator, TimeSeries};
 
 use super::time_point::*;
+use crate::label::Labels;
 
 pub const CHUCK_SIZE: Timestamp = Duration::from_secs(2 * 60 * 60).as_nanos() as Timestamp;
 
@@ -23,11 +24,16 @@ impl Chunk {
         }
     }
 
-    pub fn create_series(&mut self, name: String, value: String) -> () {
-        if !self.time_series.contains_key(&name) {
-            self.time_series.insert(name, BTreeMap::new());
-        } else {
-            self.time_series.get_mut(&name).unwrap().insert(value, Vec::new());
+    pub fn create_series(&mut self, labels: Labels, id: TimeSeriesId) -> () {
+        //create series and assign id
+        let time_series = TimeSeries::new(id, labels);
+        for label in time_series.meta_date().vec() {
+            let (name, value) = label.key_value();
+            if !self.time_series.contains_key(&name) {
+                self.time_series.insert(name, BTreeMap::new());
+            } else {
+                self.time_series.get_mut(&name).unwrap().insert(value, Vec::new());
+            }
         }
     }
 }
@@ -36,6 +42,7 @@ impl Chunk {
 #[cfg(test)]
 mod test {
     use crate::chunk::{Chunk, CHUCK_SIZE};
+    use crate::label::{Labels, Label};
 
     #[test]
     fn test_new_database() {
@@ -46,7 +53,9 @@ mod test {
     #[test]
     fn test_insert_database() {
         let mut db = Chunk::new();
-        db.create_series(String::from("test"), String::from("series"));
+        let mut labels: Labels = Labels::new();
+        labels.add(Label::new(String::from("test"), String::from("series")));
+        db.create_series(labels, 12);
         assert_eq!(db.time_series.len(), 1)
     }
 }

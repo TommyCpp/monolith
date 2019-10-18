@@ -1,5 +1,6 @@
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hasher, Hash};
+use std::path::Iter;
 
 #[derive(Hash)]
 pub struct Label {
@@ -14,6 +15,10 @@ impl Label {
 
     pub fn new(key: String, value: String) -> Label {
         Label { key, value }
+    }
+
+    pub fn key_value(self) -> (String, String) {
+        (self.key, self.value)
     }
 }
 
@@ -40,6 +45,10 @@ impl Labels {
         let mut hasher = DefaultHasher::new(); //todo: find a better hash, sort the labels first
         self.hash(&mut hasher);
         hasher.finish()
+    }
+
+    pub fn vec(self) -> Vec<Label> {
+        self.0
     }
 }
 
