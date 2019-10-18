@@ -1,8 +1,8 @@
 use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hasher, Hash};
+use std::hash::{Hash, Hasher};
 use std::path::Iter;
 
-#[derive(Hash)]
+#[derive(Hash, Clone)]
 pub struct Label {
     key: String,
     value: String,
@@ -20,8 +20,17 @@ impl Label {
     pub fn key_value(self) -> (String, String) {
         (self.key, self.value)
     }
+
+    pub fn key(&self) -> &String {
+        &self.key
+    }
+
+    pub fn value(&self) -> &String {
+        &self.value
+    }
 }
 
+#[derive(Clone)]
 pub struct Labels(Vec<Label>);
 
 impl Hash for Labels {
@@ -54,7 +63,7 @@ impl Labels {
 
 #[cfg(test)]
 mod test {
-    use crate::label::{Labels, Label};
+    use crate::label::{Label, Labels};
     use crate::time_point::*;
 
     #[test]

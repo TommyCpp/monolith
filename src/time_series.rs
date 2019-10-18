@@ -1,9 +1,9 @@
 use std::collections::BTreeMap;
+use std::num::TryFromIntError;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::label::*;
 use crate::time_point::*;
-use std::num::TryFromIntError;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 pub type TimeSeriesId = u64;
 
@@ -50,7 +50,7 @@ mod test {
 
     use crate::label::Labels;
     use crate::time_point::*;
-    use crate::time_series::{TimeSeries, IdGenerator};
+    use crate::time_series::{IdGenerator, TimeSeries};
 
     #[test]
     fn crate_time_series() {
