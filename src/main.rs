@@ -25,6 +25,5 @@ impl Server {
         }
     }
 
-    pub fn insert(&mut self, timestamp: Timestamp, value: Value, meta_data: Labels) {
-    }
+    pub fn insert(&mut self, timestamp: Timestamp, value: Value, meta_data: Labels) {}
 }
