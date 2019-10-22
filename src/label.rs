@@ -56,8 +56,8 @@ impl Labels {
         hasher.finish()
     }
 
-    pub fn vec(self) -> Vec<Label> {
-        self.0
+    pub fn vec(&self) -> &Vec<Label> {
+        &self.0
     }
 }
 

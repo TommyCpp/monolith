@@ -23,8 +23,8 @@ impl TimeSeries {
         }
     }
 
-    pub fn meta_date(self) -> Labels {
-        self.meta_data
+    pub fn meta_data(&self) -> &Labels {
+        &self.meta_data
     }
 
     pub fn add(&mut self, timestamp: Timestamp, value: Value) {

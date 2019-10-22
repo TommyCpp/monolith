@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::panic::resume_unwind;
 use std::time::{Duration, UNIX_EPOCH};
 
@@ -6,11 +6,16 @@ use crate::label::{Label, Labels};
 use crate::time_series::{IdGenerator, TimeSeries, TimeSeriesId};
 
 use super::time_point::*;
+use std::iter::Map;
+use std::borrow::BorrowMut;
 
 pub const CHUCK_SIZE: Timestamp = Duration::from_secs(2 * 60 * 60).as_nanos() as Timestamp;
 
 pub struct Chunk {
-    time_series: BTreeMap<String, BTreeMap<String, Vec<TimeSeriesId>>>,
+    label_series: BTreeMap<String, BTreeMap<String, Vec<TimeSeriesId>>>,
+    //store the map between the key-value label pair and time series id
+    time_series: HashMap<TimeSeriesId, TimeSeries>,
+    //store the actual time series
     start_time: Timestamp,
     end_time: Timestamp,
 }
@@ -19,7 +24,8 @@ impl Chunk {
     pub fn new() -> Chunk {
         let start_time = UNIX_EPOCH.elapsed().unwrap().as_nanos() as Timestamp;
         Chunk {
-            time_series: BTreeMap::new(),
+            label_series: BTreeMap::new(),
+            time_series: HashMap::new(),
             start_time,
             end_time: start_time + CHUCK_SIZE,
         }
@@ -28,30 +34,34 @@ impl Chunk {
     pub fn create_series(&mut self, labels: Labels, id: TimeSeriesId) -> () {
         //create series and assign id
         let time_series = TimeSeries::new(id, labels);
+
         //create index for every key_value
-        for label in time_series.meta_date().vec() {
+        for label in time_series.meta_data().vec() {
             let name = label.key().to_string();
             let value = label.value().to_string();
-            if !self.time_series.contains_key(&name) {
+            if !self.label_series.contains_key(&name) {
                 // if the name does not yet exist.
-                self.time_series.insert(name.to_string(), BTreeMap::new());
+                self.label_series.insert(name.to_string(), BTreeMap::new());
             }
-            if !self.time_series.get(&name).unwrap().contains_key(&value) {
+            if !self.label_series.get(&name).unwrap().contains_key(&value) {
                 // if the value dost not yet exist.
-                self.time_series.get_mut(&name).unwrap().insert(value, vec![id]);
+                self.label_series.get_mut(&name).unwrap().insert(value, vec![id]);
             } else {
                 // if the name and value are all exist, then we add id into it.
                 //todo: insert in order to reduce the time complexity of intersection.
-                let mut vec: &mut Vec<TimeSeriesId> = self.time_series.get_mut(&name).unwrap().get_mut(&value).unwrap();
+                let mut vec: &mut Vec<TimeSeriesId> = self.label_series.get_mut(&name).unwrap().get_mut(&value).unwrap();
                 vec.push(id);
             }
         }
+
+        //insert time_series into storage
+        self.time_series.insert(id, time_series);
     }
 
     fn get_series_id_by_label(&self, label: &Label) -> Option<&Vec<TimeSeriesId>> {
         let key = label.key();
         let value = label.value();
-        match self.time_series.get(key) {
+        match self.label_series.get(key) {
             Some(map) => {
                 map.get(value)
             }
@@ -80,7 +90,7 @@ mod test {
         let mut labels: Labels = Labels::new();
         labels.add(Label::new(String::from("test"), String::from("series")));
         db.create_series(labels, 12);
-        assert_eq!(db.time_series.len(), 1)
+        assert_eq!(db.label_series.len(), 1)
     }
 
     #[test]
