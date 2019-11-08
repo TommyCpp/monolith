@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::panic::resume_unwind;
 use std::time::{Duration, UNIX_EPOCH};
 
@@ -6,8 +6,9 @@ use crate::label::{Label, Labels};
 use crate::time_series::{IdGenerator, TimeSeries, TimeSeriesId};
 
 use super::time_point::*;
-use std::iter::Map;
+use std::iter::{Map, FromIterator};
 use std::borrow::BorrowMut;
+
 
 pub const CHUCK_SIZE: Timestamp = Duration::from_secs(2 * 60 * 60).as_nanos() as Timestamp;
 
@@ -69,6 +70,38 @@ impl Chunk {
         }
     }
 
+    /**
+    *  get the target series to insert new time point, if no such time series exists, then return None
+    */
+    fn get_series_to_insert(&self, labels: Vec<&Label>) -> Option<TimeSeriesId> {
+        let labels_len = labels.len();
+        let mut candidates: Vec<HashSet<TimeSeriesId>> = Vec::new();
+        for label in labels {
+            match self.get_series_id_by_label(label) {
+                Some(v) => {
+                    candidates.push(HashSet::from_iter(v.iter().cloned()));
+                }
+                None => {}
+            }
+        }
+        //intersect among the candidates
+        if candidates.len() != 0 {
+            let res: HashSet<TimeSeriesId> = candidates[0].clone();
+            for i in 1..candidates.len() {
+                res.intersection(&candidates[i]);
+            }
+            if res.len() > 0 {
+                for v in res {
+                    if self.time_series.get(&v).unwrap().meta_data().len() == labels_len {
+                        return Some(v);
+                    }
+                }
+            }
+            return None; // error handling
+        }
+        return None;
+    }
+
     pub fn insert(&mut self, timestamp: Timestamp, value: Value, meta_data: Labels) {}
 }
 
@@ -77,6 +110,9 @@ impl Chunk {
 mod test {
     use crate::chunk::{CHUCK_SIZE, Chunk};
     use crate::label::{Label, Labels};
+    use std::collections::BTreeMap;
+    use crate::time_series::TimeSeriesId;
+
 
     #[test]
     fn test_new_database() {
@@ -94,7 +130,7 @@ mod test {
     }
 
     #[test]
-    fn test_get_series_id_by_labels() {
+    fn test_get_series_id_by_label() {
         //create timeseries
         let mut db = Chunk::new();
         let mut labels: Labels = Labels::new();
@@ -113,6 +149,40 @@ mod test {
             let res = db.get_series_id_by_label(&query).unwrap();
             assert_eq!(res.len(), 2);
             assert_eq!(*res.get(1).unwrap(), 11 as u64);
+        }
+    }
+
+    #[test]
+    fn test_get_series_id_by_labels() {
+        let mut db = Chunk::new();
+        let mut i = 0;
+        let mut labels_ts_1 = Labels::new();
+        labels_ts_1.add(Label::new(String::from("test1"), String::from("value1")));
+        labels_ts_1.add(Label::new(String::from("test2"), String::from("value2")));
+        labels_ts_1.add(Label::new(String::from("test3"), String::from("value2")));
+        labels_ts_1.add(Label::new(String::from("test4"), String::from("value2")));
+
+        let mut labels_ts_2 = Labels::new();
+        labels_ts_2.add(Label::new(String::from("test1"), String::from("value1")));
+        labels_ts_2.add(Label::new(String::from("test2"), String::from("value2")));
+        labels_ts_2.add(Label::new(String::from("test3"), String::from("value2")));
+
+        db.create_series(labels_ts_1.clone(), 11);
+        db.create_series(labels_ts_2.clone(), 12);
+
+        let label1 = Label::new(String::from("test1"), String::from("value1"));
+        let label2 = Label::new(String::from("test2"), String::from("value2"));
+        let label3 = Label::new(String::from("test3"), String::from("value2"));
+
+
+        let mut target = vec![&label1, &label2, &label3];
+        match db.get_series_to_insert(target) {
+            Some(res) => {
+                assert_eq!(res, 12)
+            }
+            None => {
+                assert_eq!(true, false) //fail the test
+            }
         }
     }
 }

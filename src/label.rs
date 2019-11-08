@@ -50,6 +50,10 @@ impl Labels {
         self.0.push(label)
     }
 
+    pub fn len(&self) -> usize {
+        return self.0.len();
+    }
+
     pub fn get_hash(&self) -> u64 {
         let mut hasher = DefaultHasher::new(); //todo: find a better hash, sort the labels first
         self.hash(&mut hasher);
