@@ -22,7 +22,7 @@ pub struct Chunk {
 }
 
 impl Chunk {
-    pub fn new() -> Chunk {
+    pub fn new() -> Self {
         let start_time = UNIX_EPOCH.elapsed().unwrap().as_nanos() as Timestamp;
         Chunk {
             label_series: BTreeMap::new(),
@@ -59,6 +59,21 @@ impl Chunk {
         self.time_series.insert(id, time_series);
     }
 
+    pub fn insert(&mut self, timestamp: Timestamp, value: Value, meta_data: Labels) {
+        //if this time point does not belong to this chunk
+        if !self.is_in_range(&timestamp){
+            return
+        }
+        match self.get_series_to_insert(meta_data.vec()) {
+            Some(time_series_id) => {
+                self.time_series.get_mut(&time_series_id).unwrap().add(timestamp, value);
+            }
+            None => {
+                //todo: create new time series and insert, maybe need to think how to assign timeseriesId first
+            }
+        }
+    }
+
     fn get_series_id_by_label(&self, label: &Label) -> Option<&Vec<TimeSeriesId>> {
         let key = label.key();
         let value = label.value();
@@ -70,10 +85,14 @@ impl Chunk {
         }
     }
 
+    fn is_in_range(&self, timestamp: &Timestamp) -> bool {
+        return self.start_time < *timestamp && self.end_time > *timestamp;
+    }
+
     /**
     *  get the target series to insert new time point, if no such time series exists, then return None
     */
-    fn get_series_to_insert(&self, labels: Vec<&Label>) -> Option<TimeSeriesId> {
+    fn get_series_to_insert(&self, labels: &Vec<Label>) -> Option<TimeSeriesId> {
         let labels_len = labels.len();
         let mut candidates: Vec<HashSet<TimeSeriesId>> = Vec::new();
         for label in labels {
@@ -101,8 +120,6 @@ impl Chunk {
         }
         return None;
     }
-
-    pub fn insert(&mut self, timestamp: Timestamp, value: Value, meta_data: Labels) {}
 }
 
 
@@ -112,6 +129,7 @@ mod test {
     use crate::label::{Label, Labels};
     use std::collections::BTreeMap;
     use crate::time_series::TimeSeriesId;
+    use crate::time_point::Timestamp;
 
 
     #[test]
@@ -175,8 +193,8 @@ mod test {
         let label3 = Label::new(String::from("test3"), String::from("value2"));
 
 
-        let mut target = vec![&label1, &label2, &label3];
-        match db.get_series_to_insert(target) {
+        let mut target = vec![label1, label2, label3];
+        match db.get_series_to_insert(&target) {
             Some(res) => {
                 assert_eq!(res, 12)
             }
@@ -184,5 +202,17 @@ mod test {
                 assert_eq!(true, false) //fail the test
             }
         }
+    }
+
+    #[test]
+    fn test_timestamp_in_range() {
+        let mut db = Chunk::new();
+        db.start_time = 10000 as Timestamp;
+        db.end_time = 15000 as Timestamp;
+        let ts1 = 12000 as Timestamp;
+        let ts2 = 1000 as Timestamp;
+        assert_eq!(db.is_in_range(&ts1), true);
+        assert_eq!(db.is_in_range(&ts2), false);
+
     }
 }

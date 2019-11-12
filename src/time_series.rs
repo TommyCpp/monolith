@@ -15,7 +15,7 @@ pub struct TimeSeries {
 }
 
 impl TimeSeries {
-    pub fn new(id: TimeSeriesId, meta_data: Labels) -> TimeSeries {
+    pub fn new(id: TimeSeriesId, meta_data: Labels) -> Self {
         TimeSeries {
             id,
             time_points: Vec::new(),
