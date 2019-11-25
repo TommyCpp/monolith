@@ -19,6 +19,7 @@ pub struct Chunk {
     //store the actual time series
     start_time: Timestamp,
     end_time: Timestamp,
+    id_generator: IdGenerator,
 }
 
 impl Chunk {
@@ -29,6 +30,7 @@ impl Chunk {
             time_series: HashMap::new(),
             start_time,
             end_time: start_time + CHUCK_SIZE,
+            id_generator: IdGenerator::new(0),
         }
     }
 
@@ -61,15 +63,15 @@ impl Chunk {
 
     pub fn insert(&mut self, timestamp: Timestamp, value: Value, meta_data: Labels) {
         //if this time point does not belong to this chunk
-        if !self.is_in_range(&timestamp){
-            return
+        if !self.is_in_range(&timestamp) {
+            return;
         }
         match self.get_series_to_insert(meta_data.vec()) {
             Some(time_series_id) => {
                 self.time_series.get_mut(&time_series_id).unwrap().add(timestamp, value);
             }
             None => {
-                //todo: create new time series and insert, maybe need to think how to assign timeseriesId first
+                self.create_series(meta_data, self.id_generator.next());
             }
         }
     }
@@ -213,6 +215,19 @@ mod test {
         let ts2 = 1000 as Timestamp;
         assert_eq!(db.is_in_range(&ts1), true);
         assert_eq!(db.is_in_range(&ts2), false);
+    }
 
+    #[test]
+    fn test_insert() {
+        let mut db = Chunk::new();
+        db.start_time = 10000 as Timestamp;
+        db.end_time = 15000 as Timestamp;
+        let mut meta_data = Labels::new();
+        let label_x = Label::from("x", "y");
+        meta_data.add(label_x);
+        db.insert(11000 as Timestamp, 10 as f64, meta_data);
+        let res = db.get_series_id_by_label(&Label::from("x", "y")).unwrap();
+        assert_eq!(1, res.len());
+        assert_eq!(res.get(0), Some(&0));
     }
 }
