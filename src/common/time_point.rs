@@ -21,18 +21,3 @@ impl TimePoint {
     }
 }
 
-
-
-#[cfg(test)]
-mod test {
-    use std::collections::BTreeMap;
-
-    use crate::time_point::*;
-
-    #[test]
-    fn create_timepoint() {
-        let timepoint = TimePoint::new(120, 12.0);
-        assert_eq!(timepoint.timestamp, 120);
-        assert_eq!(timepoint.value, 12.0);
-    }
-}

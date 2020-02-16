@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 use std::num::TryFromIntError;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use crate::label::*;
-use crate::time_point::*;
+use crate::common::label::Labels;
+use crate::common::time_point::{TimePoint, Timestamp, Value};
 
 pub type TimeSeriesId = u64;
 
@@ -41,26 +41,5 @@ impl IdGenerator {
     }
     pub fn next(&self) -> TimeSeriesId {
         self.0.fetch_add(1, Ordering::SeqCst)
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use std::collections::BTreeMap;
-
-    use crate::label::Labels;
-    use crate::time_point::*;
-    use crate::time_series::{IdGenerator, TimeSeries};
-
-    #[test]
-    fn crate_time_series() {
-        let time_series = TimeSeries::new(12, Labels::new());
-    }
-
-    #[test]
-    fn generate_id() {
-        let id_generator = IdGenerator::new(2);
-        assert_eq!(id_generator.next(), 2);
-        assert_eq!(id_generator.next(), 3)
     }
 }

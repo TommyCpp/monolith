@@ -67,13 +67,5 @@ impl Labels {
 
 #[cfg(test)]
 mod test {
-    use crate::label::{Label, Labels};
-    use crate::time_point::*;
 
-    #[test]
-    fn get_hash() {
-        let mut labels = Labels::new();
-        labels.add(Label::from("test", "test"));
-        print!("{}", labels.get_hash())
-    }
 }
