@@ -1,4 +1,4 @@
-use crate::Chunk;
+use crate::chunk::Chunk;
 use crate::Result;
 
 pub struct MonolithServer {

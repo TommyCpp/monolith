@@ -8,17 +8,27 @@ use std::borrow::BorrowMut;
 use crate::common::time_series::{TimeSeriesId, IdGenerator, TimeSeries};
 use crate::common::label::{Labels, Label};
 use crate::common::time_point::{Timestamp, Value};
+use std::path::Path;
 
 
 pub const CHUCK_SIZE: Timestamp = Duration::from_secs(2 * 60 * 60).as_nanos() as Timestamp;
 
+/// ChunkOps contains all options for chunk
+struct ChunkOps<'c>{
+    dir: &'c Path
+}
+
+///
+/// Chunk store a set of time series fallen into certain time range;
+/// Similar to the Block in Prometheus.
 pub struct Chunk {
-    label_series: BTreeMap<String, BTreeMap<String, Vec<TimeSeriesId>>>,
     //store the map between the key-value label pair and time series id
     time_series: HashMap<TimeSeriesId, TimeSeries>,
     //store the actual time series
+    label_series: BTreeMap<String, BTreeMap<String, Vec<TimeSeriesId>>>,
     start_time: Timestamp,
     end_time: Timestamp,
+    closed: bool,
     id_generator: IdGenerator,
 }
 
@@ -30,6 +40,7 @@ impl Chunk {
             time_series: HashMap::new(),
             start_time,
             end_time: start_time + CHUCK_SIZE,
+            closed: false,
             id_generator: IdGenerator::new(0),
         }
     }

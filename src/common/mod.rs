@@ -1,7 +1,4 @@
 
-mod chunk;
-mod label;
-mod time_point;
-mod time_series;
-
-pub use chunk::Chunk;
+pub(crate) mod label;
+pub(crate) mod time_point;
+pub(crate) mod time_series;
