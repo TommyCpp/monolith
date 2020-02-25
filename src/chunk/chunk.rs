@@ -8,14 +8,14 @@ use std::borrow::BorrowMut;
 use crate::common::time_series::{TimeSeriesId, IdGenerator, TimeSeries};
 use crate::common::label::{Labels, Label};
 use crate::common::time_point::{Timestamp, Value};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 
 pub const CHUCK_SIZE: Timestamp = Duration::from_secs(2 * 60 * 60).as_nanos() as Timestamp;
 
 /// ChunkOps contains all options for chunk
-struct ChunkOps<'c>{
-    dir: &'c Path
+struct ChunkOps{
+    dir: PathBuf
 }
 
 ///

@@ -1,5 +1,5 @@
 use monolith::MonolithServer;
 
 fn main() {
-    let server: MonolithServer = MonolithServer::new().unwrap();
+    let server: MonolithServer = MonolithServer::new(None).unwrap();
 }
