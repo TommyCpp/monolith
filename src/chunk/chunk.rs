@@ -11,11 +11,12 @@ use crate::common::time_point::{Timestamp, Value};
 use std::path::{Path, PathBuf};
 
 
-pub const CHUCK_SIZE: Timestamp = Duration::from_secs(2 * 60 * 60).as_nanos() as Timestamp;
+pub const DEFAULT_CHUNK_SIZE: Timestamp = Duration::from_secs(2 * 60 * 60).as_nanos() as Timestamp;
 
 /// ChunkOps contains all options for chunk
-struct ChunkOps{
-    dir: PathBuf
+struct ChunkOps {
+    dir: PathBuf,
+    chunk_size: u64, // as sec
 }
 
 ///
@@ -39,7 +40,7 @@ impl Chunk {
             label_series: BTreeMap::new(),
             time_series: HashMap::new(),
             start_time,
-            end_time: start_time + CHUCK_SIZE,
+            end_time: start_time + DEFAULT_CHUNK_SIZE,
             closed: false,
             id_generator: IdGenerator::new(0),
         }
@@ -133,4 +134,8 @@ impl Chunk {
         }
         return None;
     }
+}
+
+fn get_chunk_size(sec: u64) -> Timestamp {
+    Duration::from_secs(sec * 60 * 60).as_nanos() as Timestamp
 }
