@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 use std::env;
 
-const DEFAULT_CHUNK_DURATION: Duration = Duration::from_secs(15 as u64);
+
 
 pub struct MonolithServer {
     current_chuck: Chunk,

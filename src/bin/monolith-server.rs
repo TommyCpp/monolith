@@ -1,4 +1,4 @@
-use monolith::{MonolithServer, ServerOps, StorageType, Result, get_config, STORAGE_ARG, FILE_DIR_ARG};
+use monolith::{MonolithServer, ServerOps, StorageType, Result, get_config, STORAGE_ARG, FILE_DIR_ARG, CHUNK_SIZE, DEFAULT_CHUNK_SIZE};
 use clap::{App, Arg, ArgMatches};
 use std::env::args;
 use std::path::PathBuf;
@@ -16,7 +16,10 @@ fn main() {
                     .default_value("sled"),
                 Arg::with_name(FILE_DIR_ARG)
                     .short("dir")
-                    .default_value(env!("PWD"))
+                    .default_value(env!("PWD")),
+                Arg::with_name(CHUNK_SIZE)
+                    .short("c")
+                    .default_value(DEFAULT_CHUNK_SIZE)
             ]
         )
         .get_matches();
