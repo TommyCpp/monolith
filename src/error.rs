@@ -4,16 +4,16 @@ use failure::_core::num::ParseIntError;
 
 #[derive(Debug)]
 pub enum MonolithErr {
-    IoError(std::io::Error),
+    IoError(String),
     OptionErr,
-    ParseError,
+    ParseErr,
 }
 
 pub type Result<T> = std::result::Result<T, MonolithErr>;
 
 impl std::convert::From<std::io::Error> for MonolithErr {
     fn from(err: std::io::Error) -> Self {
-        MonolithErr::IoError(err)
+        MonolithErr::IoError(err.to_string())
     }
 }
 
@@ -26,6 +26,12 @@ impl std::convert::From<std::convert::Infallible> for MonolithErr {
 
 impl std::convert::From<std::num::ParseIntError> for MonolithErr {
     fn from(_: ParseIntError) -> Self {
-        MonolithErr::ParseError
+        MonolithErr::ParseErr
+    }
+}
+
+impl std::convert::From<sled::Error> for MonolithErr{
+    fn from(err: sled::Error) -> Self {
+        MonolithErr::IoError(format!("Cannot start Sled Storage because {}", err.to_string()))
     }
 }

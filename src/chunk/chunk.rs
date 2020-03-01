@@ -5,10 +5,11 @@ use std::time::{Duration, UNIX_EPOCH};
 
 use std::iter::{Map, FromIterator};
 use std::borrow::BorrowMut;
-use crate::common::time_series::{TimeSeriesId, IdGenerator, TimeSeries};
+use crate::common::time_series::{TimeSeriesId, TimeSeries};
 use crate::common::label::{Labels, Label};
 use crate::common::time_point::{Timestamp, Value};
 use std::path::{Path, PathBuf};
+use crate::common::IdGenerator;
 
 
 pub const DEFAULT_CHUNK_SIZE: Timestamp = Duration::from_secs(2 * 60 * 60).as_nanos() as Timestamp;

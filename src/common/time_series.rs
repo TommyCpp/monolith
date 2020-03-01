@@ -32,14 +32,3 @@ impl TimeSeries {
     }
 }
 
-
-pub struct IdGenerator(AtomicU64);
-
-impl IdGenerator {
-    pub fn new(init_id: TimeSeriesId) -> IdGenerator {
-        IdGenerator(AtomicU64::new(init_id))
-    }
-    pub fn next(&self) -> TimeSeriesId {
-        self.0.fetch_add(1, Ordering::SeqCst)
-    }
-}
