@@ -2,7 +2,8 @@ mod common;
 mod chunk;
 mod server;
 mod error;
-mod storage;
+
+pub mod storage;
 
 pub use chunk::*;
 pub use error::*;

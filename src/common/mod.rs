@@ -17,3 +17,15 @@ impl IdGenerator {
         self.0.fetch_add(1, Ordering::SeqCst)
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::common::IdGenerator;
+
+    #[test]
+    fn generate_id() {
+        let id_generator = IdGenerator::new(2);
+        assert_eq!(id_generator.next(), 2);
+        assert_eq!(id_generator.next(), 3)
+    }
+}

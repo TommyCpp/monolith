@@ -9,8 +9,8 @@ pub type Value = f64;
 
 
 pub struct TimePoint {
-    timestamp: Timestamp,
-    value: Value,
+    pub timestamp: Timestamp,
+    pub value: Value,
 
 //    How do we organize the metadata
 }
@@ -18,6 +18,18 @@ pub struct TimePoint {
 impl TimePoint {
     pub fn new(timestamp: Timestamp, value: Value) -> TimePoint {
         TimePoint { timestamp, value }
+    }
+}
+
+#[cfg(test)]
+mod test{
+    use crate::common::time_point::TimePoint;
+
+    #[test]
+    fn create_timepoint() {
+        let timepoint = TimePoint::new(120, 12.0);
+        assert_eq!(timepoint.timestamp, 120);
+        assert_eq!(timepoint.value, 12.0);
     }
 }
 

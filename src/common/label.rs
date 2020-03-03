@@ -67,5 +67,12 @@ impl Labels {
 
 #[cfg(test)]
 mod test {
+    use crate::common::label::{Labels, Label};
 
+    #[test]
+    fn get_hash() {
+        let mut labels = Labels::new();
+        labels.add(Label::from("test", "test"));
+        print!("{}", labels.get_hash())
+    }
 }

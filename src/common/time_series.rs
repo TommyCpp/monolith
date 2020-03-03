@@ -32,3 +32,13 @@ impl TimeSeries {
     }
 }
 
+#[cfg(test)]
+mod test{
+    use crate::common::time_series::TimeSeries;
+    use crate::common::label::Labels;
+
+    #[test]
+    fn crate_time_series() {
+        let time_series = TimeSeries::new(12, Labels::new());
+    }
+}

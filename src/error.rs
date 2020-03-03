@@ -1,6 +1,7 @@
 use std::error::Error;
 use failure::_core::convert::Infallible;
 use failure::_core::num::ParseIntError;
+use std::string::FromUtf8Error;
 
 #[derive(Debug)]
 pub enum MonolithErr {
@@ -30,8 +31,14 @@ impl std::convert::From<std::num::ParseIntError> for MonolithErr {
     }
 }
 
-impl std::convert::From<sled::Error> for MonolithErr{
+impl std::convert::From<sled::Error> for MonolithErr {
     fn from(err: sled::Error) -> Self {
         MonolithErr::IoError(format!("Cannot start Sled Storage because {}", err.to_string()))
+    }
+}
+
+impl std::convert::From<FromUtf8Error> for MonolithErr {
+    fn from(_: FromUtf8Error) -> Self {
+        MonolithErr::ParseErr
     }
 }
