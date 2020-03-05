@@ -1,6 +1,7 @@
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::path::Iter;
+use failure::_core::cmp::Ordering;
 
 #[derive(Hash, Clone)]
 pub struct Label {
@@ -8,6 +9,9 @@ pub struct Label {
     value: String,
 }
 
+///
+/// Label will be sort with alphabet order but note that two label will only be equal if and only if
+/// they have the same key and same value
 impl Label {
     pub fn from(key: &str, value: &str) -> Label {
         Label { key: key.to_string(), value: value.to_string() }
@@ -27,6 +31,26 @@ impl Label {
 
     pub fn value(&self) -> &String {
         &self.value
+    }
+}
+
+impl Ord for Label {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.key.cmp(&other.key)
+    }
+}
+
+impl PartialOrd for Label {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.key.partial_cmp(&other.key)
+    }
+}
+
+impl Eq for Label{}
+
+impl PartialEq for Label{
+    fn eq(&self, other: &Self) -> bool {
+        self.key.eq(&other.key) && self.value.eq(&other.value)
     }
 }
 
@@ -63,6 +87,10 @@ impl Labels {
     pub fn vec(&self) -> &Vec<Label> {
         &self.0
     }
+
+    pub fn sort(&mut self) {
+        self.0.sort();
+    }
 }
 
 #[cfg(test)]
@@ -74,5 +102,17 @@ mod test {
         let mut labels = Labels::new();
         labels.add(Label::from("test", "test"));
         print!("{}", labels.get_hash())
+    }
+
+    #[test]
+    fn sort_label() {
+        let mut labels = Labels::new();
+        labels.add(Label::from("test4", "test"));
+        labels.add(Label::from("test1", "test3"));
+        labels.add(Label::from("test2", "test4"));
+
+        labels.sort();
+
+        assert_eq!(labels.0.get(0).unwrap().key, "test1")
     }
 }
