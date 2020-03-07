@@ -14,12 +14,12 @@ pub trait Storage {
     fn read_time_series(&self, time_series_id: TimeSeriesId, start_time: Timestamp, end_time: Timestamp) -> Result<Vec<TimePoint>>;
 }
 
-trait Encoder {
+pub trait Encoder {
     fn encode_time_point(time_stamp: Timestamp, value: Value) -> Result<String>;
 
     fn encode_time_series(time_series_meta: Labels) -> Result<String>;
 }
 
-trait Decoder {
+pub trait Decoder {
     fn decode_time_point(raw: String) -> Result<TimePoint>;
 }
