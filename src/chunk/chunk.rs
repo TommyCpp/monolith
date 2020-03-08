@@ -64,7 +64,8 @@ impl Chunk {
                 self.label_series.get_mut(&name).unwrap().insert(value, vec![id]);
             } else {
                 // if the name and value are all exist, then we add id into it.
-                //todo: insert in order to reduce the time complexity of intersection.
+                //
+                // todo: insert in order to reduce the time complexity of intersection.
                 let mut vec: &mut Vec<TimeSeriesId> = self.label_series.get_mut(&name).unwrap().get_mut(&value).unwrap();
                 vec.push(id);
             }
@@ -139,6 +140,10 @@ impl Chunk {
 
 fn get_chunk_size(sec: u64) -> Timestamp {
     Duration::from_secs(sec * 60 * 60).as_nanos() as Timestamp
+}
+
+pub struct ChunkBuilder{
+
 }
 
 #[cfg(test)]

@@ -1,8 +1,8 @@
 use sled::{Db, Tree};
-use crate::Result;
+use crate::{Result, MonolithErr};
 use crate::common::IdGenerator;
 use std::path::Path;
-use crate::storage::{Storage, Encoder};
+use crate::storage::{Storage, Encoder, Decoder};
 use crate::common::label::Labels;
 use crate::common::time_point::TimePoint;
 use std::ops::{Add, Deref};
@@ -18,14 +18,12 @@ const LABEL_REVERSE_PREFIX: &str = "LR";
 /// do not in charge with id assign, index, label search. Those job should be given to chunk
 pub struct SledStorage {
     storage: Db,
-    serializer: SledEncoder,
 }
 
 impl SledStorage {
     pub fn new(p: &Path) -> Result<SledStorage> {
         Ok(SledStorage {
             storage: sled::Db::start_default(p)?,
-            serializer: SledEncoder {},
         })
     }
 
@@ -47,10 +45,7 @@ impl SledStorage {
                 let timepoint_strs: Vec<&str> = val_str.split("/").collect();
                 let mut res: Vec<TimePoint> = Vec::new();
                 for timepoint_str in timepoint_strs {
-                    let timepoint: Vec<&str> = timepoint_str.split(",").collect();
-                    let timestamp = timepoint.get(0).unwrap().deref().parse::<u64>()?;
-                    let value = timepoint.get(1).unwrap().deref().parse::<f64>()?;
-                    res.push(TimePoint::new(timestamp, value));
+                    res.push(SledCoder::decode_time_point(String::from(timepoint_str))?);
                 }
 
                 return Ok(Some(res));
@@ -63,7 +58,7 @@ impl Storage for SledStorage {
     fn write_time_point(&self, time_series_id: u64, timestamp: u64, value: f64) -> Result<()> {
         let tree: &Tree = &self.storage;
         let key_name = SledStorage::parse_key_name::<u64>(TIME_SERIES_PREFIX, time_series_id);
-        let value = SledEncoder::encode_time_point(timestamp, value)?.into_bytes();
+        let value = SledCoder::encode_time_point(timestamp, value)?.into_bytes();
         if let Some(current_val) = tree.get(key_name.clone())? {
             let current_val_u8 = String::from_utf8(current_val.to_vec())?;
             tree.set(
@@ -95,9 +90,10 @@ impl Storage for SledStorage {
     }
 }
 
-struct SledEncoder {}
+struct SledCoder {}
 
-impl Encoder for SledEncoder {
+
+impl Encoder for SledCoder {
     fn encode_time_point(time_stamp: u64, value: f64) -> Result<String> {
         Ok(format!("{},{}", time_stamp, value))
     }
@@ -113,10 +109,23 @@ impl Encoder for SledEncoder {
     }
 }
 
+impl Decoder for SledCoder {
+    fn decode_time_point(raw: String) -> Result<TimePoint> {
+        let timepoint: Vec<&str> = raw.split(",").collect();
+        let timestamp = timepoint.get(0).unwrap().deref().parse::<u64>()?;
+        let value = timepoint.get(1).unwrap().deref().parse::<f64>()?;
+        Ok(TimePoint::new(timestamp, value))
+    }
+
+    fn decode_time_series_labels(raw: String) -> Result<Labels> {
+        unimplemented!()
+    }
+}
+
 
 mod test {
     use crate::common::label::{Labels, Label};
-    use crate::storage::sled_storage::SledEncoder;
+    use crate::storage::sled_storage::SledCoder;
     use crate::storage::Encoder;
 
     #[test]
@@ -127,7 +136,7 @@ mod test {
         labels.add(Label::from("test4", "test2"));
         labels.add(Label::from("test2", "test2"));
 
-        let result = SledEncoder::encode_time_series_labels(labels).unwrap();
+        let result = SledCoder::encode_time_series_labels(labels).unwrap();
 
         assert_eq!("test1=test2,test2=test2,test4=test2,test5=test2", result)
     }

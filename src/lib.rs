@@ -2,6 +2,7 @@ mod common;
 mod chunk;
 mod server;
 mod error;
+mod indexer;
 
 pub mod storage;
 

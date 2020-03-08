@@ -22,4 +22,6 @@ pub trait Encoder {
 
 pub trait Decoder {
     fn decode_time_point(raw: String) -> Result<TimePoint>;
+
+    fn decode_time_series_labels(raw: String) -> Result<Labels>;
 }
