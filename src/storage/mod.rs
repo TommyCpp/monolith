@@ -17,7 +17,7 @@ pub trait Storage {
 pub trait Encoder {
     fn encode_time_point(time_stamp: Timestamp, value: Value) -> Result<String>;
 
-    fn encode_time_series(time_series_meta: Labels) -> Result<String>;
+    fn encode_time_series_labels(time_series_meta: Labels) -> Result<String>;
 }
 
 pub trait Decoder {

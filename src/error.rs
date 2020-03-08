@@ -1,6 +1,6 @@
 use std::error::Error;
 use failure::_core::convert::Infallible;
-use failure::_core::num::ParseIntError;
+use failure::_core::num::{ParseIntError, ParseFloatError};
 use std::string::FromUtf8Error;
 
 #[derive(Debug)]
@@ -8,6 +8,8 @@ pub enum MonolithErr {
     IoError(String),
     OptionErr,
     ParseErr,
+    NotFoundErr,
+    OutOfRangeErr(u64, u64),
 }
 
 pub type Result<T> = std::result::Result<T, MonolithErr>;
@@ -39,6 +41,12 @@ impl std::convert::From<sled::Error> for MonolithErr {
 
 impl std::convert::From<FromUtf8Error> for MonolithErr {
     fn from(_: FromUtf8Error) -> Self {
+        MonolithErr::ParseErr
+    }
+}
+
+impl std::convert::From<std::num::ParseFloatError> for MonolithErr {
+    fn from(_: ParseFloatError) -> Self {
         MonolithErr::ParseErr
     }
 }
