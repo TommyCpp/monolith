@@ -22,7 +22,7 @@ struct ChunkOps {
 
 ///
 /// Chunk store a set of time series fallen into certain time range;
-/// Similar to the Block in Prometheus.
+///
 pub struct Chunk {
     //store the map between the key-value label pair and time series id
     time_series: HashMap<TimeSeriesId, TimeSeries>,

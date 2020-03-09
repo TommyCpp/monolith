@@ -4,6 +4,8 @@ use crate::Result;
 
 mod sled_indexer;
 
+///
+/// Indexer is in charge of query appropriate time series based on the labels.
 pub trait Indexer {
     fn get_series_id_by_labels(&self, labels: Labels) -> Result<Vec<TimeSeriesId>>;
 

@@ -7,7 +7,9 @@ mod sled_storage;
 
 pub use sled_storage::SledStorage;
 
-
+///
+/// Storage is in charge of storing time series data
+/// Note that the label should be store in Indexer instead of Storage
 pub trait Storage {
     fn write_time_point(&self, time_series_id: TimeSeriesId, timestamp: Timestamp, value: Value) -> Result<()>;
 
@@ -17,11 +19,9 @@ pub trait Storage {
 pub trait Encoder {
     fn encode_time_point(time_stamp: Timestamp, value: Value) -> Result<String>;
 
-    fn encode_time_series_labels(time_series_meta: Labels) -> Result<String>;
 }
 
 pub trait Decoder {
     fn decode_time_point(raw: String) -> Result<TimePoint>;
 
-    fn decode_time_series_labels(raw: String) -> Result<Labels>;
 }

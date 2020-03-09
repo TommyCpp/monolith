@@ -11,7 +11,6 @@ use crate::MonolithErr::{NotFoundErr, OutOfRangeErr};
 
 const TIME_SERIES_PREFIX: &str = "TS";
 const TIME_POINT_PREFIX: &str = "TP";
-const LABEL_REVERSE_PREFIX: &str = "LR";
 
 ///
 /// On-disk storage, only store data
@@ -45,7 +44,7 @@ impl SledStorage {
                 let timepoint_strs: Vec<&str> = val_str.split("/").collect();
                 let mut res: Vec<TimePoint> = Vec::new();
                 for timepoint_str in timepoint_strs {
-                    res.push(SledCoder::decode_time_point(String::from(timepoint_str))?);
+                    res.push(SledProcessor::decode_time_point(String::from(timepoint_str))?);
                 }
 
                 return Ok(Some(res));
@@ -58,7 +57,7 @@ impl Storage for SledStorage {
     fn write_time_point(&self, time_series_id: u64, timestamp: u64, value: f64) -> Result<()> {
         let tree: &Tree = &self.storage;
         let key_name = SledStorage::parse_key_name::<u64>(TIME_SERIES_PREFIX, time_series_id);
-        let value = SledCoder::encode_time_point(timestamp, value)?.into_bytes();
+        let value = SledProcessor::encode_time_point(timestamp, value)?.into_bytes();
         if let Some(current_val) = tree.get(key_name.clone())? {
             let current_val_u8 = String::from_utf8(current_val.to_vec())?;
             tree.set(
@@ -90,26 +89,16 @@ impl Storage for SledStorage {
     }
 }
 
-struct SledCoder {}
+struct SledProcessor {}
 
 
-impl Encoder for SledCoder {
+impl Encoder for SledProcessor {
     fn encode_time_point(time_stamp: u64, value: f64) -> Result<String> {
         Ok(format!("{},{}", time_stamp, value))
     }
-
-    fn encode_time_series_labels(mut time_series_meta: Labels) -> Result<String> {
-        time_series_meta.sort();
-        let mut res = String::new();
-        for label in time_series_meta.vec() {
-            res = res.add(format!("{}={},", label.key(), label.value()).as_str());
-        }
-        res.pop(); //remove last ,
-        Ok(res)
-    }
 }
 
-impl Decoder for SledCoder {
+impl Decoder for SledProcessor {
     fn decode_time_point(raw: String) -> Result<TimePoint> {
         let timepoint: Vec<&str> = raw.split(",").collect();
         let timestamp = timepoint.get(0).unwrap().deref().parse::<u64>()?;
@@ -117,27 +106,6 @@ impl Decoder for SledCoder {
         Ok(TimePoint::new(timestamp, value))
     }
 
-    fn decode_time_series_labels(raw: String) -> Result<Labels> {
-        unimplemented!()
-    }
 }
 
 
-mod test {
-    use crate::common::label::{Labels, Label};
-    use crate::storage::sled_storage::SledCoder;
-    use crate::storage::Encoder;
-
-    #[test]
-    fn test_encoder_encode_time_series() {
-        let mut labels = Labels::new();
-        labels.add(Label::from("test1", "test2"));
-        labels.add(Label::from("test5", "test2"));
-        labels.add(Label::from("test4", "test2"));
-        labels.add(Label::from("test2", "test2"));
-
-        let result = SledCoder::encode_time_series_labels(labels).unwrap();
-
-        assert_eq!("test1=test2,test2=test2,test4=test2,test5=test2", result)
-    }
-}
