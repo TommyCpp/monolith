@@ -38,12 +38,28 @@ impl SledIndexer {
         res.pop(); //remove last ,
         res
     }
+
+    pub fn get(&self, label: &Label) -> Result<Option<Vec<TimeSeriesId>>> {
+        let key = SledIndexer::encode_label(label);
+        match self.storage.get(&key)? {
+            Some(val) => {
+                let val_str = String::from_utf8(AsRef::<[u8]>::as_ref(&val).to_vec())?;
+                let id_str: Vec<&str> = val_str.split(",").collect();
+                let mut res = Vec::new();
+                for id in id_str {
+                    res.push(id.parse::<u64>()?);
+                }
+                Ok(Some(res))
+            }
+            None => Ok(None)
+        }
+    }
 }
 
 impl Indexer for SledIndexer {
     fn get_series_id_by_labels(&self, labels: Labels) -> Result<Vec<TimeSeriesId>> {
         unimplemented!()
-        //todo: implement k-ways search
+        //todo: test intersect function and divide-and-conquer this function
     }
 
     ///

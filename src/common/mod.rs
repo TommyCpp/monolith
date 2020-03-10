@@ -1,11 +1,19 @@
 use crate::common::time_series::TimeSeriesId;
 use std::sync::atomic::Ordering;
 use std::sync::atomic::AtomicU64;
+use std::ops::Index;
+use crate::common::ops::OrderIntersect;
 
 pub(crate) mod label;
 pub(crate) mod time_point;
 pub(crate) mod time_series;
 pub mod option;
+
+mod ops {
+    pub trait OrderIntersect {
+        fn order_intersect(&self, other: Self) -> Self;
+    }
+}
 
 pub struct IdGenerator(AtomicU64);
 
@@ -17,6 +25,27 @@ impl IdGenerator {
         self.0.fetch_add(1, Ordering::SeqCst)
     }
 }
+
+impl OrderIntersect for Vec<TimeSeriesId> {
+    fn order_intersect(&self, other: Self) -> Self {
+        let mut res: Vec<TimeSeriesId> = Vec::new();
+        let mut i = 0;
+        let mut j = 0;
+        while i < self.len() && j < other.len() {
+            if self.index(i) == other.index(j) {
+                res.push(*self.index(i));
+                i += 1;
+                j += 1;
+            } else if self.index(i) > other.index(j) {
+                j += 1;
+            } else {
+                i += 1;
+            }
+        }
+        res
+    }
+}
+
 
 #[cfg(test)]
 mod test {

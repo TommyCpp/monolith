@@ -2,6 +2,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::path::Iter;
 use failure::_core::cmp::Ordering;
+use crate::Result;
 
 #[derive(Hash, Clone)]
 pub struct Label {
