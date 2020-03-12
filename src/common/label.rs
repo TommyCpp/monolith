@@ -3,6 +3,7 @@ use std::hash::{Hash, Hasher};
 use std::path::Iter;
 use failure::_core::cmp::Ordering;
 use crate::Result;
+use crate::common::time_series::TimeSeriesId;
 
 #[derive(Hash, Clone)]
 pub struct Label {
@@ -47,9 +48,9 @@ impl PartialOrd for Label {
     }
 }
 
-impl Eq for Label{}
+impl Eq for Label {}
 
-impl PartialEq for Label{
+impl PartialEq for Label {
     fn eq(&self, other: &Self) -> bool {
         self.key.eq(&other.key) && self.value.eq(&other.value)
     }
@@ -91,6 +92,10 @@ impl Labels {
 
     pub fn sort(&mut self) {
         self.0.sort();
+    }
+
+    pub fn pop(&mut self) -> Option<Label>{
+        self.0.pop()
     }
 }
 

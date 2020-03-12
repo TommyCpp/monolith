@@ -10,6 +10,7 @@ pub enum MonolithErr {
     ParseErr,
     NotFoundErr,
     OutOfRangeErr(u64, u64),
+    InternalErr(String) // Logical error, usually indicate a bug inside system
 }
 
 pub type Result<T> = std::result::Result<T, MonolithErr>;

@@ -9,9 +9,9 @@ pub(crate) mod time_point;
 pub(crate) mod time_series;
 pub mod option;
 
-mod ops {
+pub mod ops {
     pub trait OrderIntersect {
-        fn order_intersect(&self, other: Self) -> Self;
+        fn order_intersect(&self, other: &Self) -> Self;
     }
 }
 
@@ -27,7 +27,7 @@ impl IdGenerator {
 }
 
 impl OrderIntersect for Vec<TimeSeriesId> {
-    fn order_intersect(&self, other: Self) -> Self {
+    fn order_intersect(&self, other: &Self) -> Self {
         let mut res: Vec<TimeSeriesId> = Vec::new();
         let mut i = 0;
         let mut j = 0;
@@ -50,11 +50,24 @@ impl OrderIntersect for Vec<TimeSeriesId> {
 #[cfg(test)]
 mod test {
     use crate::common::IdGenerator;
+    use crate::common::time_series::{TimeSeries, TimeSeriesId};
+    use crate::common::ops::OrderIntersect;
+    use std::ops::Index;
 
     #[test]
     fn generate_id() {
         let id_generator = IdGenerator::new(2);
         assert_eq!(id_generator.next(), 2);
         assert_eq!(id_generator.next(), 3)
+    }
+
+    #[test]
+    fn order_intersect() {
+        let vec1: Vec<TimeSeriesId> = vec!(1, 2, 3, 4, 5);
+        let vec2: Vec<TimeSeriesId> = vec!(1, 2, 3, 4, 5, 6, 7);
+        let res = vec1.order_intersect(&vec2);
+        for i in 1..5 {
+            assert_eq!(i as u64, *res.index(i - 1))
+        }
     }
 }
