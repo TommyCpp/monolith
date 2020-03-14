@@ -1,5 +1,5 @@
 # monolith
-timeseries database. It's still a WIP project(Including this README).
+timeseries database. It's still a **WIP** project(Including this README).
 
 ## Components
 1. Chunk
