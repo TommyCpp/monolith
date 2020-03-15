@@ -1,6 +1,8 @@
 use clap::{App, Arg};
 use monolith::option::get_config;
 use monolith::{MonolithServer, CHUNK_SIZE, DEFAULT_CHUNK_SIZE, FILE_DIR_ARG, STORAGE_ARG};
+use monolith::storage::SledStorage;
+use monolith::indexer::SledIndexer;
 
 fn main() {
     let matches = App::new("monolith")
@@ -22,5 +24,5 @@ fn main() {
 
     let options = get_config(matches).expect("Cannot read config");
 
-    let _server: MonolithServer = MonolithServer::new(options).unwrap();
+    let _server: MonolithServer<SledStorage, SledIndexer> = MonolithServer::new(options).unwrap();
 }

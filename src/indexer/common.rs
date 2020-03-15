@@ -9,9 +9,13 @@ use std::thread;
 ///
 /// Indexer is in charge of query appropriate time series based on the labels.
 pub trait Indexer {
+    fn get_series_by_labels(&self, labels: Labels) -> Result<Vec<(TimeSeriesId, Labels)>>;
+
     fn get_series_id_by_labels(&self, labels: Labels) -> Result<Vec<TimeSeriesId>>;
 
-    fn update_index(&self, labels: Labels, time_series_id: TimeSeriesId) -> Result<()>;
+    fn get_series_id_by_exact_labels(&self, labels: Labels) -> Result<Option<TimeSeriesId>>;
+
+    fn create_index(&self, labels: Labels, time_series_id: TimeSeriesId) -> Result<()>;
 }
 
 pub fn intersect_time_series_id_vec(mut ts: Vec<Vec<TimeSeriesId>>) -> Result<Vec<TimeSeriesId>> {

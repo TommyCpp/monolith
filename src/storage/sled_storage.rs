@@ -54,6 +54,8 @@ impl SledStorage {
 }
 
 impl Storage for SledStorage {
+
+    //todo: check if timestamp is earlier than last timestamp in series. If so, how to deal with?
     fn write_time_point(&self, time_series_id: u64, timestamp: u64, value: f64) -> Result<()> {
         let tree: &Tree = &self.storage;
         let key_name = SledStorage::parse_key_name::<u64>(TIME_SERIES_PREFIX, time_series_id);
@@ -96,6 +98,8 @@ impl Storage for SledStorage {
     }
 }
 
+
+//TODO: create a independent package for processor, create a KvProcessor for all key-value database
 struct SledProcessor {}
 
 impl Encoder for SledProcessor {

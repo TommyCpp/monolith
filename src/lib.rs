@@ -1,9 +1,9 @@
 mod chunk;
 mod common;
 mod error;
-mod indexer;
 mod server;
 
+pub mod indexer;
 pub mod storage;
 
 pub use chunk::*;

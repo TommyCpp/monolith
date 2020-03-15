@@ -1,19 +1,20 @@
 use crate::chunk::Chunk;
 use crate::option::ServerOps;
-use crate::Result;
+use crate::{Result, Indexer};
 
 use std::sync::RwLock;
+use crate::storage::Storage;
 
-pub struct MonolithServer {
-    current_chuck: Chunk,
-    secondary_chunks: RwLock<Vec<Chunk>>,
+pub struct MonolithServer<S: Storage, I: Indexer> {
+    current_chuck: Option<Chunk<S, I>>,
+    secondary_chunks: RwLock<Vec<Chunk<S, I>>>,
     options: ServerOps,
 }
 
-impl MonolithServer {
-    pub fn new(ops: ServerOps) -> Result<MonolithServer> {
+impl<S: Storage, I: Indexer> MonolithServer<S, I> {
+    pub fn new(ops: ServerOps) -> Result<MonolithServer<S, I>> {
         Ok(MonolithServer {
-            current_chuck: Chunk::new(),
+            current_chuck: None,
             secondary_chunks: RwLock::new(Vec::new()),
             options: ops,
         })
