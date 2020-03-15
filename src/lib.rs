@@ -1,15 +1,16 @@
-mod common;
 mod chunk;
-mod server;
+mod common;
 mod error;
 mod indexer;
+mod server;
 
 pub mod storage;
 
+pub use indexer::common::*;
 pub use chunk::*;
+pub use common::*;
 pub use error::*;
 pub use server::MonolithServer;
-pub use common::option::*;
 use std::time::Duration;
 
 pub const STORAGE_ARG: &str = "storage";

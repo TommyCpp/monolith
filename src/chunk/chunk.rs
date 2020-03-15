@@ -2,15 +2,13 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::panic::resume_unwind;
 use std::time::{Duration, UNIX_EPOCH};
 
-
-use std::iter::{Map, FromIterator};
-use std::borrow::BorrowMut;
-use crate::common::time_series::{TimeSeriesId, TimeSeries};
-use crate::common::label::{Labels, Label};
+use crate::common::label::{Label, Labels};
 use crate::common::time_point::{Timestamp, Value};
-use std::path::{Path, PathBuf};
+use crate::common::time_series::{TimeSeries, TimeSeriesId};
 use crate::common::IdGenerator;
-
+use std::borrow::BorrowMut;
+use std::iter::{FromIterator, Map};
+use std::path::{Path, PathBuf};
 
 pub const DEFAULT_CHUNK_SIZE: Timestamp = Duration::from_secs(2 * 60 * 60).as_nanos() as Timestamp;
 
@@ -61,12 +59,20 @@ impl Chunk {
             }
             if !self.label_series.get(&name).unwrap().contains_key(&value) {
                 // if the value dost not yet exist.
-                self.label_series.get_mut(&name).unwrap().insert(value, vec![id]);
+                self.label_series
+                    .get_mut(&name)
+                    .unwrap()
+                    .insert(value, vec![id]);
             } else {
                 // if the name and value are all exist, then we add id into it.
                 //
                 // todo: insert in order to reduce the time complexity of intersection.
-                let mut vec: &mut Vec<TimeSeriesId> = self.label_series.get_mut(&name).unwrap().get_mut(&value).unwrap();
+                let mut vec: &mut Vec<TimeSeriesId> = self
+                    .label_series
+                    .get_mut(&name)
+                    .unwrap()
+                    .get_mut(&value)
+                    .unwrap();
                 vec.push(id);
             }
         }
@@ -82,7 +88,10 @@ impl Chunk {
         }
         match self.get_series_to_insert(meta_data.vec()) {
             Some(time_series_id) => {
-                self.time_series.get_mut(&time_series_id).unwrap().add(timestamp, value);
+                self.time_series
+                    .get_mut(&time_series_id)
+                    .unwrap()
+                    .add(timestamp, value);
             }
             None => {
                 self.create_series(meta_data, self.id_generator.next());
@@ -94,10 +103,8 @@ impl Chunk {
         let key = label.key();
         let value = label.value();
         match self.label_series.get(key) {
-            Some(map) => {
-                map.get(value)
-            }
-            None => { None }
+            Some(map) => map.get(value),
+            None => None,
         }
     }
 
@@ -106,8 +113,8 @@ impl Chunk {
     }
 
     /**
-    *  get the target series to insert new time point, if no such time series exists, then return None
-    */
+     *  get the target series to insert new time point, if no such time series exists, then return None
+     */
     fn get_series_to_insert(&self, labels: &Vec<Label>) -> Option<TimeSeriesId> {
         let labels_len = labels.len();
         let mut candidates: Vec<HashSet<TimeSeriesId>> = Vec::new();
@@ -142,17 +149,15 @@ fn get_chunk_size(sec: u64) -> Timestamp {
     Duration::from_secs(sec * 60 * 60).as_nanos() as Timestamp
 }
 
-pub struct ChunkBuilder{
-
-}
+pub struct ChunkBuilder {}
 
 #[cfg(test)]
 mod test {
-    use crate::Chunk;
-    use crate::common::time_point::Timestamp;
-    use crate::common::label::{Labels, Label};
     use crate::chunk::chunk::DEFAULT_CHUNK_SIZE;
+    use crate::common::label::{Label, Labels};
+    use crate::common::time_point::Timestamp;
     use crate::common::IdGenerator;
+    use crate::Chunk;
 
     #[test]
     fn test_timestamp_in_range() {
@@ -201,18 +206,14 @@ mod test {
         let label2 = Label::new(String::from("test2"), String::from("value2"));
         let label3 = Label::new(String::from("test3"), String::from("value2"));
 
-
         let mut target = vec![label1, label2, label3];
         match db.get_series_to_insert(&target) {
-            Some(res) => {
-                assert_eq!(res, 12)
-            }
+            Some(res) => assert_eq!(res, 12),
             None => {
                 assert_eq!(true, false) //fail the test
             }
         }
     }
-
 
     #[test]
     fn test_new_database() {

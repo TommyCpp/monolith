@@ -1,4 +1,4 @@
-use monolith::storage::{SledStorage, Storage, Encoder};
+use monolith::storage::{Encoder, SledStorage, Storage};
 use monolith::Result;
 use tempfile::TempDir;
 
@@ -12,10 +12,11 @@ fn test_set_time_point() -> Result<()> {
 
     let db = sled_storage.get_storage();
     match db.get("TS-1")? {
-        Some(val) => {
-            assert_eq!(format!("{}", String::from_utf8(val.to_vec())?), "129,11/123,160.2")
-        }
-        None => assert_eq!(1, 0) //fail
+        Some(val) => assert_eq!(
+            format!("{}", String::from_utf8(val.to_vec())?),
+            "129,11/123,160.2"
+        ),
+        None => assert_eq!(1, 0), //fail
     }
 
     Ok(())

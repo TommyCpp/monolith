@@ -1,13 +1,13 @@
-use crate::common::time_series::TimeSeriesId;
-use std::sync::atomic::Ordering;
-use std::sync::atomic::AtomicU64;
-use std::ops::Index;
 use crate::common::ops::OrderIntersect;
+use crate::common::time_series::TimeSeriesId;
+use std::ops::Index;
+use std::sync::atomic::AtomicU64;
+use std::sync::atomic::Ordering;
 
-pub(crate) mod label;
-pub(crate) mod time_point;
-pub(crate) mod time_series;
+pub mod label;
 pub mod option;
+pub mod time_point;
+pub mod time_series;
 
 pub mod ops {
     pub trait OrderIntersect {
@@ -46,12 +46,11 @@ impl OrderIntersect for Vec<TimeSeriesId> {
     }
 }
 
-
 #[cfg(test)]
 mod test {
-    use crate::common::IdGenerator;
-    use crate::common::time_series::{TimeSeries, TimeSeriesId};
     use crate::common::ops::OrderIntersect;
+    use crate::common::time_series::{TimeSeries, TimeSeriesId};
+    use crate::common::IdGenerator;
     use std::ops::Index;
 
     #[test]
@@ -63,8 +62,8 @@ mod test {
 
     #[test]
     fn order_intersect() {
-        let vec1: Vec<TimeSeriesId> = vec!(1, 2, 3, 4, 5);
-        let vec2: Vec<TimeSeriesId> = vec!(1, 2, 3, 4, 5, 6, 7);
+        let vec1: Vec<TimeSeriesId> = vec![1, 2, 3, 4, 5];
+        let vec2: Vec<TimeSeriesId> = vec![1, 2, 3, 4, 5, 6, 7];
         let res = vec1.order_intersect(&vec2);
         for i in 1..5 {
             assert_eq!(i as u64, *res.index(i - 1))

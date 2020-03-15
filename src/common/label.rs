@@ -1,9 +1,9 @@
+use crate::common::time_series::TimeSeriesId;
+use crate::Result;
+use failure::_core::cmp::Ordering;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::path::Iter;
-use failure::_core::cmp::Ordering;
-use crate::Result;
-use crate::common::time_series::TimeSeriesId;
 
 #[derive(Hash, Clone)]
 pub struct Label {
@@ -16,7 +16,10 @@ pub struct Label {
 /// they have the same key and same value
 impl Label {
     pub fn from(key: &str, value: &str) -> Label {
-        Label { key: key.to_string(), value: value.to_string() }
+        Label {
+            key: key.to_string(),
+            value: value.to_string(),
+        }
     }
 
     pub fn new(key: String, value: String) -> Label {
@@ -94,14 +97,14 @@ impl Labels {
         self.0.sort();
     }
 
-    pub fn pop(&mut self) -> Option<Label>{
+    pub fn pop(&mut self) -> Option<Label> {
         self.0.pop()
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::common::label::{Labels, Label};
+    use crate::common::label::{Label, Labels};
 
     #[test]
     fn get_hash() {

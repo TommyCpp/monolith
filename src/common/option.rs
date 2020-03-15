@@ -1,7 +1,6 @@
-use crate::{Result, MonolithErr, STORAGE_ARG, FILE_DIR_ARG, CHUNK_SIZE};
-use crate::StorageType::SledBackendStorage;
-use std::path::PathBuf;
+use crate::{MonolithErr, Result, CHUNK_SIZE, FILE_DIR_ARG, STORAGE_ARG};
 use clap::ArgMatches;
+use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::Duration;
 
@@ -12,14 +11,14 @@ pub struct ServerOps {
 }
 
 pub enum StorageType {
-    SledBackendStorage
+    SledBackendStorage,
 }
 
 impl StorageType {
     pub fn from(name: &str) -> Result<StorageType> {
         match name {
-            "sled" => Ok(SledBackendStorage),
-            _ => Err(MonolithErr::OptionErr)
+            "sled" => Ok(StorageType::SledBackendStorage),
+            _ => Err(MonolithErr::OptionErr),
         }
     }
 }
@@ -28,12 +27,9 @@ pub fn get_config(matches: ArgMatches) -> Result<ServerOps> {
     let chunk_size_str = matches.value_of(CHUNK_SIZE).unwrap();
     let chunk_size_in_sec: u64 = String::from(chunk_size_str).parse()?;
 
-
-    Ok(
-        ServerOps {
-            storage: StorageType::from(matches.value_of(STORAGE_ARG).unwrap())?,
-            base_dir: PathBuf::from_str(matches.value_of(FILE_DIR_ARG).unwrap())?,
-            chunk_size: Duration::from_secs(chunk_size_in_sec)
-        }
-    )
+    Ok(ServerOps {
+        storage: StorageType::from(matches.value_of(STORAGE_ARG).unwrap())?,
+        base_dir: PathBuf::from_str(matches.value_of(FILE_DIR_ARG).unwrap())?,
+        chunk_size: Duration::from_secs(chunk_size_in_sec),
+    })
 }

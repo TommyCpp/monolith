@@ -12,9 +12,8 @@ log = "0.4.8"
 clap = "2.33.0"
 sled = "0.22.1"
 tempfile = "3.0.7"
-
-[dev-dependencies]
 criterion="0.3.0"
+
 
 
 [[bench]]

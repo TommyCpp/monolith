@@ -7,7 +7,6 @@ use crate::common::time_point::{TimePoint, Timestamp, Value};
 
 pub type TimeSeriesId = u64;
 
-
 pub struct TimeSeries {
     id: TimeSeriesId,
     time_points: Vec<TimePoint>,
@@ -33,9 +32,9 @@ impl TimeSeries {
 }
 
 #[cfg(test)]
-mod test{
-    use crate::common::time_series::TimeSeries;
+mod test {
     use crate::common::label::Labels;
+    use crate::common::time_series::TimeSeries;
 
     #[test]
     fn crate_time_series() {

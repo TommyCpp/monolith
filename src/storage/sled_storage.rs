@@ -1,13 +1,12 @@
-use sled::{Db, Tree};
-use crate::{Result, MonolithErr};
-use crate::common::IdGenerator;
-use std::path::Path;
-use crate::storage::{Storage, Encoder, Decoder};
 use crate::common::label::Labels;
 use crate::common::time_point::TimePoint;
-use std::ops::{Add, Deref};
-use crate::StorageType::SledBackendStorage;
+use crate::common::IdGenerator;
+use crate::storage::{Decoder, Encoder, Storage};
 use crate::MonolithErr::{NotFoundErr, OutOfRangeErr};
+use crate::{MonolithErr, Result};
+use sled::{Db, Tree};
+use std::ops::{Add, Deref};
+use std::path::Path;
 
 const TIME_SERIES_PREFIX: &str = "TS";
 const TIME_POINT_PREFIX: &str = "TP";
@@ -44,7 +43,9 @@ impl SledStorage {
                 let timepoint_strs: Vec<&str> = val_str.split("/").collect();
                 let mut res: Vec<TimePoint> = Vec::new();
                 for timepoint_str in timepoint_strs {
-                    res.push(SledProcessor::decode_time_point(String::from(timepoint_str))?);
+                    res.push(SledProcessor::decode_time_point(String::from(
+                        timepoint_str,
+                    ))?);
                 }
 
                 return Ok(Some(res));
@@ -70,19 +71,26 @@ impl Storage for SledStorage {
         Ok(())
     }
 
-    fn read_time_series(&self, time_series_id: u64, start_time: u64, end_time: u64) -> Result<Vec<TimePoint>> {
+    fn read_time_series(
+        &self,
+        time_series_id: u64,
+        start_time: u64,
+        end_time: u64,
+    ) -> Result<Vec<TimePoint>> {
         let series = self.get_series_by_id(time_series_id)?.ok_or(NotFoundErr)?;
-        if series.first().unwrap().timestamp < end_time || series.last().unwrap().timestamp > start_time {
+        if series.first().unwrap().timestamp < end_time
+            || series.last().unwrap().timestamp > start_time
+        {
             return Err(OutOfRangeErr(start_time, end_time));
         }
         //series should already sorted
         let left = match series.binary_search(&TimePoint::new(start_time, 0.0)) {
             Ok(idx) => idx,
-            Err(idx) => idx + 1
+            Err(idx) => idx + 1,
         };
         let right = match series.binary_search(&TimePoint::new(end_time, 0.0)) {
             Ok(idx) => idx,
-            Err(idx) => idx - 1
+            Err(idx) => idx - 1,
         };
         let res = &series[left..=right];
         Ok(Vec::from(res))
@@ -90,7 +98,6 @@ impl Storage for SledStorage {
 }
 
 struct SledProcessor {}
-
 
 impl Encoder for SledProcessor {
     fn encode_time_point(time_stamp: u64, value: f64) -> Result<String> {
@@ -105,7 +112,4 @@ impl Decoder for SledProcessor {
         let value = timepoint.get(1).unwrap().deref().parse::<f64>()?;
         Ok(TimePoint::new(timestamp, value))
     }
-
 }
-
-
