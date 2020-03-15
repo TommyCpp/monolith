@@ -1,6 +1,6 @@
-use std::collections::BTreeMap;
-use std::num::TryFromIntError;
-use std::sync::atomic::{AtomicU64, Ordering};
+
+
+
 
 use crate::common::label::Labels;
 use crate::common::time_point::{TimePoint, Timestamp, Value};
@@ -38,6 +38,6 @@ mod test {
 
     #[test]
     fn crate_time_series() {
-        let time_series = TimeSeries::new(12, Labels::new());
+        let _time_series = TimeSeries::new(12, Labels::new());
     }
 }

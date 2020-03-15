@@ -1,14 +1,14 @@
 use sled::Db;
-use std::sync::atomic::AtomicI32;
-use std::sync::mpsc::*;
-use crate::common::ops::OrderIntersect;
+
+
+
 use crate::common::label::{Labels, Label};
-use crate::MonolithErr;
+
 use crate::Result;
 use crate::common::time_series::TimeSeriesId;
-use std::ops::{Add, Index, Deref};
+use std::ops::{Add};
 use std::path::Path;
-use std::thread;
+
 use crate::indexer::common::{intersect_time_series_id_vec, Indexer};
 
 const LABEL_REVERSE_PREFIX: &str = "LR";
@@ -102,8 +102,8 @@ mod tests {
     use tempfile::TempDir;
     use crate::indexer::sled_indexer::SledIndexer;
     use crate::common::label::{Labels, Label};
-    use crate::common::time_series::TimeSeriesId;
-    use crate::common::ops::OrderIntersect;
+    
+    
     use crate::indexer::common::Indexer;
 
     #[test]

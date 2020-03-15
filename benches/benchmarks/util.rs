@@ -1,7 +1,7 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use std::cmp::min;
+use criterion::{criterion_group, criterion_main, Criterion};
+
 use std::collections::HashSet;
-use std::iter::FromIterator;
+
 use std::ops::Index;
 
 fn intersect_order_vec(vec1: Vec<u64>, vec2: Vec<u64>) -> Vec<u64> {

@@ -1,6 +1,6 @@
 use failure::_core::convert::Infallible;
 use failure::_core::num::{ParseFloatError, ParseIntError};
-use std::error::Error;
+
 use std::string::FromUtf8Error;
 
 #[derive(Debug)]

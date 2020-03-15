@@ -1,9 +1,9 @@
-use clap::{App, Arg, ArgMatches};
-use monolith::option::{get_config, ServerOps, StorageType};
-use monolith::{MonolithServer, Result, CHUNK_SIZE, DEFAULT_CHUNK_SIZE, FILE_DIR_ARG, STORAGE_ARG};
-use std::env::args;
-use std::path::PathBuf;
-use std::str::FromStr;
+use clap::{App, Arg};
+use monolith::option::{get_config};
+use monolith::{MonolithServer, CHUNK_SIZE, DEFAULT_CHUNK_SIZE, FILE_DIR_ARG, STORAGE_ARG};
+
+
+
 
 fn main() {
     let matches = App::new("monolith")
@@ -25,5 +25,5 @@ fn main() {
 
     let options = get_config(matches).expect("Cannot read config");
 
-    let server: MonolithServer = MonolithServer::new(options).unwrap();
+    let _server: MonolithServer = MonolithServer::new(options).unwrap();
 }

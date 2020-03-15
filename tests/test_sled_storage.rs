@@ -1,4 +1,4 @@
-use monolith::storage::{Encoder, SledStorage, Storage};
+use monolith::storage::{SledStorage, Storage};
 use monolith::Result;
 use tempfile::TempDir;
 

@@ -1,14 +1,14 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::panic::resume_unwind;
+
 use std::time::{Duration, UNIX_EPOCH};
 
 use crate::common::label::{Label, Labels};
 use crate::common::time_point::{Timestamp, Value};
 use crate::common::time_series::{TimeSeries, TimeSeriesId};
 use crate::common::IdGenerator;
-use std::borrow::BorrowMut;
-use std::iter::{FromIterator, Map};
-use std::path::{Path, PathBuf};
+
+use std::iter::{FromIterator};
+use std::path::{PathBuf};
 
 pub const DEFAULT_CHUNK_SIZE: Timestamp = Duration::from_secs(2 * 60 * 60).as_nanos() as Timestamp;
 
@@ -67,7 +67,7 @@ impl Chunk {
                 // if the name and value are all exist, then we add id into it.
                 //
                 // todo: insert in order to reduce the time complexity of intersection.
-                let mut vec: &mut Vec<TimeSeriesId> = self
+                let vec: &mut Vec<TimeSeriesId> = self
                     .label_series
                     .get_mut(&name)
                     .unwrap()
@@ -156,7 +156,7 @@ mod test {
     use crate::chunk::chunk::DEFAULT_CHUNK_SIZE;
     use crate::common::label::{Label, Labels};
     use crate::common::time_point::Timestamp;
-    use crate::common::IdGenerator;
+    
     use crate::Chunk;
 
     #[test]
@@ -187,7 +187,7 @@ mod test {
     #[test]
     fn test_get_series_id_by_labels() {
         let mut db = Chunk::new();
-        let mut i = 0;
+        let _i = 0;
         let mut labels_ts_1 = Labels::new();
         labels_ts_1.add(Label::new(String::from("test1"), String::from("value1")));
         labels_ts_1.add(Label::new(String::from("test2"), String::from("value2")));
@@ -206,7 +206,7 @@ mod test {
         let label2 = Label::new(String::from("test2"), String::from("value2"));
         let label3 = Label::new(String::from("test3"), String::from("value2"));
 
-        let mut target = vec![label1, label2, label3];
+        let target = vec![label1, label2, label3];
         match db.get_series_to_insert(&target) {
             Some(res) => assert_eq!(res, 12),
             None => {

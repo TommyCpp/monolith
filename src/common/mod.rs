@@ -49,7 +49,7 @@ impl OrderIntersect for Vec<TimeSeriesId> {
 #[cfg(test)]
 mod test {
     use crate::common::ops::OrderIntersect;
-    use crate::common::time_series::{TimeSeries, TimeSeriesId};
+    use crate::common::time_series::{TimeSeriesId};
     use crate::common::IdGenerator;
     use std::ops::Index;
 

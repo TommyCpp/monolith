@@ -1,5 +1,5 @@
 use failure::_core::cmp::Ordering;
-use std::collections::BTreeMap;
+
 use std::time::Duration;
 
 pub const TIME_UNIT: Duration = Duration::from_nanos(1);

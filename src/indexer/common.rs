@@ -28,7 +28,6 @@ pub fn intersect_time_series_id_vec(mut ts: Vec<Vec<TimeSeriesId>>) -> Result<Ve
         ))?;
         Ok(intersect_time_series_id_vec(ts)?.order_intersect(&last))
     } else {
-        //todo: benchmark it
         let (_s1, _r1) = channel::<Result<Vec<TimeSeriesId>>>();
         let (_s2, _r2) = channel::<Result<Vec<TimeSeriesId>>>();
         let (mut data1, mut data2) = (Vec::new(), Vec::new());
@@ -88,7 +87,7 @@ pub fn intersect_time_series_id_vec(mut ts: Vec<Vec<TimeSeriesId>>) -> Result<Ve
 
 #[cfg(test)]
 mod test {
-    use crate::common::ops::OrderIntersect;
+    
     use crate::common::time_series::TimeSeriesId;
     use crate::indexer::common::intersect_time_series_id_vec;
     use crate::Result;

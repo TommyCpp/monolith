@@ -1,4 +1,4 @@
-use crate::common::label::Labels;
+
 use crate::common::time_point::{TimePoint, Timestamp, Value};
 use crate::common::time_series::TimeSeriesId;
 use crate::Result;
