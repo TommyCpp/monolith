@@ -6,12 +6,11 @@ mod server;
 
 pub mod storage;
 
-pub use indexer::common::*;
 pub use chunk::*;
 pub use common::*;
 pub use error::*;
+pub use indexer::common::*;
 pub use server::MonolithServer;
-
 
 //todo: figure out visibility between mods
 

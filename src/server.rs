@@ -2,9 +2,7 @@ use crate::chunk::Chunk;
 use crate::option::ServerOps;
 use crate::Result;
 
-
 use std::sync::RwLock;
-
 
 pub struct MonolithServer {
     current_chuck: Chunk,

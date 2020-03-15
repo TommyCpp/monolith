@@ -1,9 +1,6 @@
-
-
 use failure::_core::cmp::Ordering;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
-
 
 #[derive(Hash, Clone)]
 pub struct Label {

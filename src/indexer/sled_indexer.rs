@@ -1,12 +1,10 @@
 use sled::Db;
 
+use crate::common::label::{Label, Labels};
 
-
-use crate::common::label::{Labels, Label};
-
-use crate::Result;
 use crate::common::time_series::TimeSeriesId;
-use std::ops::{Add};
+use crate::Result;
+use std::ops::Add;
 use std::path::Path;
 
 use crate::indexer::common::{intersect_time_series_id_vec, Indexer};
@@ -16,16 +14,14 @@ const LABEL_REVERSE_PREFIX: &str = "LR";
 ///
 /// Sled based indexer, use to search timeseries id based on metadata.
 pub struct SledIndexer {
-    storage: Db
+    storage: Db,
 }
 
 impl SledIndexer {
     fn new(dir: &Path) -> Result<SledIndexer> {
-        Ok(
-            SledIndexer {
-                storage: Db::start_default(dir)?
-            }
-        )
+        Ok(SledIndexer {
+            storage: Db::start_default(dir)?,
+        })
     }
 
     fn encode_label(label: &Label) -> String {
@@ -55,7 +51,7 @@ impl SledIndexer {
                 }
                 Ok(Some(res))
             }
-            None => Ok(None)
+            None => Ok(None),
         }
     }
 }
@@ -77,9 +73,7 @@ impl Indexer for SledIndexer {
     /// update_index will not re-sort the time_series_id in values
     fn update_index(&self, labels: Labels, time_series_id: u64) -> Result<()> {
         let tree = &self.storage;
-        let keys: Vec<String> = labels.vec().iter()
-            .map(SledIndexer::encode_label)
-            .collect();
+        let keys: Vec<String> = labels.vec().iter().map(SledIndexer::encode_label).collect();
         for key in keys {
             let val = match tree.get(&key)? {
                 None => format!("{}", time_series_id),
@@ -98,12 +92,11 @@ impl Indexer for SledIndexer {
 
 #[cfg(test)]
 mod tests {
+    use crate::common::label::{Label, Labels};
+    use crate::indexer::sled_indexer::SledIndexer;
     use crate::Result;
     use tempfile::TempDir;
-    use crate::indexer::sled_indexer::SledIndexer;
-    use crate::common::label::{Labels, Label};
-    
-    
+
     use crate::indexer::common::Indexer;
 
     #[test]
@@ -128,7 +121,6 @@ mod tests {
         let another_label1 = indexer.storage.get("test1=test1value")?.unwrap();
         let another_val_str_1 = String::from_utf8(AsRef::<[u8]>::as_ref(&another_label1).to_vec())?;
         assert_eq!("1,2", another_val_str_1);
-
 
         Ok(())
     }

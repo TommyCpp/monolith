@@ -87,7 +87,7 @@ pub fn intersect_time_series_id_vec(mut ts: Vec<Vec<TimeSeriesId>>) -> Result<Ve
 
 #[cfg(test)]
 mod test {
-    
+
     use crate::common::time_series::TimeSeriesId;
     use crate::indexer::common::intersect_time_series_id_vec;
     use crate::Result;

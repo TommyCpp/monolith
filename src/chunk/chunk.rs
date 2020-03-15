@@ -7,8 +7,8 @@ use crate::common::time_point::{Timestamp, Value};
 use crate::common::time_series::{TimeSeries, TimeSeriesId};
 use crate::common::IdGenerator;
 
-use std::iter::{FromIterator};
-use std::path::{PathBuf};
+use std::iter::FromIterator;
+use std::path::PathBuf;
 
 pub const DEFAULT_CHUNK_SIZE: Timestamp = Duration::from_secs(2 * 60 * 60).as_nanos() as Timestamp;
 
@@ -156,7 +156,7 @@ mod test {
     use crate::chunk::chunk::DEFAULT_CHUNK_SIZE;
     use crate::common::label::{Label, Labels};
     use crate::common::time_point::Timestamp;
-    
+
     use crate::Chunk;
 
     #[test]
