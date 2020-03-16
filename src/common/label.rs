@@ -72,6 +72,10 @@ impl Labels {
         Labels(Vec::new())
     }
 
+    pub fn from(label_vec: Vec<Label>) -> Labels{
+        Labels(label_vec)
+    }
+
     pub fn add(&mut self, label: Label) {
         self.0.push(label)
     }

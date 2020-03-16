@@ -8,13 +8,23 @@ use std::thread;
 
 ///
 /// Indexer is in charge of query appropriate time series based on the labels.
+///
 pub trait Indexer {
+    /// Get all time series and their meta data which contains all labels in __labels__
     fn get_series_by_labels(&self, labels: Labels) -> Result<Vec<(TimeSeriesId, Labels)>>;
 
     fn get_series_id_by_labels(&self, labels: Labels) -> Result<Vec<TimeSeriesId>>;
 
     fn get_series_id_by_exact_labels(&self, labels: Labels) -> Result<Option<TimeSeriesId>>;
 
+
+    ///
+    /// time_series_id must be single increasing.
+    /// __Will not re-sort__ the time_series_id in values
+    /// Will create three kind of mapping:
+    /// 1. mapping from each label to time series id, used to search by label
+    /// 2. mapping form label set to time series id, used to find target series id by complete label set
+    /// 3. mapping from time series id to label set, used to get all meta data from time series id.
     fn create_index(&self, labels: Labels, time_series_id: TimeSeriesId) -> Result<()>;
 }
 
@@ -91,7 +101,6 @@ pub fn intersect_time_series_id_vec(mut ts: Vec<Vec<TimeSeriesId>>) -> Result<Ve
 
 #[cfg(test)]
 mod test {
-
     use crate::common::time_series::TimeSeriesId;
     use crate::indexer::common::intersect_time_series_id_vec;
     use crate::Result;

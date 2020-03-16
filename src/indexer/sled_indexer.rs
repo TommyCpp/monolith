@@ -15,6 +15,11 @@ const ID_PREFIX: &str = "I";
 
 ///
 /// Sled based indexer, use to search timeseries id based on metadata.
+///
+/// SledIndexer will establish three kinds of mapping
+/// 1. Reverse index mapping, from single label to list of ids, e.g LR<label_key>=<label_value> -> 1,2,3,4,5...
+/// 2. index mapping, meta data for a single time series, from id to a list of labels, e.g I1 -> L<label_key>=<label_value>,<label_key>=<label_value>...
+/// 3. labels set mapping, similar to second one but in reverse, e.g L<label_key>=<label_value>,<label_key>=<label_value>... -> 1
 pub struct SledIndexer {
     storage: Db,
 }
@@ -30,11 +35,17 @@ impl SledIndexer {
         format!("{}={}", label.key(), label.value())
     }
 
+    /// encode single label as key
     fn encode_label(label: &Label) -> String {
         format!("{}{}", LABEL_REVERSE_PREFIX, SledIndexer::_encode_label(label))
     }
 
-    fn encode_labels(labels: &Labels) -> String {
+    ///
+    /// Encode a set of label into string with format key1=value1,key2=value2...
+    /// Used to create a mapping from labels to time series id.
+    ///
+    /// set __with_prefix__ to true to add prefix on result
+    fn encode_labels(labels: &Labels, with_prefix: bool) -> String {
         let mut time_series_meta = labels.clone();
         time_series_meta.sort();
         let mut res = String::new();
@@ -44,32 +55,84 @@ impl SledIndexer {
             res = res.add(label_str.as_str());
         }
         res.pop(); //remove last ,
-        res.insert_str(0, LABEL_PREFIX);
+        if with_prefix{
+            res.insert_str(0, LABEL_PREFIX);
+        }
         res
+    }
+
+    /// Decode a set of label string stored in SledIndexer
+    ///
+    /// if the string is value, set __with_prefix__ to false
+    /// if the string is key, set __with_prefix__ to true
+    fn decode_labels(labels_str: String, with_prefix: bool) -> Result<Labels> {
+        let mut _labels_str = labels_str.clone();
+        if with_prefix{
+            _labels_str.replace_range(..LABEL_PREFIX.len(), "");
+        }
+        let pairs: Vec<&str> = _labels_str.split(",").collect();
+        let mut res = Vec::new();
+        for pair in pairs {
+            let key_value: Vec<&str> = pair.split("=").collect();
+            if key_value.len() != 2 {
+                return Err(MonolithErr::ParseErr);
+            } else {
+                let label = Label::from(key_value.get(0).unwrap(), key_value.get(1).unwrap());
+                res.push(label)
+            }
+        }
+        Ok(Labels::from(res))
+    }
+
+    fn encode_time_series_id(id: TimeSeriesId) -> String {
+        format!("{}{}", ID_PREFIX, id)
+    }
+
+    fn decode_time_series_id(id_str: String) -> Result<TimeSeriesId> {
+        let mut _id_str = id_str.clone();
+        _id_str.replace_range(..ID_PREFIX.len(), "");
+        Ok(_id_str.parse::<TimeSeriesId>()?)
+    }
+
+    fn get(&self, key: &String) -> Result<Option<String>> {
+        return match self.storage.get(key)? {
+            Some(val) => {
+                Ok(Some(String::from_utf8(AsRef::<[u8]>::as_ref(&val).to_vec())?))
+            }
+            None => Ok(None)
+        };
     }
 
     fn get_id(&self, label: &Label) -> Result<Option<Vec<TimeSeriesId>>> {
         let key = SledIndexer::encode_label(label);
-        match self.storage.get(&key)? {
-            Some(val) => {
-                let val_str = String::from_utf8(AsRef::<[u8]>::as_ref(&val).to_vec())?;
-                let id_str: Vec<&str> = val_str.split(",").collect();
-                let mut res = Vec::new();
-                for id in id_str {
-                    res.push(id.parse::<u64>()?);
-                }
-                Ok(Some(res))
+        let value = self.get(&key)?;
+        return if let Some(val_str) = value {
+            let id_str: Vec<&str> = val_str.split(",").collect();
+            let mut res = Vec::new();
+            for id in id_str {
+                res.push(id.parse::<u64>()?);
             }
-            None => Ok(None),
-        }
+            Ok(Some(res))
+        } else {
+            Ok(None)
+        };
     }
 }
 
+
 impl Indexer for SledIndexer {
+
     fn get_series_by_labels(&self, labels: Labels) -> Result<Vec<(TimeSeriesId, Labels)>> {
-        // let res = Vec::new();
-        // self.get_series_id_by_labels(labels.clone())?.iter().map(|| {});
-        unimplemented!()
+        let ids = self.get_series_id_by_labels(labels)?;
+        let mut res = Vec::new();
+        for time_series_id in ids {
+            let labels_str = self.get(&SledIndexer::encode_time_series_id(time_series_id))?;
+            if labels_str.is_some() {
+                let labels = SledIndexer::decode_labels(labels_str.unwrap(), false)?;
+                res.push((time_series_id, labels))
+            }
+        };
+        Ok(res)
     }
 
     fn get_series_id_by_labels(&self, labels: Labels) -> Result<Vec<TimeSeriesId>> {
@@ -84,29 +147,29 @@ impl Indexer for SledIndexer {
     }
 
     fn get_series_id_by_exact_labels(&self, labels: Labels) -> Result<Option<u64>> {
-        if let Some(val) = self.storage.get(SledIndexer::encode_labels(&labels))? {
+        if let Some(val) = self.storage.get(SledIndexer::encode_labels(&labels, true))? {
             let val_str = String::from_utf8(AsRef::<[u8]>::as_ref(&val).to_vec())?;
             return Ok(Some(val_str.parse::<TimeSeriesId>()?));
         }
         Ok(None)
     }
 
-    ///
-    /// time_series_id must be single increasing.
-    /// update_index will not re-sort the time_series_id in values
     fn create_index(&self, labels: Labels, time_series_id: u64) -> Result<()> {
         let tree = &self.storage;
 
-        //insert key
-        let label_key = SledIndexer::encode_labels(&labels);
+        // from label set to time series id
+        let label_key = SledIndexer::encode_labels(&labels, true);
         if tree.contains_key(label_key.clone())? {
             //duplicate label -> id pair
             return Err(MonolithErr::InternalErr("Duplicate label => id pair found in storage".to_string()));
         }
         tree.set(label_key, format!("{}", time_series_id).into_bytes());
 
+        // from time series to label set
+        tree.set(SledIndexer::encode_time_series_id(time_series_id), SledIndexer::encode_labels(&labels, false).into_bytes());
 
-        // Insert reverse search
+
+        // from label to time series ids
         let keys: Vec<String> = labels.vec().iter().map(SledIndexer::encode_label).collect();
         for key in keys {
             let val = match tree.get(&key)? {
@@ -134,7 +197,7 @@ mod tests {
     use crate::indexer::common::Indexer;
 
     #[test]
-    fn test_update_index() -> Result<()> {
+    fn test_create_index() -> Result<()> {
         let temp_dir = TempDir::new().unwrap();
         let indexer = SledIndexer::new(temp_dir.path())?;
         let mut labels = Labels::new();
@@ -156,6 +219,27 @@ mod tests {
         let another_val_str_1 = String::from_utf8(AsRef::<[u8]>::as_ref(&another_label1).to_vec())?;
         assert_eq!("1,2", another_val_str_1);
 
+        let mut key = "I1".to_string();
+        let val = indexer.get(&key)?.unwrap();
+        assert_eq!("test1=test1value,test2=test1value,test3=test1value", val);
+
+        key = "Ltest1=test1value,test2=test1value,test3=test1value".to_string();
+        let val = indexer.get(&key)?.unwrap();
+        assert_eq!("1", val);
+
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_decode_labels() -> Result<()> {
+        let labels_str = "Lkey1=value1,key2=value2";
+        let labels = SledIndexer::decode_labels(labels_str.to_string(), true)?;
+        assert_eq!(2, labels.len());
+        assert_eq!("key1", *labels.vec().get(0).unwrap().key());
+        assert_eq!("key2", *labels.vec().get(1).unwrap().key());
+        assert_eq!("value1", *labels.vec().get(0).unwrap().value());
+        assert_eq!("value2", *labels.vec().get(1).unwrap().value());
         Ok(())
     }
 }
