@@ -9,6 +9,7 @@ pub enum MonolithErr {
     OptionErr,
     ParseErr,
     NotFoundErr,
+    /// Out of the target range, the two param shows the target range.
     OutOfRangeErr(u64, u64),
     InternalErr(String), // Logical error, usually indicate a bug inside system
 }

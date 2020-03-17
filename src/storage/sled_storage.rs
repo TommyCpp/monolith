@@ -29,7 +29,7 @@ impl SledStorage {
     }
 
     fn parse_key_name<U: std::fmt::Display>(prefix: &str, key: U) -> String {
-        format!("{},{}", prefix, key)
+        format!("{}{}", prefix, key)
     }
 
     fn get_series_by_id(&self, time_series_id: u64) -> Result<Option<Vec<TimePoint>>> {
@@ -79,10 +79,10 @@ impl Storage for SledStorage {
         end_time: u64,
     ) -> Result<Vec<TimePoint>> {
         let series = self.get_series_by_id(time_series_id)?.ok_or(NotFoundErr)?;
-        if series.first().unwrap().timestamp < end_time
-            || series.last().unwrap().timestamp > start_time
+        if series.first().unwrap().timestamp > end_time
+            || series.last().unwrap().timestamp < start_time
         {
-            return Err(OutOfRangeErr(start_time, end_time));
+            return Err(OutOfRangeErr(series.first().unwrap().timestamp, series.last().unwrap().timestamp));
         }
         //series should already sorted
         let left = match series.binary_search(&TimePoint::new(start_time, 0.0)) {

@@ -25,7 +25,7 @@ pub struct SledIndexer {
 }
 
 impl SledIndexer {
-    fn new(dir: &Path) -> Result<SledIndexer> {
+    pub fn new(dir: &Path) -> Result<SledIndexer> {
         Ok(SledIndexer {
             storage: Db::start_default(dir)?,
         })
@@ -167,7 +167,6 @@ impl Indexer for SledIndexer {
 
         // from time series to label set
         tree.set(SledIndexer::encode_time_series_id(time_series_id), SledIndexer::encode_labels(&labels, false).into_bytes());
-
 
         // from label to time series ids
         let keys: Vec<String> = labels.vec().iter().map(SledIndexer::encode_label).collect();
