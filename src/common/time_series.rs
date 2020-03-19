@@ -18,6 +18,14 @@ impl TimeSeries {
         }
     }
 
+    pub fn from(id: TimeSeriesId, meta_data: Labels, time_points: Vec<TimePoint>) -> Self {
+        TimeSeries {
+            id,
+            time_points,
+            meta_data,
+        }
+    }
+
     pub fn meta_data(&self) -> &Labels {
         &self.meta_data
     }

@@ -15,7 +15,7 @@ fn test_create_index() -> Result<()> {
     labels.add(Label::from("test3", "test1value"));
     indexer.create_index(labels.clone(), 1)?;
 
-    let res = indexer.get_series_id_by_exact_labels(labels)?.unwrap();
+    let res = indexer.get_series_id_by_labels(labels)?.unwrap();
     assert_eq!(res, 1);
 
 

@@ -122,8 +122,8 @@ impl SledIndexer {
 
 impl Indexer for SledIndexer {
 
-    fn get_series_by_labels(&self, labels: Labels) -> Result<Vec<(TimeSeriesId, Labels)>> {
-        let ids = self.get_series_id_by_labels(labels)?;
+    fn get_series_with_label_matching(&self, labels: Labels) -> Result<Vec<(TimeSeriesId, Labels)>> {
+        let ids = self.get_series_id_with_label_matching(labels)?;
         let mut res = Vec::new();
         for time_series_id in ids {
             let labels_str = self.get(&SledIndexer::encode_time_series_id(time_series_id))?;
@@ -135,7 +135,7 @@ impl Indexer for SledIndexer {
         Ok(res)
     }
 
-    fn get_series_id_by_labels(&self, labels: Labels) -> Result<Vec<TimeSeriesId>> {
+    fn get_series_id_with_label_matching(&self, labels: Labels) -> Result<Vec<TimeSeriesId>> {
         let mut ts_vec = Vec::new();
         for label in labels.vec() {
             if let Some(ts) = self.get_id(label)? {
@@ -146,7 +146,7 @@ impl Indexer for SledIndexer {
         intersect_time_series_id_vec(ts_vec)
     }
 
-    fn get_series_id_by_exact_labels(&self, labels: Labels) -> Result<Option<u64>> {
+    fn get_series_id_by_labels(&self, labels: Labels) -> Result<Option<u64>> {
         if let Some(val) = self.storage.get(SledIndexer::encode_labels(&labels, true))? {
             let val_str = String::from_utf8(AsRef::<[u8]>::as_ref(&val).to_vec())?;
             return Ok(Some(val_str.parse::<TimeSeriesId>()?));

@@ -33,6 +33,8 @@ pub struct Chunk<S: Storage, I: Indexer> {
     id_generator: IdGenerator,
 }
 
+
+//todo: add concurrent control
 impl<S: Storage, I: Indexer> Chunk<S, I> {
     pub fn new(storage: S, indexer: I) -> Self {
         let start_time = UNIX_EPOCH.elapsed().unwrap().as_nanos() as Timestamp;
@@ -50,7 +52,7 @@ impl<S: Storage, I: Indexer> Chunk<S, I> {
         if !self.is_in_range(&timepoint.timestamp) {
             return Err(MonolithErr::OutOfRangeErr(self.start_time, self.end_time));
         }
-        let id = self.indexer.get_series_id_by_exact_labels(labels.clone())?;
+        let id = self.indexer.get_series_id_by_labels(labels.clone())?;
         if id.is_none() {
             //insert new
             let new_id = self.id_generator.next();
@@ -65,10 +67,16 @@ impl<S: Storage, I: Indexer> Chunk<S, I> {
     }
 
     pub fn query(&self, labels: Labels, start_time: Timestamp, end_time: Timestamp) -> Result<Vec<TimeSeries>> {
-        // if !self.is_in_range(&start_time) && !self.is_in_range(&end_time){
-        //     return Err(MonolithErr::OutOfRangeErr(self.start_time, self.end_time));
-        // }
-        unimplemented!()
+        let candidates = self.indexer.get_series_with_label_matching(labels)?;
+        let mut res = Vec::new();
+        for (id, metadata) in candidates {
+            let data = self.storage.read_time_series(id, start_time, end_time)?;
+            if data.len() == 0 {
+                continue; //skip empty series
+            }
+            res.push(TimeSeries::from(id, metadata, data))
+        }
+        Ok(res)
     }
 
     fn is_in_range(&self, timestamp: &Timestamp) -> bool {
