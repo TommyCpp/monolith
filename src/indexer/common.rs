@@ -33,6 +33,9 @@ pub fn intersect_time_series_id_vec(mut ts: Vec<Vec<TimeSeriesId>>) -> Result<Ve
     if ts.len() == 0 {
         return Ok(Vec::new());
     }
+    if ts.len() == 1{
+        return Ok(ts.index(0).clone());
+    }
     if ts.len() == 2 {
         return Ok(ts.index(0).order_intersect(ts.index(1)));
     }

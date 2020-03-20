@@ -33,6 +33,14 @@ impl TimeSeries {
     pub fn add(&mut self, timestamp: Timestamp, value: Value) {
         self.time_points.push(TimePoint::new(timestamp, value))
     }
+
+    pub fn time_points(&self) -> &Vec<TimePoint> {
+        &self.time_points
+    }
+
+    pub fn id(&self) -> TimeSeriesId {
+        self.id
+    }
 }
 
 #[cfg(test)]

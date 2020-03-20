@@ -12,13 +12,12 @@ fn test_query() -> Result<()> {
     let indexer = SledIndexer::new(index_tmp.path())?;
     let storage_tmp = TempDir::new().unwrap();
     let storage = SledStorage::new(storage_tmp.path())?;
-    let chunk = Chunk::new(storage, indexer);
     let series = time_series_generator(
         vec![1, 2, 3],
         vec![
             vec![("test1", "1"), ("test2", "2")],
             vec![("test2", "2"), ("test3", "3")],
-            vec![("test3", "3"), ("test1", "2")]
+            vec![("test3", "3"), ("test1", "1"), ("test2", "2")]
         ],
         vec![
             vec![(12, 12.9), (16, 13.5), (17, 46.4), (33, 45.5)],
@@ -26,7 +25,29 @@ fn test_query() -> Result<()> {
             vec![(11, 12.9), (16, 13.5)],
         ],
     );
-    //todo: finish test
+    for s in series {
+        for time_point in s.time_points() {
+            storage.write_time_point(s.id(), time_point.timestamp, time_point.value);
+        }
+        indexer.create_index(s.meta_data().clone(), s.id());
+    }
+
+    let chunk = Chunk::new(storage.clone(), indexer.clone());
+    let res1 = chunk.query(
+        Labels::from(vec![Label::from("test1", "1")]),
+        0, 100)?;
+    assert_eq!(res1.len(), 2);
+    assert_eq!(res1.iter()
+                   .map(|ts| ts.id())
+                   .collect::<Vec<TimeSeriesId>>().to_vec(), vec![1, 3]);
+
+    let res2 = chunk.query(
+        Labels::from(vec![Label::from("test2", "2"), Label::from("test1", "1")]),
+        0, 1000,
+    )?;
+    assert_eq!(res2.len(), 2);
+
+
     Ok(())
 }
 

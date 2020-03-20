@@ -13,6 +13,7 @@ const TIME_POINT_PREFIX: &str = "TP";
 ///
 /// On-disk storage, only store data
 /// do not in charge with id assign, index, label search. Those job should be given to chunk
+#[derive(Clone)]
 pub struct SledStorage {
     storage: Db,
 }
