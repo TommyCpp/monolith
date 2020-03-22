@@ -5,6 +5,7 @@ mod server;
 
 pub mod indexer;
 pub mod storage;
+pub(crate) mod adaptor;
 
 pub use chunk::*;
 pub use common::*;
