@@ -2,13 +2,13 @@ use failure::_core::cmp::Ordering;
 
 use std::time::Duration;
 
-pub const TIME_UNIT: Duration = Duration::from_nanos(1);
+pub const TIME_UNIT: Duration = Duration::from_micros(1);
 pub const F64_MARGIN: f64 = 0.000000001;
 
 pub type Timestamp = u64;
 pub type Value = f64;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct TimePoint {
     pub timestamp: Timestamp,
     pub value: Value,

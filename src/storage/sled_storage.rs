@@ -1,6 +1,8 @@
 use crate::common::time_point::TimePoint;
 
+use crate::common::time_series::TimeSeries;
 use crate::storage::{Decoder, Encoder, Storage};
+use crate::time_point::Timestamp;
 use crate::MonolithErr::{NotFoundErr, OutOfRangeErr};
 use crate::Result;
 use sled::{Db, Tree};
@@ -52,10 +54,27 @@ impl SledStorage {
             }
         }
     }
+
+    fn _read_time_series(
+        series: Vec<TimePoint>,
+        start_time: Timestamp,
+        end_time: Timestamp,
+    ) -> Result<Vec<TimePoint>> {
+        //series should already sorted
+        let left = match series.binary_search(&TimePoint::new(start_time, 0.0)) {
+            Ok(idx) => idx,
+            Err(idx) => idx,
+        };
+        let right = match series.binary_search(&TimePoint::new(end_time, 0.0)) {
+            Ok(idx) => idx,
+            Err(idx) => idx - 1,
+        };
+        let res = &series[left..=right];
+        Ok(Vec::from(res))
+    }
 }
 
 impl Storage for SledStorage {
-
     //todo: check if timestamp is earlier than last timestamp in series. If so, how to deal with?
     fn write_time_point(&self, time_series_id: u64, timestamp: u64, value: f64) -> Result<()> {
         let tree: &Tree = &self.storage;
@@ -83,22 +102,14 @@ impl Storage for SledStorage {
         if series.first().unwrap().timestamp > end_time
             || series.last().unwrap().timestamp < start_time
         {
-            return Err(OutOfRangeErr(series.first().unwrap().timestamp, series.last().unwrap().timestamp));
+            return Err(OutOfRangeErr(
+                series.first().unwrap().timestamp,
+                series.last().unwrap().timestamp,
+            ));
         }
-        //series should already sorted
-        let left = match series.binary_search(&TimePoint::new(start_time, 0.0)) {
-            Ok(idx) => idx,
-            Err(idx) => idx + 1,
-        };
-        let right = match series.binary_search(&TimePoint::new(end_time, 0.0)) {
-            Ok(idx) => idx,
-            Err(idx) => idx - 1,
-        };
-        let res = &series[left..=right];
-        Ok(Vec::from(res))
+        SledStorage::_read_time_series(series, start_time, end_time)
     }
 }
-
 
 //TODO: create a independent package for processor, create a KvProcessor for all key-value database
 struct SledProcessor {}

@@ -1,9 +1,9 @@
 use crate::chunk::Chunk;
 use crate::option::ServerOps;
-use crate::{Result, Indexer};
+use crate::{Indexer, Result};
 
-use std::sync::RwLock;
 use crate::storage::Storage;
+use std::sync::RwLock;
 
 pub struct MonolithServer<S: Storage, I: Indexer> {
     current_chuck: Option<Chunk<S, I>>,

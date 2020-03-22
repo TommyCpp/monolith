@@ -11,12 +11,12 @@ use std::thread;
 ///
 pub trait Indexer {
     /// Get all time series and their meta data which contains all labels in __labels__
-    fn get_series_with_label_matching(&self, labels: Labels) -> Result<Vec<(TimeSeriesId, Labels)>>;
+    fn get_series_with_label_matching(&self, labels: Labels)
+        -> Result<Vec<(TimeSeriesId, Labels)>>;
 
     fn get_series_id_with_label_matching(&self, labels: Labels) -> Result<Vec<TimeSeriesId>>;
 
     fn get_series_id_by_labels(&self, labels: Labels) -> Result<Option<TimeSeriesId>>;
-
 
     ///
     /// time_series_id must be single increasing.
@@ -33,7 +33,7 @@ pub fn intersect_time_series_id_vec(mut ts: Vec<Vec<TimeSeriesId>>) -> Result<Ve
     if ts.len() == 0 {
         return Ok(Vec::new());
     }
-    if ts.len() == 1{
+    if ts.len() == 1 {
         return Ok(ts.index(0).clone());
     }
     if ts.len() == 2 {

@@ -1,8 +1,8 @@
 use clap::{App, Arg};
-use monolith::option::get_config;
-use monolith::{MonolithServer, CHUNK_SIZE, DEFAULT_CHUNK_SIZE, FILE_DIR_ARG, STORAGE_ARG};
-use monolith::storage::SledStorage;
 use monolith::indexer::SledIndexer;
+use monolith::option::get_config;
+use monolith::storage::SledStorage;
+use monolith::{MonolithServer, CHUNK_SIZE, DEFAULT_CHUNK_SIZE, FILE_DIR_ARG, STORAGE_ARG};
 
 fn main() {
     let matches = App::new("monolith")

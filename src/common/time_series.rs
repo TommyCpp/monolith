@@ -3,6 +3,7 @@ use crate::common::time_point::{TimePoint, Timestamp, Value};
 
 pub type TimeSeriesId = u64;
 
+#[derive(Clone)]
 pub struct TimeSeries {
     id: TimeSeriesId,
     time_points: Vec<TimePoint>,

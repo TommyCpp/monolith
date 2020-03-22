@@ -72,7 +72,7 @@ impl Labels {
         Labels(Vec::new())
     }
 
-    pub fn from(label_vec: Vec<Label>) -> Labels{
+    pub fn from(label_vec: Vec<Label>) -> Labels {
         Labels(label_vec)
     }
 

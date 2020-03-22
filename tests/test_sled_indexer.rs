@@ -1,8 +1,8 @@
-use monolith::Result;
-use monolith::indexer::SledIndexer;
 use monolith::indexer::common::Indexer;
+use monolith::indexer::SledIndexer;
+use monolith::label::{Label, Labels};
+use monolith::Result;
 use tempfile::TempDir;
-use monolith::label::{Labels, Label};
 
 //todo: add more test to cover Indexer trait
 #[test]
@@ -17,7 +17,6 @@ fn test_create_index() -> Result<()> {
 
     let res = indexer.get_series_id_by_labels(labels)?.unwrap();
     assert_eq!(res, 1);
-
 
     Ok(())
 }

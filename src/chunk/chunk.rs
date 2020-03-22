@@ -1,24 +1,33 @@
-
-
 use std::time::{Duration, UNIX_EPOCH};
 
-use crate::{Result, MonolithErr};
-use crate::common::label::{Labels};
-use crate::common::time_point::{Timestamp, TimePoint};
-use crate::common::time_series::{TimeSeries};
+use crate::common::label::Labels;
+use crate::common::time_point::{TimePoint, Timestamp};
+use crate::common::time_series::TimeSeries;
+use crate::common::utils::is_duration_overlap;
 use crate::common::IdGenerator;
+use crate::{MonolithErr, Result};
 
-
-use std::path::PathBuf;
 use crate::storage::Storage;
 use crate::Indexer;
+use crate::MonolithErr::OutOfRangeErr;
+use std::path::PathBuf;
 
-pub const DEFAULT_CHUNK_SIZE: Timestamp = Duration::from_secs(2 * 60 * 60).as_nanos() as Timestamp;
+pub const DEFAULT_CHUNK_SIZE: Timestamp = Duration::from_secs(2 * 60 * 60).as_millis() as Timestamp;
 
 /// ChunkOps contains all options for chunk
-struct ChunkOps {
-    dir: PathBuf,
-    chunk_size: u64, // as sec
+pub struct ChunkOps {
+    // as mil sec
+    pub start_time: Option<Timestamp>,
+    pub chunk_size: Option<Timestamp>,
+}
+
+impl ChunkOps {
+    fn new() -> ChunkOps {
+        ChunkOps {
+            start_time: None,
+            chunk_size: None,
+        }
+    }
 }
 
 ///
@@ -33,16 +42,17 @@ pub struct Chunk<S: Storage, I: Indexer> {
     id_generator: IdGenerator,
 }
 
-
 //todo: add concurrent control
 impl<S: Storage, I: Indexer> Chunk<S, I> {
-    pub fn new(storage: S, indexer: I) -> Self {
-        let start_time = UNIX_EPOCH.elapsed().unwrap().as_nanos() as Timestamp;
+    pub fn new(storage: S, indexer: I, ops: &ChunkOps) -> Self {
+        let start_time = ops
+            .start_time
+            .unwrap_or(UNIX_EPOCH.elapsed().unwrap().as_millis() as Timestamp);
         Chunk {
             storage,
             indexer,
             start_time,
-            end_time: start_time + DEFAULT_CHUNK_SIZE,
+            end_time: start_time + ops.chunk_size.unwrap_or(DEFAULT_CHUNK_SIZE),
             closed: false,
             id_generator: IdGenerator::new(0),
         }
@@ -54,19 +64,29 @@ impl<S: Storage, I: Indexer> Chunk<S, I> {
         }
         let id = self.indexer.get_series_id_by_labels(labels.clone())?;
         if id.is_none() {
-            //insert new
+            //insert new series
             let new_id = self.id_generator.next();
             self.indexer.create_index(labels.clone(), new_id)?;
-            self.storage.write_time_point(new_id, timepoint.timestamp, timepoint.value)?;
+            self.storage
+                .write_time_point(new_id, timepoint.timestamp, timepoint.value)?;
         } else {
             //only one, skip the choose process
-            self.storage.write_time_point(id.unwrap(), timepoint.timestamp, timepoint.value);
+            self.storage
+                .write_time_point(id.unwrap(), timepoint.timestamp, timepoint.value);
         }
 
         Ok(())
     }
 
-    pub fn query(&self, labels: Labels, start_time: Timestamp, end_time: Timestamp) -> Result<Vec<TimeSeries>> {
+    pub fn query(
+        &self,
+        labels: Labels,
+        start_time: Timestamp,
+        end_time: Timestamp,
+    ) -> Result<Vec<TimeSeries>> {
+        if !is_duration_overlap(self.start_time, self.end_time, start_time, end_time) {
+            return Err(OutOfRangeErr(self.start_time, self.end_time));
+        }
         let candidates = self.indexer.get_series_with_label_matching(labels)?;
         let mut res = Vec::new();
         for (id, metadata) in candidates {

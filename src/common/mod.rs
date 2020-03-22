@@ -8,6 +8,7 @@ pub mod label;
 pub mod option;
 pub mod time_point;
 pub mod time_series;
+pub mod utils;
 
 pub mod ops {
     pub trait OrderIntersect {
