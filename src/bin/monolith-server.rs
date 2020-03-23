@@ -1,9 +1,14 @@
 use clap::{App, Arg};
 use monolith::indexer::SledIndexer;
-use monolith::option::get_config;
+use monolith::option::DbOpts;
 use monolith::storage::SledStorage;
-use monolith::{MonolithServer, CHUNK_SIZE, DEFAULT_CHUNK_SIZE, FILE_DIR_ARG, STORAGE_ARG};
+use monolith::{MonolithDb, CHUNK_SIZE, DEFAULT_CHUNK_SIZE, FILE_DIR_ARG, STORAGE_ARG};
 
+///
+/// Binary command line wrapper for application
+/// args:
+/// storage, -s, default value sled, the storage type
+///
 fn main() {
     let matches = App::new("monolith")
         .version(env!("CARGO_PKG_VERSION"))
@@ -22,7 +27,7 @@ fn main() {
         ])
         .get_matches();
 
-    let options = get_config(matches).expect("Cannot read config");
+    let options = DbOpts::get_config(matches).expect("Cannot read config");
 
-    let _server: MonolithServer<SledStorage, SledIndexer> = MonolithServer::new(options).unwrap();
+    let _server: MonolithDb<SledStorage, SledIndexer> = MonolithDb::new(options).unwrap();
 }

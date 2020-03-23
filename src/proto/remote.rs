@@ -426,7 +426,6 @@ pub enum ReadRequest_ResponseType {
 }
 
 impl ::protobuf::ProtobufEnum for ReadRequest_ResponseType {
-    //noinspection RsBorrowChecker
     fn value(&self) -> i32 {
         *self as i32
     }

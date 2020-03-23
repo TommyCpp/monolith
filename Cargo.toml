@@ -13,6 +13,9 @@ clap = "2.33.0"
 sled = "0.22.1"
 tempfile = "3.0.7"
 criterion="0.3.0"
+grpcio = "0.4"
+protobuf = "2.10.2"
+
 
 
 

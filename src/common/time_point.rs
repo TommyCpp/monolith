@@ -1,6 +1,7 @@
 use failure::_core::cmp::Ordering;
 
 use std::time::Duration;
+use crate::proto::Sample;
 
 pub const TIME_UNIT: Duration = Duration::from_micros(1);
 pub const F64_MARGIN: f64 = 0.000000001;
@@ -39,6 +40,17 @@ impl Ord for TimePoint {
 impl PartialOrd for TimePoint {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         self.timestamp.partial_cmp(&other.timestamp)
+    }
+}
+
+impl From<&TimePoint> for crate::proto::Sample {
+    fn from(t: &TimePoint) -> Self {
+        Sample {
+            timestamp: t.timestamp as i64,
+            value: t.value,
+            unknown_fields: Default::default(),
+            cached_size: Default::default()
+        }
     }
 }
 

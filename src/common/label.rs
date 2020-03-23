@@ -1,6 +1,8 @@
 use failure::_core::cmp::Ordering;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+use crate::proto::LabelMatcher;
+use protobuf::descriptor::FieldDescriptorProto_Label::LABEL_OPTIONAL;
 
 #[derive(Hash, Clone)]
 pub struct Label {
@@ -12,15 +14,21 @@ pub struct Label {
 /// Label will be sort with alphabet order but note that two label will only be equal if and only if
 /// they have the same key and same value
 impl Label {
+    pub fn new(key: String, value: String) -> Label {
+        Label { key, value }
+    }
+    pub fn from_label_matcher(label_matcher: &LabelMatcher) -> Label {
+        Label {
+            key: label_matcher.name.clone(),
+            value: label_matcher.value.clone(),
+        }
+    }
+
     pub fn from(key: &str, value: &str) -> Label {
         Label {
             key: key.to_string(),
             value: value.to_string(),
         }
-    }
-
-    pub fn new(key: String, value: String) -> Label {
-        Label { key, value }
     }
 
     pub fn key_value(self) -> (String, String) {
@@ -53,6 +61,17 @@ impl Eq for Label {}
 impl PartialEq for Label {
     fn eq(&self, other: &Self) -> bool {
         self.key.eq(&other.key) && self.value.eq(&other.value)
+    }
+}
+
+impl From<&Label> for crate::proto::Label{
+    fn from(l: &Label) -> Self {
+        crate::proto::Label{
+            name: l.key.clone(),
+            value: l.value.clone(),
+            unknown_fields: Default::default(),
+            cached_size: Default::default()
+        }
     }
 }
 

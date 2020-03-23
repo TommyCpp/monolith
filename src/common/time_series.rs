@@ -1,5 +1,6 @@
 use crate::common::label::Labels;
 use crate::common::time_point::{TimePoint, Timestamp, Value};
+use crate::proto::Sample;
 
 pub type TimeSeriesId = u64;
 
@@ -41,6 +42,18 @@ impl TimeSeries {
 
     pub fn id(&self) -> TimeSeriesId {
         self.id
+    }
+}
+
+
+impl From<&TimeSeries> for crate::proto::TimeSeries{
+    fn from(t: &TimeSeries) -> Self {
+        crate::proto::TimeSeries{
+            labels: t.meta_data.vec().iter().map(crate::proto::Label::from).collect(),
+            samples: t.time_points.iter().map(Sample::from).collect(),
+            unknown_fields: Default::default(),
+            cached_size: Default::default()
+        }
     }
 }
 
