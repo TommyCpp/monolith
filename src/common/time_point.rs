@@ -54,6 +54,15 @@ impl From<&TimePoint> for crate::proto::Sample {
     }
 }
 
+impl From<&crate::proto::Sample> for TimePoint{
+    fn from(s: &Sample) -> Self {
+        TimePoint{
+            timestamp: s.timestamp as Timestamp,
+            value: s.value
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::common::time_point::TimePoint;

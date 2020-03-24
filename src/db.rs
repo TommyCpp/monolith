@@ -23,7 +23,11 @@ impl<S: Storage, I: Indexer> MonolithDb<S, I> {
         })
     }
 
-    pub fn write(&self, labels: Labels, timepoint: TimePoint) -> Result<()> {
+    pub fn write_time_points(&self, labels: Labels, timepoints: Vec<TimePoint>) -> Result<()> {
+        unimplemented!()
+    }
+
+    pub fn write_time_point(&self, labels: Labels, timepoint: TimePoint) -> Result<()>{
         unimplemented!()
     }
 

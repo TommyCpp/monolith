@@ -24,7 +24,7 @@ impl Label {
         }
     }
 
-    pub fn from(key: &str, value: &str) -> Label {
+    pub fn from_key_value(key: &str, value: &str) -> Label {
         Label {
             key: key.to_string(),
             value: value.to_string(),
@@ -75,6 +75,15 @@ impl From<&Label> for crate::proto::Label{
     }
 }
 
+impl From<&crate::proto::Label> for Label{
+    fn from(l: &crate::proto::Label) -> Self {
+        Label{
+            key: l.name.clone(),
+            value: l.value.clone()
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct Labels(Vec<Label>);
 
@@ -91,7 +100,7 @@ impl Labels {
         Labels(Vec::new())
     }
 
-    pub fn from(label_vec: Vec<Label>) -> Labels {
+    pub fn from_vec(label_vec: Vec<Label>) -> Labels {
         Labels(label_vec)
     }
 
@@ -129,16 +138,16 @@ mod test {
     #[test]
     fn get_hash() {
         let mut labels = Labels::new();
-        labels.add(Label::from("test", "test"));
+        labels.add(Label::from_key_value("test", "test"));
         print!("{}", labels.get_hash())
     }
 
     #[test]
     fn sort_label() {
         let mut labels = Labels::new();
-        labels.add(Label::from("test4", "test"));
-        labels.add(Label::from("test1", "test3"));
-        labels.add(Label::from("test2", "test4"));
+        labels.add(Label::from_key_value("test4", "test"));
+        labels.add(Label::from_key_value("test1", "test3"));
+        labels.add(Label::from_key_value("test2", "test4"));
 
         labels.sort();
 

@@ -82,11 +82,11 @@ impl SledIndexer {
             if key_value.len() != 2 {
                 return Err(MonolithErr::ParseErr);
             } else {
-                let label = Label::from(key_value.get(0).unwrap(), key_value.get(1).unwrap());
+                let label = Label::from_key_value(key_value.get(0).unwrap(), key_value.get(1).unwrap());
                 res.push(label)
             }
         }
-        Ok(Labels::from(res))
+        Ok(Labels::from_vec(res))
     }
 
     fn encode_time_series_id(id: TimeSeriesId) -> String {
@@ -212,9 +212,9 @@ mod tests {
     #[test]
     fn test_encode_label() -> Result<()> {
         let mut labels = Labels::new();
-        labels.add(Label::from("test1", "test1value"));
-        labels.add(Label::from("test3", "test1value"));
-        labels.add(Label::from("test2", "test1value"));
+        labels.add(Label::from_key_value("test1", "test1value"));
+        labels.add(Label::from_key_value("test3", "test1value"));
+        labels.add(Label::from_key_value("test2", "test1value"));
         let res = SledIndexer::encode_labels(&labels, true);
         assert_eq!(res, "Ltest1=test1value,test2=test1value,test3=test1value");
         Ok(())
@@ -225,9 +225,9 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let indexer = SledIndexer::new(temp_dir.path())?;
         let mut labels = Labels::new();
-        labels.add(Label::from("test1", "test1value"));
-        labels.add(Label::from("test2", "test1value"));
-        labels.add(Label::from("test3", "test1value"));
+        labels.add(Label::from_key_value("test1", "test1value"));
+        labels.add(Label::from_key_value("test2", "test1value"));
+        labels.add(Label::from_key_value("test3", "test1value"));
         indexer.create_index(labels, 1)?;
 
         let label1 = indexer.storage.get("LRtest1=test1value")?.unwrap();
@@ -237,7 +237,7 @@ mod tests {
         assert_eq!(val_str_1, val_str_2);
 
         let mut another_labels = Labels::new();
-        another_labels.add(Label::from("test1", "test1value"));
+        another_labels.add(Label::from_key_value("test1", "test1value"));
         indexer.create_index(another_labels, 2);
         let another_label1 = indexer.storage.get("LRtest1=test1value")?.unwrap();
         let another_val_str_1 = String::from_utf8(AsRef::<[u8]>::as_ref(&another_label1).to_vec())?;

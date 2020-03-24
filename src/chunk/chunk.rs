@@ -94,7 +94,7 @@ impl<S: Storage, I: Indexer> Chunk<S, I> {
             if data.len() == 0 {
                 continue; //skip empty series
             }
-            res.push(TimeSeries::from(id, metadata, data))
+            res.push(TimeSeries::new_with_data(id, metadata, data))
         }
         Ok(res)
     }

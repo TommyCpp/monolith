@@ -36,7 +36,7 @@ fn test_query() -> Result<()> {
         chunk_size: Some(1000u64),
     };
     let chunk = Chunk::new(storage.clone(), indexer.clone(), &ops);
-    let res1 = chunk.query(Labels::from(vec![Label::from("test1", "1")]), 0, 100)?;
+    let res1 = chunk.query(Labels::from_vec(vec![Label::from_key_value("test1", "1")]), 0, 100)?;
     assert_eq!(res1.len(), 2);
     assert_eq!(
         res1.iter()
@@ -47,7 +47,7 @@ fn test_query() -> Result<()> {
     );
 
     let res2 = chunk.query(
-        Labels::from(vec![Label::from("test2", "2"), Label::from("test1", "1")]),
+        Labels::from_vec(vec![Label::from_key_value("test2", "2"), Label::from_key_value("test1", "1")]),
         0,
         1000,
     )?;
@@ -110,13 +110,13 @@ fn time_series_generator(
     for i in 0..ids.len() {
         let mut meta = Vec::new();
         for d in metadata.get(i).unwrap() {
-            meta.push(Label::from(d.clone().0, d.clone().1));
+            meta.push(Label::from_key_value(d.clone().0, d.clone().1));
         }
         let mut time_points = Vec::new();
         for t in data.get(i).unwrap() {
             time_points.push(TimePoint::new(t.clone().0, t.clone().1));
         }
-        let time_series = TimeSeries::from(*(ids.get(i).unwrap()), Labels::from(meta), time_points);
+        let time_series = TimeSeries::new_with_data(*(ids.get(i).unwrap()), Labels::from_vec(meta), time_points);
         res.push(time_series);
     }
 

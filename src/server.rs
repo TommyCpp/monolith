@@ -1,10 +1,11 @@
 use crate::{MonolithDb, Indexer};
 use crate::storage::Storage;
 use crate::Result;
-use crate::proto::{ReadRequest, ReadResponse, WriteRequest, TimeSeries, QueryResult, Query};
+use crate::proto::{ReadRequest, ReadResponse, WriteRequest, QueryResult, Query};
 use protobuf::RepeatedField;
 use crate::common::time_point::Timestamp;
 use crate::common::label::{Labels, Label};
+use crate::common::time_series::TimeSeries;
 
 
 pub const DEFAULT_PORT: i32 = 9001;
@@ -40,7 +41,7 @@ impl<S: Storage, I: Indexer> MonolithServer<'static, S, I> {
                 read_rq.queries.iter()
                     .map(|q|
                         self.db.query(
-                            Labels::from(
+                            Labels::from_vec(
                                 q.matchers.iter()
                                     .map(Label::from_label_matcher)
                                     .collect::<Vec<Label>>()
@@ -67,6 +68,11 @@ impl<S: Storage, I: Indexer> MonolithServer<'static, S, I> {
     }
 
     pub fn write(&self, write_rq: WriteRequest) -> Result<()> {
-        unimplemented!();
+        for time_series in write_rq.timeseries.to_vec() {
+            let _ts: TimeSeries = TimeSeries::from(&time_series);
+            self.db.write_time_points(_ts.meta_data().clone(), _ts.time_points().clone())?
+        }
+
+        Ok(())
     }
 }
