@@ -21,3 +21,5 @@ pub const FILE_DIR_ARG: &str = "file_dir";
 pub const CHUNK_SIZE: &str = "chunk_size";
 
 pub const DEFAULT_CHUNK_SIZE: &str = "1200";
+
+#[macro_use] extern crate log;

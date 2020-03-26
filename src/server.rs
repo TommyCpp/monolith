@@ -8,7 +8,7 @@ use crate::common::label::{Labels, Label};
 use crate::common::time_series::TimeSeries;
 use tiny_http::{Server, Response, StatusCode, ResponseBox, Method};
 use std::io::{BufWriter, Write, Cursor};
-
+use log::Level;
 
 pub const DEFAULT_PORT: i32 = 9001;
 pub const DEFAULT_READ_PATH: &str = "/read";
@@ -38,31 +38,50 @@ impl<S: Storage, I: Indexer> MonolithServer<S, I> {
         let server = Server::http(addr).unwrap();
 
         for mut request in server.incoming_requests() {
+            //Convert request content to protobuf coded format
             let mut content = String::new();
             request.as_reader().read_to_string(&mut content).unwrap();
             let mut _req_cur = Cursor::new(Vec::from(content.as_bytes()));
             let mut input_stream = CodedInputStream::new(&mut _req_cur);
+
+            //triage the request
             match (request.method(), request.url()) {
                 (&Method::Get, read_path) if read_path == self.read_path => {
                     let mut read_req = ReadRequest::new();
-                    read_req.merge_from(&mut input_stream); //todo: error handling
-                    let mut read_res = self.query(read_req).unwrap();
+                    if read_req.merge_from(&mut input_stream).is_err() || read_req.compute_size() == 0 {
+                        error!("Cannot read content from read request or the request is empty");
+                        request.respond(Response::empty(400));
+                    } else {
+                        match self.query(read_req) {
+                            Ok(read_res) => {
+                                let mut _res_cur = Cursor::new(Vec::new());
+                                let mut output_stream = CodedOutputStream::new(&mut _res_cur);
+                                read_res.write_to(&mut output_stream);
+                                let mut _inner = Vec::<u8>::new();
+                                output_stream.write(_inner.as_mut());
 
-                    let mut _res_cur = Cursor::new(Vec::new());
-                    let mut output_stream = CodedOutputStream::new(&mut _res_cur);
-                    read_res.write_to(&mut output_stream);
-                    let mut _inner = Vec::<u8>::new();
-                    output_stream.write(_inner.as_mut());
-
-                    let response = Response::from_data(_inner);
-                    request.respond(response);
+                                let response = Response::from_data(_inner);
+                                request.respond(response);
+                            }
+                            Err(err) => {
+                                error!(format!("Error when query against db, {}", err));
+                                request.respond(Response::empty(500))
+                            }
+                        }
+                    }
                 }
                 (&Method::Get, write_path) if write_path == self.write_path => {
                     let mut write_req = WriteRequest::new();
                     write_req.merge_from(&mut input_stream);
-                    self.write(write_req); //todo: error handling
-
-                    request.respond(Response::empty(200));
+                    match self.write(write_req){
+                        Ok(_) =>{
+                            request.respond(Response::empty(200));
+                        },
+                        Err(err) =>{
+                            error!(format!("Error when write into db, {}", err));
+                            request.respond(Response::empty(500));
+                        }
+                    }
                 }
                 (_, _) => {
                     request.respond(Response::empty(404));
@@ -161,9 +180,13 @@ mod tests {
 
     #[test]
     fn test_serve() -> Result<()> {
+        env_logger::init();
         let opts = DbOpts::default();
         let db: MonolithDb<StubStorage, StubIndexer> = MonolithDb::new(opts)?;
         let server = MonolithServer::new(db);
-        server.serve()
+        server.serve();
+
+
+        Ok(())
     }
 }

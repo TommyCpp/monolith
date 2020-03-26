@@ -4,12 +4,16 @@ use monolith::option::DbOpts;
 use monolith::storage::SledStorage;
 use monolith::{MonolithDb, CHUNK_SIZE, DEFAULT_CHUNK_SIZE, FILE_DIR_ARG, STORAGE_ARG};
 
+#[macro_use] extern crate log;
+
 ///
 /// Binary command line wrapper for application
 /// args:
 /// storage, -s, default value sled, the storage type
 ///
 fn main() {
+    env_logger::init();
+
     let matches = App::new("monolith")
         .version(env!("CARGO_PKG_VERSION"))
         .about("time series storage")
