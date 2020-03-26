@@ -11,6 +11,14 @@ pub struct DbOpts {
 }
 
 impl DbOpts {
+    pub fn default() -> DbOpts{
+        DbOpts{
+            storage: StorageType::SledBackendStorage,
+            base_dir: Default::default(),
+            chunk_size: Default::default()
+        }
+    }
+
     pub fn get_config(matches: ArgMatches) -> Result<DbOpts> {
         let chunk_size_str = matches.value_of(CHUNK_SIZE).unwrap();
         let chunk_size_in_sec: u64 = String::from(chunk_size_str).parse()?;

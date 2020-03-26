@@ -2,36 +2,75 @@ use crate::{MonolithDb, Indexer};
 use crate::storage::Storage;
 use crate::Result;
 use crate::proto::{ReadRequest, ReadResponse, WriteRequest, QueryResult, Query};
-use protobuf::RepeatedField;
+use protobuf::{RepeatedField, Message, CodedInputStream, CodedOutputStream};
 use crate::common::time_point::Timestamp;
 use crate::common::label::{Labels, Label};
 use crate::common::time_series::TimeSeries;
+use tiny_http::{Server, Response, StatusCode, ResponseBox, Method};
+use std::io::{BufWriter, Write, Cursor};
 
 
 pub const DEFAULT_PORT: i32 = 9001;
-pub const READ_PATH: &str = "/read";
-pub const WRITE_PATH: &str = "/write";
+pub const DEFAULT_READ_PATH: &str = "/read";
+pub const DEFAULT_WRITE_PATH: &str = "/write";
 
 
-pub struct MonolithServer<'a, S: Storage, I: Indexer> {
+pub struct MonolithServer<S: Storage, I: Indexer> {
     db: MonolithDb<S, I>,
     port: i32,
-    read_path: &'a str,
-    write_path: &'a str,
+    read_path: &'static str,
+    write_path: &'static str,
 }
 
-impl<S: Storage, I: Indexer> MonolithServer<'static, S, I> {
+impl<S: Storage, I: Indexer> MonolithServer<S, I> {
     pub fn new(db: MonolithDb<S, I>) -> Self {
         MonolithServer {
             db,
-            port: 9001,
-            read_path: "/read",
-            write_path: "/write",
+            port: DEFAULT_PORT,
+            read_path: DEFAULT_READ_PATH,
+            write_path: DEFAULT_WRITE_PATH,
         }
     }
 
+    //todo: test it
     pub fn serve(self) -> Result<()> {
-        unimplemented!();
+        let addr = format!("127.0.0.1:{}", self.port);
+        let server = Server::http(addr).unwrap();
+
+        for mut request in server.incoming_requests() {
+            let mut content = String::new();
+            request.as_reader().read_to_string(&mut content).unwrap();
+            let mut _req_cur = Cursor::new(Vec::from(content.as_bytes()));
+            let mut input_stream = CodedInputStream::new(&mut _req_cur);
+            match (request.method(), request.url()) {
+                (&Method::Get, read_path) if read_path == self.read_path => {
+                    let mut read_req = ReadRequest::new();
+                    read_req.merge_from(&mut input_stream); //todo: error handling
+                    let mut read_res = self.query(read_req).unwrap();
+
+                    let mut _res_cur = Cursor::new(Vec::new());
+                    let mut output_stream = CodedOutputStream::new(&mut _res_cur);
+                    read_res.write_to(&mut output_stream);
+                    let mut _inner = Vec::<u8>::new();
+                    output_stream.write(_inner.as_mut());
+
+                    let response = Response::from_data(_inner);
+                    request.respond(response);
+                }
+                (&Method::Get, write_path) if write_path == self.write_path => {
+                    let mut write_req = WriteRequest::new();
+                    write_req.merge_from(&mut input_stream);
+                    self.write(write_req); //todo: error handling
+
+                    request.respond(Response::empty(200));
+                }
+                (_, _) => {
+                    request.respond(Response::empty(404));
+                }
+            }
+        }
+
+        Ok(())
     }
 
     //todo: test it
@@ -67,6 +106,7 @@ impl<S: Storage, I: Indexer> MonolithServer<'static, S, I> {
         })
     }
 
+    //todo: test it
     pub fn write(&self, write_rq: WriteRequest) -> Result<()> {
         for time_series in write_rq.timeseries.to_vec() {
             let _ts: TimeSeries = TimeSeries::from(&time_series);
@@ -74,5 +114,56 @@ impl<S: Storage, I: Indexer> MonolithServer<'static, S, I> {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{Result, MonolithErr, Indexer, MonolithDb};
+    use crate::storage::Storage;
+    use crate::common::time_point::TimePoint;
+    use crate::common::label::Labels;
+    use crate::common::option::{DbOpts, StorageType};
+    use crate::server::MonolithServer;
+
+    struct StubStorage {}
+
+    impl Storage for StubStorage {
+        fn write_time_point(&self, time_series_id: u64, timestamp: u64, value: f64) -> Result<()> {
+            unimplemented!()
+        }
+
+        fn read_time_series(&self, time_series_id: u64, start_time: u64, end_time: u64) -> Result<Vec<TimePoint>> {
+            unimplemented!()
+        }
+    }
+
+    struct StubIndexer {}
+
+    impl Indexer for StubIndexer {
+        fn get_series_with_label_matching(&self, labels: Labels) -> Result<Vec<(u64, Labels)>> {
+            unimplemented!()
+        }
+
+        fn get_series_id_with_label_matching(&self, labels: Labels) -> Result<Vec<u64>> {
+            unimplemented!()
+        }
+
+        fn get_series_id_by_labels(&self, labels: Labels) -> Result<Option<u64>> {
+            unimplemented!()
+        }
+
+        fn create_index(&self, labels: Labels, time_series_id: u64) -> Result<()> {
+            unimplemented!()
+        }
+    }
+
+
+    #[test]
+    fn test_serve() -> Result<()> {
+        let opts = DbOpts::default();
+        let db: MonolithDb<StubStorage, StubIndexer> = MonolithDb::new(opts)?;
+        let server = MonolithServer::new(db);
+        server.serve()
     }
 }
