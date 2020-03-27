@@ -23,3 +23,4 @@ pub const CHUNK_SIZE: &str = "chunk_size";
 pub const DEFAULT_CHUNK_SIZE: &str = "1200";
 
 #[macro_use] extern crate log;
+#[macro_use] extern crate failure;

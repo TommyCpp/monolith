@@ -3,6 +3,7 @@ use clap::ArgMatches;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::Duration;
+use std::env::current_dir;
 
 pub struct DbOpts {
     storage: StorageType,
@@ -11,11 +12,11 @@ pub struct DbOpts {
 }
 
 impl DbOpts {
-    pub fn default() -> DbOpts{
-        DbOpts{
+    pub fn default() -> DbOpts {
+        DbOpts {
             storage: StorageType::SledBackendStorage,
-            base_dir: Default::default(),
-            chunk_size: Default::default()
+            base_dir: current_dir().unwrap(),
+            chunk_size: Default::default(),
         }
     }
 
@@ -28,6 +29,18 @@ impl DbOpts {
             base_dir: PathBuf::from_str(matches.value_of(FILE_DIR_ARG).unwrap())?,
             chunk_size: Duration::from_secs(chunk_size_in_sec),
         })
+    }
+
+    pub fn storage(&self) -> &StorageType {
+        &self.storage
+    }
+
+    pub fn base_dir(&self) -> &PathBuf {
+        &self.base_dir
+    }
+
+    pub fn chunk_size(&self) -> &Duration {
+        &self.chunk_size
     }
 }
 

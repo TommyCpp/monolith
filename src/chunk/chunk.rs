@@ -18,14 +18,14 @@ pub const DEFAULT_CHUNK_SIZE: Timestamp = Duration::from_secs(2 * 60 * 60).as_mi
 pub struct ChunkOps {
     // as mil sec
     pub start_time: Option<Timestamp>,
-    pub chunk_size: Option<Timestamp>,
+    pub end_time: Option<Timestamp>,
 }
 
 impl ChunkOps {
     fn new() -> ChunkOps {
         ChunkOps {
             start_time: None,
-            chunk_size: None,
+            end_time: None,
         }
     }
 }
@@ -52,7 +52,7 @@ impl<S: Storage, I: Indexer> Chunk<S, I> {
             storage,
             indexer,
             start_time,
-            end_time: start_time + ops.chunk_size.unwrap_or(DEFAULT_CHUNK_SIZE),
+            end_time: start_time + ops.end_time.unwrap_or(DEFAULT_CHUNK_SIZE),
             closed: false,
             id_generator: IdGenerator::new(0),
         }

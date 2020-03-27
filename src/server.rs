@@ -64,8 +64,8 @@ impl<S: Storage, I: Indexer> MonolithServer<S, I> {
                                 request.respond(response);
                             }
                             Err(err) => {
-                                error!(format!("Error when query against db, {}", err));
-                                request.respond(Response::empty(500))
+                                error!("{}", format!("Error when query against db, {}", err));
+                                request.respond(Response::empty(500));
                             }
                         }
                     }
@@ -73,12 +73,12 @@ impl<S: Storage, I: Indexer> MonolithServer<S, I> {
                 (&Method::Get, write_path) if write_path == self.write_path => {
                     let mut write_req = WriteRequest::new();
                     write_req.merge_from(&mut input_stream);
-                    match self.write(write_req){
-                        Ok(_) =>{
+                    match self.write(write_req) {
+                        Ok(_) => {
                             request.respond(Response::empty(200));
-                        },
-                        Err(err) =>{
-                            error!(format!("Error when write into db, {}", err));
+                        }
+                        Err(err) => {
+                            error!("{}", format!("Error when write into db, {}", err));
                             request.respond(Response::empty(500));
                         }
                     }
@@ -138,12 +138,14 @@ impl<S: Storage, I: Indexer> MonolithServer<S, I> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Result, MonolithErr, Indexer, MonolithDb};
+    use crate::{Result, MonolithErr, Indexer, MonolithDb, ChunkOps, Chunk};
     use crate::storage::Storage;
-    use crate::common::time_point::TimePoint;
+    use crate::common::time_point::{TimePoint, Timestamp};
     use crate::common::label::Labels;
     use crate::common::option::{DbOpts, StorageType};
     use crate::server::MonolithServer;
+    use std::sync::RwLock;
+    use crate::common::utils::get_current_timestamp;
 
     struct StubStorage {}
 
@@ -182,7 +184,7 @@ mod tests {
     fn test_serve() -> Result<()> {
         env_logger::init();
         let opts = DbOpts::default();
-        let db: MonolithDb<StubStorage, StubIndexer> = MonolithDb::new(opts)?;
+        let db= MonolithDb::new(opts)?;
         let server = MonolithServer::new(db);
         server.serve();
 

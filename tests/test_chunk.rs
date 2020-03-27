@@ -33,7 +33,7 @@ fn test_query() -> Result<()> {
     }
     let ops = ChunkOps {
         start_time: Some(0u64),
-        chunk_size: Some(1000u64),
+        end_time: Some(1000u64),
     };
     let chunk = Chunk::new(storage.clone(), indexer.clone(), &ops);
     let res1 = chunk.query(Labels::from_vec(vec![Label::from_key_value("test1", "1")]), 0, 100)?;
@@ -77,7 +77,7 @@ fn test_insert() -> Result<()> {
     );
     let ops = ChunkOps {
         start_time: Some(0u64),
-        chunk_size: Some(1000u64),
+        end_time: Some(1000u64),
     };
     let chunk = Chunk::new(storage.clone(), indexer.clone(), &ops);
 

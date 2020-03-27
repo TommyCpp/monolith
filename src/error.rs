@@ -2,15 +2,24 @@ use failure::_core::convert::Infallible;
 use failure::_core::num::{ParseFloatError, ParseIntError};
 
 use std::string::FromUtf8Error;
+use std::sync::Arc;
+use crate::{Chunk, Indexer};
+use crate::storage::Storage;
 
-#[derive(Debug)]
+#[derive(Debug, Fail)]
 pub enum MonolithErr {
+    #[fail(display = "Io Error: {}", _0)]
     IoError(String),
+    #[fail(display = "Option error")]
     OptionErr,
+    #[fail(display = "Parse error")]
     ParseErr,
+    #[fail(display = "Not found")]
     NotFoundErr,
     /// Out of the target range, the two param shows the target range.
+    #[fail(display = "Out of range, target range is {}, {}", _0, _1)]
     OutOfRangeErr(u64, u64),
+    #[fail(display = "Internal error, {}", _0)]
     InternalErr(String), // Logical error, usually indicate a bug inside system
 }
 
@@ -53,5 +62,11 @@ impl std::convert::From<FromUtf8Error> for MonolithErr {
 impl std::convert::From<std::num::ParseFloatError> for MonolithErr {
     fn from(_: ParseFloatError) -> Self {
         MonolithErr::ParseErr
+    }
+}
+
+impl<S: Storage, I: Indexer> std::convert::From<std::sync::Arc<Chunk<S, I>>> for MonolithErr {
+    fn from(_: Arc<Chunk<S, I>>) -> Self {
+        MonolithErr::InternalErr("Cannot get ownership".to_string())
     }
 }
