@@ -2,9 +2,11 @@ use clap::{App, Arg};
 use monolith::indexer::SledIndexer;
 use monolith::option::DbOpts;
 use monolith::storage::SledStorage;
+use monolith::db::New;
 use monolith::{MonolithDb, CHUNK_SIZE, DEFAULT_CHUNK_SIZE, FILE_DIR_ARG, STORAGE_ARG};
 
-#[macro_use] extern crate log;
+#[macro_use]
+extern crate log;
 
 ///
 /// Binary command line wrapper for application
@@ -33,5 +35,5 @@ fn main() {
 
     let options = DbOpts::get_config(matches).expect("Cannot read config");
 
-    let _server: MonolithDb<SledStorage, SledIndexer> = MonolithDb::new(options).unwrap();
+    let _server: MonolithDb<SledStorage, SledIndexer> = MonolithDb::<SledStorage, SledIndexer>::new(options).unwrap();
 }

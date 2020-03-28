@@ -1,8 +1,8 @@
 mod chunk;
 mod common;
 mod error;
-mod db;
 
+pub mod db;
 pub mod server;
 pub mod indexer;
 pub mod storage;

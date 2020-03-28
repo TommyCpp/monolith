@@ -138,14 +138,17 @@ impl<S: Storage, I: Indexer> MonolithServer<S, I> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Result, MonolithErr, Indexer, MonolithDb, ChunkOps, Chunk};
-    use crate::storage::Storage;
+    use crate::{Result, MonolithErr, Indexer, MonolithDb, ChunkOps, Chunk, IdGenerator};
+    use crate::storage::{Storage, SledStorage};
     use crate::common::time_point::{TimePoint, Timestamp};
     use crate::common::label::Labels;
     use crate::common::option::{DbOpts, StorageType};
     use crate::server::MonolithServer;
     use std::sync::RwLock;
     use crate::common::utils::get_current_timestamp;
+    use crate::indexer::SledIndexer;
+    use crate::common::time_series::TimeSeriesId;
+    use crate::db::New;
 
     struct StubStorage {}
 
@@ -179,12 +182,24 @@ mod tests {
         }
     }
 
+    impl crate::db::New for MonolithDb<StubStorage, StubIndexer> {
+        type S = StubStorage;
+        type I = StubIndexer;
+
+        fn get_storage_and_indexer(ops: DbOpts) -> Result<(Self::S, Self::I)> {
+            Ok((
+                StubStorage {},
+                StubIndexer {}
+            ))
+        }
+    }
+
 
     #[test]
     fn test_serve() -> Result<()> {
         env_logger::init();
         let opts = DbOpts::default();
-        let db= MonolithDb::new(opts)?;
+        let db = MonolithDb::<StubStorage, StubIndexer>::new(opts)?;
         let server = MonolithServer::new(db);
         server.serve();
 

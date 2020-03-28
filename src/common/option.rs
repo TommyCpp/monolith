@@ -5,6 +5,7 @@ use std::str::FromStr;
 use std::time::Duration;
 use std::env::current_dir;
 
+#[derive(Clone)]
 pub struct DbOpts {
     storage: StorageType,
     base_dir: PathBuf,
@@ -54,6 +55,7 @@ impl ServerOpts {
     pub fn new() {}
 }
 
+#[derive(Clone)]
 pub enum StorageType {
     SledBackendStorage,
 }
