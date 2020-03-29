@@ -10,6 +10,7 @@ use crate::{MonolithErr, Result};
 use crate::storage::Storage;
 use crate::Indexer;
 use crate::MonolithErr::OutOfRangeErr;
+use std::alloc::handle_alloc_error;
 
 
 pub const DEFAULT_CHUNK_SIZE: Timestamp = Duration::from_secs(2 * 60 * 60).as_millis() as Timestamp;

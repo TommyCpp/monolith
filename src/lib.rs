@@ -20,7 +20,7 @@ pub const STORAGE_ARG: &str = "storage";
 pub const FILE_DIR_ARG: &str = "file_dir";
 pub const CHUNK_SIZE: &str = "chunk_size";
 
-pub const DEFAULT_CHUNK_SIZE: &str = "1200";
+pub const DEFAULT_CHUNK_SIZE: &str = "1685513810"; //in seconds
 
 #[macro_use] extern crate log;
 #[macro_use] extern crate failure;

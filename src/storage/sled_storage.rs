@@ -7,7 +7,7 @@ use crate::MonolithErr::{NotFoundErr, OutOfRangeErr};
 use crate::Result;
 use sled::{Db, Tree};
 use std::ops::Deref;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 const TIME_SERIES_PREFIX: &str = "TS";
 const TIME_POINT_PREFIX: &str = "TP";

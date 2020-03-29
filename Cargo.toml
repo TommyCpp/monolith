@@ -17,6 +17,7 @@ grpcio = "0.4"
 protobuf = "2.10.2"
 tiny_http = "0.6"
 env_logger = "0.7.1"
+snap = "1"
 
 
 

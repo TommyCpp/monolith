@@ -24,12 +24,13 @@ impl DbOpts {
     pub fn get_config(matches: ArgMatches) -> Result<DbOpts> {
         let chunk_size_str = matches.value_of(CHUNK_SIZE).unwrap();
         let chunk_size_in_sec: u64 = String::from(chunk_size_str).parse()?;
-
-        Ok(DbOpts {
+        let config = DbOpts {
             storage: StorageType::from(matches.value_of(STORAGE_ARG).unwrap())?,
             base_dir: PathBuf::from_str(matches.value_of(FILE_DIR_ARG).unwrap())?,
             chunk_size: Duration::from_secs(chunk_size_in_sec),
-        })
+        };
+
+        Ok(config)
     }
 
     pub fn storage(&self) -> &StorageType {

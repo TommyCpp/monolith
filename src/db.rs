@@ -44,10 +44,14 @@ impl<S: Storage, I: Indexer> MonolithDb<S, I> {
     pub fn write_time_points(&self, labels: Labels, timepoints: Vec<TimePoint>) -> Result<()> {
         let _c = &self.current_chuck;
         let res = timepoints.into_iter().map(|tp| {
+            if tp.timestamp == 0{
+                return Ok(()) //skip null
+            }
             _c.insert(labels.clone(), tp)
         }).filter(|res| res.is_err()).collect::<Vec<_>>();
         if res.len() > 0 {
-            return Err(MonolithErr::InternalErr("Multiple time point cannot insert".to_string()));
+            error!("num of error {}", res.len());
+            return Err(MonolithErr::InternalErr("multiple time point cannot insert".to_string()));
         }
         Ok(())
     }
@@ -75,8 +79,8 @@ impl New for MonolithDb<SledStorage, SledIndexer> {
 
     fn get_storage_and_indexer(ops: DbOpts) -> Result<(Self::S, Self::I)> {
         Ok((
-            SledStorage::new(ops.base_dir().as_path().join("/storage").as_path())?,
-            SledIndexer::new(ops.base_dir().as_path().join("/indexer").as_path())?,
+            SledStorage::new(ops.base_dir().as_path().join("storage").as_path())?,
+            SledIndexer::new(ops.base_dir().as_path().join("indexer").as_path())?,
         ))
     }
 }

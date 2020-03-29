@@ -7,7 +7,7 @@ use crate::common::time_point::Timestamp;
 use crate::common::label::{Labels, Label};
 use crate::common::time_series::TimeSeries;
 use tiny_http::{Server, Response, StatusCode, ResponseBox, Method};
-use std::io::{BufWriter, Write, Cursor};
+use std::io::{BufWriter, Write, Cursor, Read};
 use log::Level;
 
 pub const DEFAULT_PORT: i32 = 9001;
@@ -39,28 +39,37 @@ impl<S: Storage, I: Indexer> MonolithServer<S, I> {
 
         for mut request in server.incoming_requests() {
             //Convert request content to protobuf coded format
-            let mut content = String::new();
-            request.as_reader().read_to_string(&mut content).unwrap();
-            let mut _req_cur = Cursor::new(Vec::from(content.as_bytes()));
+            let mut content = Vec::new();
+            request.as_reader().read_to_end(&mut content).unwrap();
+            let mut decoder = snap::raw::Decoder::new();
+            let _content = decoder.decompress_vec(content.as_slice()).unwrap();
+            let mut _req_cur = Cursor::new(_content);
             let mut input_stream = CodedInputStream::new(&mut _req_cur);
 
             //triage the request
             match (request.method(), request.url()) {
-                (&Method::Get, read_path) if read_path == self.read_path => {
+                (_, read_path) if read_path == self.read_path => {
                     let mut read_req = ReadRequest::new();
-                    if read_req.merge_from(&mut input_stream).is_err() || read_req.compute_size() == 0 {
-                        error!("Cannot read content from read request or the request is empty");
-                        request.respond(Response::empty(400));
+                    let read = read_req.merge_from(&mut input_stream);
+                    if read.is_err() /*|| read_req.compute_size() == 0*/ {
+                        error!("Cannot read content from read request {}", read.err().unwrap());
+                        request.respond(Response::empty(200));
                     } else {
                         match self.query(read_req) {
                             Ok(read_res) => {
                                 let mut _res_cur = Cursor::new(Vec::new());
                                 let mut output_stream = CodedOutputStream::new(&mut _res_cur);
                                 read_res.write_to(&mut output_stream);
-                                let mut _inner = Vec::<u8>::new();
-                                output_stream.write(_inner.as_mut());
+                                output_stream.flush();
+                                let mut _inner = Vec::new();
+                                let pos = _res_cur.position();
+                                _res_cur.set_position(0);
+                                _res_cur.read_to_end(&mut _inner);
+                               let mut encoder = snap::raw::Encoder::new();
+                                let _res = encoder.compress_vec(_inner.as_slice()).unwrap();
 
-                                let response = Response::from_data(_inner);
+                                let response = Response::from_data(_res.as_slice());
+
                                 request.respond(response);
                             }
                             Err(err) => {
@@ -70,7 +79,7 @@ impl<S: Storage, I: Indexer> MonolithServer<S, I> {
                         }
                     }
                 }
-                (&Method::Get, write_path) if write_path == self.write_path => {
+                (_, write_path) if write_path == self.write_path => {
                     let mut write_req = WriteRequest::new();
                     write_req.merge_from(&mut input_stream);
                     match self.write(write_req) {
