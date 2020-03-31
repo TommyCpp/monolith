@@ -12,7 +12,7 @@ use crate::common::utils::get_current_timestamp;
 
 pub struct MonolithDb<S: Storage, I: Indexer> {
     current_chuck: Chunk<S, I>,
-    secondary_chunks: RwLock<Vec<Chunk<S, I>>>,
+    secondary_chunks: RwLock<Vec<Chunk<S, I>>>, //todo: chunk swap
     options: DbOpts,
 }
 

@@ -1,4 +1,4 @@
-use crate::common::time_point::Timestamp;
+use crate::time_point::Timestamp;
 use std::time::Instant;
 use crate::time_series::TimeSeriesId;
 use std::ops::Index;
@@ -21,6 +21,19 @@ pub fn get_current_timestamp() -> Timestamp {
 }
 
 
+/// Given a list of `TimeSeriesId` array, this function return the the `TimeSeriesId` that occur in all array
+///
+/// Note that the element in each `TimeSeriesId` array must be in __ascend order__.
+///
+/// # Examples
+/// ```
+/// use monolith::utils::intersect_time_series_id_vec;
+/// let v1 = vec![1u64, 2u64, 3u64, 4u64];
+/// let v2 = vec![1u64, 4u64];
+/// let mut ts = vec![v1, v2];
+///
+/// let res = intersect_time_series_id_vec(ts).unwrap();
+/// ```
 pub fn intersect_time_series_id_vec(mut ts: Vec<Vec<TimeSeriesId>>) -> Result<Vec<TimeSeriesId>> {
     type TimeSeriesIdMatrix = Vec<Vec<TimeSeriesId>>;
     if ts.len() == 0 {

@@ -3,6 +3,7 @@ use monolith::intersect_time_series_id_vec;
 use monolith::ops::OrderIntersect;
 use monolith::time_series::TimeSeriesId;
 use monolith::Result;
+use monolith::utils::intersect_time_series_id_vec;
 
 fn non_concurrent_intersect(mut ts: Vec<Vec<TimeSeriesId>>) -> Result<Vec<TimeSeriesId>> {
     while ts.len() > 1 {

@@ -16,6 +16,10 @@ pub const DEFAULT_READ_PATH: &str = "/read";
 pub const DEFAULT_WRITE_PATH: &str = "/write";
 
 
+/// Http Server that accept Prometheus requests
+///
+/// Note that the Prometheus remote storage requests using __unframed__ snappy encoding __proto__ object.
+///
 pub struct MonolithServer<S: Storage, I: Indexer> {
     db: MonolithDb<S, I>,
     port: i32,
@@ -208,6 +212,7 @@ mod tests {
 
 
     #[test]
+    #[ignore]
     fn test_serve() -> Result<()> {
         env_logger::init();
         let opts = DbOpts::default();

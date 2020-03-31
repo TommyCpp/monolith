@@ -3,8 +3,7 @@ use failure::_core::cmp::Ordering;
 use std::time::Duration;
 use crate::proto::Sample;
 
-pub const TIME_UNIT: Duration = Duration::from_micros(1);
-pub const F64_MARGIN: f64 = 0.000000001;
+const F64_MARGIN: f64 = 0.000000001;
 
 pub type Timestamp = u64;
 pub type Value = f64;
