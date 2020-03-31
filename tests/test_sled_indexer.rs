@@ -1,4 +1,4 @@
-use monolith::indexer::common::Indexer;
+use monolith::indexer::Indexer;
 use monolith::indexer::SledIndexer;
 use monolith::label::{Label, Labels};
 use monolith::Result;

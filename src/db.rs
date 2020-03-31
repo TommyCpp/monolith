@@ -1,13 +1,13 @@
-use crate::chunk::Chunk;
+use crate::chunk::{Chunk, ChunkOpts};
 use crate::option::{DbOpts, StorageType};
-use crate::{Indexer, Result, ChunkOps, MonolithErr};
+use crate::{Result, MonolithErr};
 
 use crate::storage::{Storage, SledStorage};
 use std::sync::{RwLock, Arc};
 use crate::common::label::Labels;
 use crate::common::time_point::{TimePoint, Timestamp};
 use crate::common::time_series::TimeSeries;
-use crate::indexer::SledIndexer;
+use crate::indexer::{SledIndexer, Indexer};
 use crate::common::utils::get_current_timestamp;
 
 pub struct MonolithDb<S: Storage, I: Indexer> {
@@ -16,8 +16,8 @@ pub struct MonolithDb<S: Storage, I: Indexer> {
     options: DbOpts,
 }
 
-/// New trait specific different strategy to create different kind of MonolithDb with different underlying storage and indexer
-pub trait New
+/// NewDb trait specific different strategy to create different kind of MonolithDb with different underlying storage and indexer
+pub trait NewDb
     where Self: Sized {
     type S: Storage;
     type I: Indexer;
@@ -27,7 +27,7 @@ pub trait New
     fn new(ops: DbOpts) -> Result<MonolithDb<Self::S, Self::I>> {
         let (storage, indexer) = Self::get_storage_and_indexer(ops.clone())?;
         let current_time = get_current_timestamp();
-        let chunk_opt = ChunkOps {
+        let chunk_opt = ChunkOpts {
             start_time: Some(current_time),
             end_time: Some(current_time + ops.chunk_size().as_millis() as Timestamp),
         };
@@ -73,7 +73,7 @@ impl<S: Storage, I: Indexer> MonolithDb<S, I> {
     }
 }
 
-impl New for MonolithDb<SledStorage, SledIndexer> {
+impl NewDb for MonolithDb<SledStorage, SledIndexer> {
     type S = SledStorage;
     type I = SledIndexer;
 

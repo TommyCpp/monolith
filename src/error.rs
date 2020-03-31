@@ -3,8 +3,9 @@ use failure::_core::num::{ParseFloatError, ParseIntError};
 
 use std::string::FromUtf8Error;
 use std::sync::Arc;
-use crate::{Chunk, Indexer};
 use crate::storage::Storage;
+use crate::indexer::Indexer;
+use crate::chunk::Chunk;
 
 #[derive(Debug, Fail)]
 pub enum MonolithErr {

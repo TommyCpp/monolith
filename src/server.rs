@@ -1,4 +1,4 @@
-use crate::{MonolithDb, Indexer};
+use crate::MonolithDb;
 use crate::storage::Storage;
 use crate::Result;
 use crate::proto::{ReadRequest, ReadResponse, WriteRequest, QueryResult, Query};
@@ -9,6 +9,7 @@ use crate::common::time_series::TimeSeries;
 use tiny_http::{Server, Response, StatusCode, ResponseBox, Method};
 use std::io::{BufWriter, Write, Cursor, Read};
 use log::Level;
+use crate::indexer::Indexer;
 
 pub const DEFAULT_PORT: i32 = 9001;
 pub const DEFAULT_READ_PATH: &str = "/read";
@@ -51,9 +52,13 @@ impl<S: Storage, I: Indexer> MonolithServer<S, I> {
                 (_, read_path) if read_path == self.read_path => {
                     let mut read_req = ReadRequest::new();
                     let read = read_req.merge_from(&mut input_stream);
-                    if read.is_err() /*|| read_req.compute_size() == 0*/ {
-                        error!("Cannot read content from read request {}", read.err().unwrap());
-                        request.respond(Response::empty(200));
+                    if read.is_err() || read_req.compute_size() == 0 {
+                        if read.is_err() {
+                            error!("Cannot read content from read request {}", read.err().unwrap());
+                        } else {
+                            error!("Empty request")
+                        }
+                        request.respond(Response::empty(500));
                     } else {
                         match self.query(read_req) {
                             Ok(read_res) => {
@@ -65,7 +70,7 @@ impl<S: Storage, I: Indexer> MonolithServer<S, I> {
                                 let pos = _res_cur.position();
                                 _res_cur.set_position(0);
                                 _res_cur.read_to_end(&mut _inner);
-                               let mut encoder = snap::raw::Encoder::new();
+                                let mut encoder = snap::raw::Encoder::new();
                                 let _res = encoder.compress_vec(_inner.as_slice()).unwrap();
 
                                 let response = Response::from_data(_res.as_slice());
@@ -101,7 +106,6 @@ impl<S: Storage, I: Indexer> MonolithServer<S, I> {
         Ok(())
     }
 
-    //todo: test it
     pub fn query(&self, read_rq: ReadRequest) -> Result<ReadResponse> {
         Ok(ReadResponse {
             results: RepeatedField::from(
@@ -134,7 +138,6 @@ impl<S: Storage, I: Indexer> MonolithServer<S, I> {
         })
     }
 
-    //todo: test it
     pub fn write(&self, write_rq: WriteRequest) -> Result<()> {
         for time_series in write_rq.timeseries.to_vec() {
             let _ts: TimeSeries = TimeSeries::from(&time_series);
@@ -147,7 +150,7 @@ impl<S: Storage, I: Indexer> MonolithServer<S, I> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Result, MonolithErr, Indexer, MonolithDb, ChunkOps, Chunk, IdGenerator};
+    use crate::{Result, MonolithErr, MonolithDb, IdGenerator};
     use crate::storage::{Storage, SledStorage};
     use crate::common::time_point::{TimePoint, Timestamp};
     use crate::common::label::Labels;
@@ -155,9 +158,9 @@ mod tests {
     use crate::server::MonolithServer;
     use std::sync::RwLock;
     use crate::common::utils::get_current_timestamp;
-    use crate::indexer::SledIndexer;
+    use crate::indexer::{SledIndexer, Indexer};
     use crate::common::time_series::TimeSeriesId;
-    use crate::db::New;
+    use crate::db::NewDb;
 
     struct StubStorage {}
 
@@ -191,7 +194,7 @@ mod tests {
         }
     }
 
-    impl crate::db::New for MonolithDb<StubStorage, StubIndexer> {
+    impl crate::db::NewDb for MonolithDb<StubStorage, StubIndexer> {
         type S = StubStorage;
         type I = StubIndexer;
 

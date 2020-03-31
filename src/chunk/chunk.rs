@@ -8,23 +8,23 @@ use crate::common::IdGenerator;
 use crate::{MonolithErr, Result};
 
 use crate::storage::Storage;
-use crate::Indexer;
 use crate::MonolithErr::OutOfRangeErr;
 use std::alloc::handle_alloc_error;
+use crate::indexer::Indexer;
 
 
 pub const DEFAULT_CHUNK_SIZE: Timestamp = Duration::from_secs(2 * 60 * 60).as_millis() as Timestamp;
 
 /// ChunkOps contains all options for chunk
-pub struct ChunkOps {
+pub struct ChunkOpts {
     // as mil sec
     pub start_time: Option<Timestamp>,
     pub end_time: Option<Timestamp>,
 }
 
-impl ChunkOps {
-    fn new() -> ChunkOps {
-        ChunkOps {
+impl ChunkOpts {
+    fn new() -> ChunkOpts {
+        ChunkOpts {
             start_time: None,
             end_time: None,
         }
@@ -45,7 +45,7 @@ pub struct Chunk<S: Storage, I: Indexer> {
 
 //todo: add concurrent control
 impl<S: Storage, I: Indexer> Chunk<S, I> {
-    pub fn new(storage: S, indexer: I, ops: &ChunkOps) -> Self {
+    pub fn new(storage: S, indexer: I, ops: &ChunkOpts) -> Self {
         let start_time = ops
             .start_time
             .unwrap_or(UNIX_EPOCH.elapsed().unwrap().as_millis() as Timestamp);
@@ -55,7 +55,7 @@ impl<S: Storage, I: Indexer> Chunk<S, I> {
             start_time,
             end_time: start_time + ops.end_time.unwrap_or(DEFAULT_CHUNK_SIZE),
             closed: false,
-            id_generator: IdGenerator::new(0),
+            id_generator: IdGenerator::new(1),
         }
     }
 

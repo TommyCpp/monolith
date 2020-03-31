@@ -2,7 +2,7 @@ use clap::{App, Arg};
 use monolith::indexer::SledIndexer;
 use monolith::option::DbOpts;
 use monolith::storage::SledStorage;
-use monolith::db::New;
+use monolith::db::NewDb;
 use monolith::{MonolithDb, CHUNK_SIZE, DEFAULT_CHUNK_SIZE, FILE_DIR_ARG, STORAGE_ARG};
 use monolith::server::MonolithServer;
 

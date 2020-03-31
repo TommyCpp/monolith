@@ -1,10 +1,11 @@
-use monolith::indexer::SledIndexer;
+use monolith::indexer::{SledIndexer, Indexer};
 use monolith::label::{Label, Labels};
 use monolith::storage::{SledStorage, Storage};
 use monolith::time_point::{TimePoint, Timestamp, Value};
 use monolith::time_series::{TimeSeries, TimeSeriesId};
-use monolith::{Chunk, ChunkOps, Indexer, Result};
+use monolith::Result;
 use tempfile::TempDir;
+use monolith::chunk::{ChunkOpts, Chunk};
 
 #[test]
 fn test_query() -> Result<()> {
@@ -31,7 +32,7 @@ fn test_query() -> Result<()> {
         }
         indexer.create_index(s.meta_data().clone(), s.id());
     }
-    let ops = ChunkOps {
+    let ops = ChunkOpts {
         start_time: Some(0u64),
         end_time: Some(1000u64),
     };
@@ -75,7 +76,7 @@ fn test_insert() -> Result<()> {
             vec![(11, 12.9), (16, 13.5)],
         ],
     );
-    let ops = ChunkOps {
+    let ops = ChunkOpts {
         start_time: Some(0u64),
         end_time: Some(1000u64),
     };

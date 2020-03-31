@@ -7,7 +7,8 @@ use crate::{MonolithErr, Result};
 use std::ops::Add;
 use std::path::Path;
 
-use crate::indexer::common::{intersect_time_series_id_vec, Indexer};
+use crate::indexer::Indexer;
+use crate::utils::intersect_time_series_id_vec;
 
 const LABEL_REVERSE_PREFIX: &str = "LR";
 const LABEL_PREFIX: &str = "L";
