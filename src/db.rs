@@ -10,6 +10,7 @@ use crate::common::time_series::TimeSeries;
 use crate::indexer::{SledIndexer, Indexer};
 use crate::common::utils::get_current_timestamp;
 
+/// MonolithDb is thread-safe
 pub struct MonolithDb<S: Storage, I: Indexer> {
     current_chuck: Chunk<S, I>,
     secondary_chunks: RwLock<Vec<Chunk<S, I>>>, //todo: chunk swap
