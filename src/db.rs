@@ -1,9 +1,9 @@
 use crate::chunk::{Chunk, ChunkOpts};
-use crate::option::{DbOpts, StorageType};
+use crate::option::{DbOpts};
 use crate::{Result, MonolithErr};
 
 use crate::storage::{Storage, SledStorage};
-use std::sync::{RwLock, Arc};
+use std::sync::{RwLock};
 use crate::common::label::Labels;
 use crate::common::time_point::{TimePoint, Timestamp};
 use crate::common::time_series::TimeSeries;
@@ -50,7 +50,7 @@ impl<S: Storage, I: Indexer> MonolithDb<S, I> {
             }
             _c.insert(labels.clone(), tp)
         }).filter(|res| res.is_err()).collect::<Vec<_>>();
-        if res.len() > 0 {
+        if !res.is_empty() {
             error!("num of error {}", res.len());
             return Err(MonolithErr::InternalErr("multiple time point cannot insert".to_string()));
         }
@@ -59,7 +59,7 @@ impl<S: Storage, I: Indexer> MonolithDb<S, I> {
 
     pub fn write_time_point(&self, labels: Labels, timepoint: TimePoint) -> Result<()> {
         let _c = &self.current_chuck;
-        _c.insert(labels.clone(), timepoint)?;
+        _c.insert(labels, timepoint)?;
         Ok(())
     }
 

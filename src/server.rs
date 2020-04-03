@@ -1,18 +1,18 @@
 use crate::MonolithDb;
-use std::thread;
+
 use crate::storage::Storage;
 use crate::Result;
-use crate::proto::{ReadRequest, ReadResponse, WriteRequest, QueryResult, Query};
+use crate::proto::{ReadRequest, ReadResponse, WriteRequest, QueryResult};
 use protobuf::{RepeatedField, Message, CodedInputStream, CodedOutputStream};
 use crate::common::time_point::Timestamp;
 use crate::common::label::{Labels, Label};
 use crate::common::time_series::TimeSeries;
-use tiny_http::{Server, Response, StatusCode, ResponseBox, Method, IncomingRequests, Request};
-use std::io::{BufWriter, Write, Cursor, Read};
-use log::Level;
+use tiny_http::{Server, Response, Request};
+use std::io::{Write, Cursor, Read};
+
 use crate::indexer::Indexer;
 use std::sync::Arc;
-use rayon::ThreadPool;
+
 
 pub const DEFAULT_PORT: i32 = 9001;
 pub const DEFAULT_READ_PATH: &str = "/read";
@@ -40,10 +40,10 @@ impl<S, I> Clone for MonolithServer<S, I>
     fn clone(&self) -> Self {
         MonolithServer {
             db: Arc::clone(&self.db),
-            port: self.port.clone(),
+            port: self.port,
             read_path: &self.read_path.clone(),
             write_path: &self.write_path.clone(),
-            worker_num: self.worker_num.clone(),
+            worker_num: self.worker_num,
         }
     }
 }
@@ -72,7 +72,7 @@ impl<S, I> MonolithServer<S, I>
             .unwrap();
 
 
-        for mut request in server.incoming_requests() {
+        for request in server.incoming_requests() {
             let server = self.clone();
             //do we need a context and a time out in case some thread stuck for some reason?
             workers.install(move || {
@@ -112,7 +112,7 @@ impl<S, I> MonolithServer<S, I>
                             read_res.write_to(&mut output_stream);
                             output_stream.flush();
                             let mut _inner = Vec::new();
-                            let pos = _res_cur.position();
+                            let _pos = _res_cur.position();
                             _res_cur.set_position(0);
                             _res_cur.read_to_end(&mut _inner);
                             let mut encoder = snap::raw::Encoder::new();
@@ -193,25 +193,25 @@ impl<S, I> MonolithServer<S, I>
 #[cfg(test)]
 mod tests {
     use crate::{Result, MonolithErr, MonolithDb, IdGenerator};
-    use crate::storage::{Storage, SledStorage};
-    use crate::common::time_point::{TimePoint, Timestamp};
+    use crate::storage::{Storage};
+    use crate::common::time_point::{TimePoint};
     use crate::common::label::Labels;
-    use crate::common::option::{DbOpts, StorageType};
+    use crate::common::option::{DbOpts};
     use crate::server::MonolithServer;
-    use std::sync::RwLock;
-    use crate::common::utils::get_current_timestamp;
-    use crate::indexer::{SledIndexer, Indexer};
-    use crate::common::time_series::TimeSeriesId;
+    
+    
+    use crate::indexer::{Indexer};
+    
     use crate::db::NewDb;
 
     struct StubStorage {}
 
     impl Storage for StubStorage {
-        fn write_time_point(&self, time_series_id: u64, timestamp: u64, value: f64) -> Result<()> {
+        fn write_time_point(&self, _time_series_id: u64, _timestamp: u64, _value: f64) -> Result<()> {
             unimplemented!()
         }
 
-        fn read_time_series(&self, time_series_id: u64, start_time: u64, end_time: u64) -> Result<Vec<TimePoint>> {
+        fn read_time_series(&self, _time_series_id: u64, _start_time: u64, _end_time: u64) -> Result<Vec<TimePoint>> {
             unimplemented!()
         }
     }
@@ -219,19 +219,19 @@ mod tests {
     struct StubIndexer {}
 
     impl Indexer for StubIndexer {
-        fn get_series_with_label_matching(&self, labels: Labels) -> Result<Vec<(u64, Labels)>> {
+        fn get_series_with_label_matching(&self, _labels: Labels) -> Result<Vec<(u64, Labels)>> {
             unimplemented!()
         }
 
-        fn get_series_id_with_label_matching(&self, labels: Labels) -> Result<Vec<u64>> {
+        fn get_series_id_with_label_matching(&self, _labels: Labels) -> Result<Vec<u64>> {
             unimplemented!()
         }
 
-        fn get_series_id_by_labels(&self, labels: Labels) -> Result<Option<u64>> {
+        fn get_series_id_by_labels(&self, _labels: Labels) -> Result<Option<u64>> {
             unimplemented!()
         }
 
-        fn create_index(&self, labels: Labels, time_series_id: u64) -> Result<()> {
+        fn create_index(&self, _labels: Labels, _time_series_id: u64) -> Result<()> {
             unimplemented!()
         }
     }
@@ -240,7 +240,7 @@ mod tests {
         type S = StubStorage;
         type I = StubIndexer;
 
-        fn get_storage_and_indexer(ops: DbOpts) -> Result<(Self::S, Self::I)> {
+        fn get_storage_and_indexer(_ops: DbOpts) -> Result<(Self::S, Self::I)> {
             Ok((
                 StubStorage {},
                 StubIndexer {}

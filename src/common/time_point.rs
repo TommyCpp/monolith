@@ -1,6 +1,6 @@
 use failure::_core::cmp::Ordering;
 
-use std::time::Duration;
+
 use crate::proto::Sample;
 
 const F64_MARGIN: f64 = 0.000000001;

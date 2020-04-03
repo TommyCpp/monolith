@@ -1,10 +1,10 @@
 use crate::common::label::Labels;
-use crate::common::ops::OrderIntersect;
+
 use crate::common::time_series::TimeSeriesId;
-use crate::{MonolithErr, Result};
-use std::ops::Index;
-use std::sync::mpsc::{channel, Receiver, Sender, TryRecvError};
-use std::thread;
+use crate::{Result};
+
+
+
 
 ///
 /// Indexer is in charge of query appropriate time series based on the labels.

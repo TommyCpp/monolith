@@ -2,7 +2,7 @@ use failure::_core::cmp::Ordering;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use crate::proto::LabelMatcher;
-use protobuf::descriptor::FieldDescriptorProto_Label::LABEL_OPTIONAL;
+
 
 #[derive(Hash, Clone)]
 pub struct Label {
