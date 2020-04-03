@@ -12,10 +12,12 @@ use std::io::{BufWriter, Write, Cursor, Read};
 use log::Level;
 use crate::indexer::Indexer;
 use std::sync::Arc;
+use rayon::ThreadPool;
 
 pub const DEFAULT_PORT: i32 = 9001;
 pub const DEFAULT_READ_PATH: &str = "/read";
 pub const DEFAULT_WRITE_PATH: &str = "/write";
+pub const DEFAULT_WORKER_NUM: usize = 8;
 
 
 /// Http Server that accept Prometheus requests
@@ -29,6 +31,7 @@ pub struct MonolithServer<S, I>
     port: i32,
     read_path: &'static str,
     write_path: &'static str,
+    worker_num: usize,
 }
 
 impl<S, I> Clone for MonolithServer<S, I>
@@ -37,9 +40,10 @@ impl<S, I> Clone for MonolithServer<S, I>
     fn clone(&self) -> Self {
         MonolithServer {
             db: Arc::clone(&self.db),
-            port: *&self.port,
+            port: self.port.clone(),
             read_path: &self.read_path.clone(),
             write_path: &self.write_path.clone(),
+            worker_num: self.worker_num.clone(),
         }
     }
 }
@@ -53,6 +57,7 @@ impl<S, I> MonolithServer<S, I>
             port: DEFAULT_PORT,
             read_path: DEFAULT_READ_PATH,
             write_path: DEFAULT_WRITE_PATH,
+            worker_num: DEFAULT_WORKER_NUM,
         }
     }
 
@@ -61,10 +66,16 @@ impl<S, I> MonolithServer<S, I>
         let addr = format!("127.0.0.1:{}", self.port);
         let server = Server::http(addr).unwrap();
 
-        //todo: use thread pool to control concurrency
+        let workers = rayon::ThreadPoolBuilder::new()
+            .num_threads(self.worker_num)
+            .build()
+            .unwrap();
+
+
         for mut request in server.incoming_requests() {
             let server = self.clone();
-            thread::spawn(move || {
+            //do we need a context and a time out in case some thread stuck for some reason?
+            workers.install(move || {
                 MonolithServer::_process(server, request)
             });
         }
