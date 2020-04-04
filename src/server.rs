@@ -19,7 +19,7 @@ pub const DEFAULT_READ_PATH: &str = "/read";
 pub const DEFAULT_WRITE_PATH: &str = "/write";
 pub const DEFAULT_WORKER_NUM: usize = 8;
 
-
+//todo: add options for server
 /// Http Server that accept Prometheus requests
 ///
 /// Note that the Prometheus remote storage requests using __unframed__ snappy encoding __proto__ object.

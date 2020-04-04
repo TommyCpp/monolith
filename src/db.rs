@@ -1,21 +1,76 @@
 use crate::chunk::{Chunk, ChunkOpts};
-use crate::option::{DbOpts};
-use crate::{Result, MonolithErr};
+use crate::option::DbOpts;
+use crate::{Result, MonolithErr, TIME_UNIT};
 
 use crate::storage::{Storage, SledStorage};
-use std::sync::{RwLock};
+use std::sync::{RwLock, Arc};
 use crate::common::label::Labels;
 use crate::common::time_point::{TimePoint, Timestamp};
 use crate::common::time_series::TimeSeries;
 use crate::indexer::{SledIndexer, Indexer};
 use crate::common::utils::get_current_timestamp;
+use std::cell::{Cell, RefCell};
+use std::borrow::Borrow;
+use std::ops::Deref;
+use std::rc::Rc;
+use std::thread;
+use std::sync::mpsc::{Receiver, channel};
 
 /// MonolithDb is thread-safe
 pub struct MonolithDb<S: Storage, I: Indexer> {
-    current_chuck: Chunk<S, I>,
-    secondary_chunks: RwLock<Vec<Chunk<S, I>>>, //todo: chunk swap
+    current_chuck: RwLock<Arc<Chunk<S, I>>>,
+    secondary_chunks: RwLock<Vec<Arc<Chunk<S, I>>>>,
+    //todo: chunk swap
     options: DbOpts,
+    on_swap: Receiver<Timestamp>,
 }
+
+impl<S: Storage, I: Indexer> MonolithDb<S, I>
+    where Self: NewDb {
+    pub fn write_time_points(&self, labels: Labels, timepoints: Vec<TimePoint>) -> Result<()> {
+        let _c = &self.current_chuck.read().unwrap();
+        let res = timepoints.into_iter().map(|tp| {
+            if tp.timestamp == 0 {
+                return Ok(()); //skip null
+            }
+            _c.insert(labels.clone(), tp)
+        }).filter(|res| res.is_err()).collect::<Vec<_>>();
+        if !res.is_empty() {
+            error!("num of error {}", res.len());
+            return Err(MonolithErr::InternalErr("multiple time point cannot insert".to_string()));
+        }
+        Ok(())
+    }
+
+    pub fn write_time_point(&self, labels: Labels, timepoint: TimePoint) -> Result<()> {
+        let _c = &self.current_chuck.read().unwrap();
+        _c.insert(labels, timepoint)?;
+        Ok(())
+    }
+
+    pub fn query(
+        &self,
+        labels: Labels,
+        start_time: Timestamp,
+        end_time: Timestamp,
+    ) -> Result<Vec<TimeSeries>> {
+        let _c = &self.current_chuck.read().unwrap();
+        _c.query(labels, start_time, end_time)
+    }
+
+    fn swap(&self, chunk: Chunk<S, I>) -> Result<()> {
+        {
+            let stale = self.current_chuck.read().unwrap();
+            self.secondary_chunks.write().unwrap().push(stale.clone());
+        }
+        {
+            let mut current = self.current_chuck.write().unwrap(); //will also block all read util swap finish
+            *current = Arc::new(chunk);
+        }
+        Ok(())
+    }
+}
+
 
 /// NewDb trait specific different strategy to create different kind of MonolithDb with different underlying storage and indexer
 pub trait NewDb
@@ -32,47 +87,24 @@ pub trait NewDb
             start_time: Some(current_time),
             end_time: Some(current_time + ops.chunk_size().as_millis() as Timestamp),
         };
+        let (swap_tx, swap_rx) = channel::<Timestamp>();
         let chunk = Chunk::<Self::S, Self::I>::new(storage, indexer, &chunk_opt);
-        Ok(MonolithDb {
-            current_chuck: chunk,
+        let db = MonolithDb {
+            current_chuck: RwLock::new(Arc::new(chunk)),
             secondary_chunks: RwLock::new(Vec::new()),
             options: ops,
-        })
-    }
-}
-
-impl<S: Storage, I: Indexer> MonolithDb<S, I> {
-    pub fn write_time_points(&self, labels: Labels, timepoints: Vec<TimePoint>) -> Result<()> {
-        let _c = &self.current_chuck;
-        let res = timepoints.into_iter().map(|tp| {
-            if tp.timestamp == 0{
-                return Ok(()) //skip null
+            on_swap: swap_rx,
+        };
+        thread::spawn(move || {
+            loop {
+                thread::sleep(TIME_UNIT * chunk_opt.end_time.unwrap() as u32);
+                swap_tx.send(chunk_opt.end_time.unwrap())
             }
-            _c.insert(labels.clone(), tp)
-        }).filter(|res| res.is_err()).collect::<Vec<_>>();
-        if !res.is_empty() {
-            error!("num of error {}", res.len());
-            return Err(MonolithErr::InternalErr("multiple time point cannot insert".to_string()));
-        }
-        Ok(())
-    }
-
-    pub fn write_time_point(&self, labels: Labels, timepoint: TimePoint) -> Result<()> {
-        let _c = &self.current_chuck;
-        _c.insert(labels, timepoint)?;
-        Ok(())
-    }
-
-    pub fn query(
-        &self,
-        labels: Labels,
-        start_time: Timestamp,
-        end_time: Timestamp,
-    ) -> Result<Vec<TimeSeries>> {
-        let _c = &self.current_chuck;
-        _c.query(labels, start_time, end_time)
+        });
+        Ok(db)
     }
 }
+
 
 impl NewDb for MonolithDb<SledStorage, SledIndexer> {
     type S = SledStorage;
@@ -85,3 +117,12 @@ impl NewDb for MonolithDb<SledStorage, SledIndexer> {
         ))
     }
 }
+
+
+//todo: use builder to replace NewDb trait
+trait ChunkBuilder<S, I>
+    where S: Storage,
+          I: Indexer {
+    fn build() -> Chunk<S, I>;
+}
+

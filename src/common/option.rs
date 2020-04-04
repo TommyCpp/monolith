@@ -50,6 +50,7 @@ pub struct ServerOpts {
     port: i32,
     write_path: &'static str,
     read_path: &'static str,
+    worker_num: usize
 }
 
 impl ServerOpts {
