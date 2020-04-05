@@ -1,5 +1,5 @@
 use crate::time_point::Timestamp;
-use std::time::Instant;
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use crate::time_series::TimeSeriesId;
 use std::ops::Index;
 use crate::ops::OrderIntersect;
@@ -17,7 +17,27 @@ pub fn is_duration_overlap(
 }
 
 pub fn get_current_timestamp() -> Timestamp {
-    Instant::now().elapsed().as_millis() as Timestamp
+    let now = SystemTime::now();
+    let since_the_epoch = now.duration_since(UNIX_EPOCH)
+        .expect("Time went backwards");
+    since_the_epoch.as_millis() as Timestamp
+}
+
+pub fn encode_chunk_dir(start_time: Timestamp, end_time: Timestamp) -> String {
+    let mut res = 0u128;
+    res |= start_time as u128;
+    res = res << 64;
+    res |= end_time as u128;
+
+    format!("{:x}", res)
+}
+
+pub fn decode_chunk_dir(dir_name: String) -> Result<(Timestamp, Timestamp)> {
+    let decimal = u128::from_str_radix(dir_name.as_str(), 16)?;
+    let end_time: u64 = (decimal & (u64::max_value() as u128)) as u64;
+    let start_time: u64 = ((decimal & (u128::max_value() - u64::max_value() as u128)) >> 64) as u64;
+
+    Ok((start_time, end_time))
 }
 
 
@@ -105,5 +125,42 @@ pub fn intersect_time_series_id_vec(mut ts: Vec<Vec<TimeSeriesId>>) -> Result<Ve
         }
 
         intersect_time_series_id_vec(next_vec)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::Result;
+    use crate::common::utils::{encode_chunk_dir, decode_chunk_dir, get_current_timestamp};
+
+    #[test]
+    fn test_encode_chunk_dir() -> Result<()> {
+        let start_time = 1671234234u64;
+        let end_time = 14423141234u64;
+
+        let res = encode_chunk_dir(start_time, end_time);
+        assert_eq!(res, "639d02ba000000035bafab72");
+        Ok(())
+    }
+
+    #[test]
+    fn test_decode_chunk_dir() -> Result<()> {
+        let dir_name = "639d02ba000000035bafab72";
+
+        let (start_time, end_time) = decode_chunk_dir(String::from(dir_name))?;
+
+        assert_eq!(start_time, 1671234234u64);
+        assert_eq!(end_time, 14423141234u64);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_get_current_timestamp() -> Result<()> {
+        let current_timestamp = get_current_timestamp();
+        if !current_timestamp > 0 {
+            assert_eq!(1, 0);
+        }
+        Ok(())
     }
 }

@@ -201,8 +201,6 @@ mod tests {
     
     
     use crate::indexer::{Indexer};
-    
-    use crate::db::NewDb;
 
     struct StubStorage {}
 
@@ -233,18 +231,6 @@ mod tests {
 
         fn create_index(&self, _labels: Labels, _time_series_id: u64) -> Result<()> {
             unimplemented!()
-        }
-    }
-
-    impl crate::db::NewDb for MonolithDb<StubStorage, StubIndexer> {
-        type S = StubStorage;
-        type I = StubIndexer;
-
-        fn get_storage_and_indexer(_ops: DbOpts) -> Result<(Self::S, Self::I)> {
-            Ok((
-                StubStorage {},
-                StubIndexer {}
-            ))
         }
     }
 
