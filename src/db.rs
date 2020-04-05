@@ -1,6 +1,6 @@
 use crate::chunk::{Chunk, ChunkOpts};
 use crate::option::DbOpts;
-use crate::{Result, MonolithErr, TIME_UNIT};
+use crate::{Result, MonolithErr, TIME_UNIT, Builder};
 
 use crate::storage::{Storage, SledStorage};
 use std::sync::{RwLock, Arc};
@@ -10,9 +10,6 @@ use crate::common::time_series::TimeSeries;
 use crate::indexer::{SledIndexer, Indexer};
 use crate::common::utils::get_current_timestamp;
 use std::cell::{Cell, RefCell};
-use std::borrow::Borrow;
-use std::ops::Deref;
-use std::rc::Rc;
 use std::thread;
 use std::sync::mpsc::{Receiver, channel};
 
@@ -22,11 +19,36 @@ pub struct MonolithDb<S: Storage, I: Indexer> {
     secondary_chunks: RwLock<Vec<Arc<Chunk<S, I>>>>,
     //todo: chunk swap
     options: DbOpts,
-    on_swap: Receiver<Timestamp>,
+    storage_builder: Box<dyn Builder<S> + Sync + Send>,
+    indexer_builder: Box<dyn Builder<I> + Sync + Send>
 }
 
-impl<S: Storage, I: Indexer> MonolithDb<S, I>
-    where Self: NewDb {
+impl<S: Storage, I: Indexer> MonolithDb<S, I> {
+    pub fn new(ops: DbOpts, mut storage_builder: Box<dyn Builder<S> + Sync + Send>, mut indexer_builder: Box<dyn Builder<I> + Sync + Send>) -> Result<Self>{
+        let (storage, indexer) = (storage_builder.build()?, indexer_builder.build()?);
+        let current_time = get_current_timestamp();
+        let chunk_opt = ChunkOpts {
+            start_time: Some(current_time),
+            end_time: Some(current_time + ops.chunk_size().as_millis() as Timestamp),
+        };
+        let chunk = Chunk::<S, I>::new(storage, indexer, &chunk_opt);
+        let (swap_tx, swap_rx) = channel::<Timestamp>();
+        let db = MonolithDb {
+            current_chuck: RwLock::new(Arc::new(chunk)),
+            secondary_chunks: RwLock::new(Vec::new()),
+            options: ops,
+            storage_builder,
+            indexer_builder
+        };
+        thread::spawn(move || {
+            loop {
+                thread::sleep(TIME_UNIT * chunk_opt.end_time.unwrap() as u32);
+                swap_tx.send(chunk_opt.end_time.unwrap());
+            }
+        });
+        Ok(db)
+    }
+
     pub fn write_time_points(&self, labels: Labels, timepoints: Vec<TimePoint>) -> Result<()> {
         let _c = &self.current_chuck.read().unwrap();
         let res = timepoints.into_iter().map(|tp| {
@@ -58,7 +80,14 @@ impl<S: Storage, I: Indexer> MonolithDb<S, I>
         _c.query(labels, start_time, end_time)
     }
 
-    fn swap(&self, chunk: Chunk<S, I>) -> Result<()> {
+    fn swap(&self) -> Result<()> {
+        let (storage, indexer) = (self.storage_builder.build()?, self.indexer_builder.build()?);
+        let current_time = get_current_timestamp();
+        let chunk_opt = ChunkOpts {
+            start_time: Some(current_time),
+            end_time: Some(current_time + self.options.chunk_size().as_millis() as Timestamp),
+        };
+        let chunk = Chunk::<S, I>::new(storage, indexer, &chunk_opt);
         {
             let stale = self.current_chuck.read().unwrap();
             self.secondary_chunks.write().unwrap().push(stale.clone());
@@ -71,58 +100,4 @@ impl<S: Storage, I: Indexer> MonolithDb<S, I>
     }
 }
 
-
-/// NewDb trait specific different strategy to create different kind of MonolithDb with different underlying storage and indexer
-pub trait NewDb
-    where Self: Sized {
-    type S: Storage;
-    type I: Indexer;
-
-    fn get_storage_and_indexer(ops: DbOpts) -> Result<(Self::S, Self::I)>;
-
-    fn new(ops: DbOpts) -> Result<MonolithDb<Self::S, Self::I>> {
-        let (storage, indexer) = Self::get_storage_and_indexer(ops.clone())?;
-        let current_time = get_current_timestamp();
-        let chunk_opt = ChunkOpts {
-            start_time: Some(current_time),
-            end_time: Some(current_time + ops.chunk_size().as_millis() as Timestamp),
-        };
-        let (swap_tx, swap_rx) = channel::<Timestamp>();
-        let chunk = Chunk::<Self::S, Self::I>::new(storage, indexer, &chunk_opt);
-        let db = MonolithDb {
-            current_chuck: RwLock::new(Arc::new(chunk)),
-            secondary_chunks: RwLock::new(Vec::new()),
-            options: ops,
-            on_swap: swap_rx,
-        };
-        thread::spawn(move || {
-            loop {
-                thread::sleep(TIME_UNIT * chunk_opt.end_time.unwrap() as u32);
-                swap_tx.send(chunk_opt.end_time.unwrap())
-            }
-        });
-        Ok(db)
-    }
-}
-
-
-impl NewDb for MonolithDb<SledStorage, SledIndexer> {
-    type S = SledStorage;
-    type I = SledIndexer;
-
-    fn get_storage_and_indexer(ops: DbOpts) -> Result<(Self::S, Self::I)> {
-        Ok((
-            SledStorage::new(ops.base_dir().as_path().join("storage").as_path())?,
-            SledIndexer::new(ops.base_dir().as_path().join("indexer").as_path())?,
-        ))
-    }
-}
-
-
-//todo: use builder to replace NewDb trait
-trait ChunkBuilder<S, I>
-    where S: Storage,
-          I: Indexer {
-    fn build() -> Chunk<S, I>;
-}
 

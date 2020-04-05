@@ -1,4 +1,5 @@
 use crate::common::ops::OrderIntersect;
+use crate::Result;
 use crate::common::time_series::TimeSeriesId;
 use std::ops::Index;
 use std::sync::atomic::AtomicU64;
@@ -46,6 +47,11 @@ impl OrderIntersect for Vec<TimeSeriesId> {
         res
     }
 }
+
+pub trait Builder<T>{
+    fn build(&self) -> Result<T>;
+}
+
 
 #[cfg(test)]
 mod test {

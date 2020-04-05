@@ -3,9 +3,9 @@ use sled::Db;
 use crate::common::label::{Label, Labels};
 
 use crate::common::time_series::TimeSeriesId;
-use crate::{MonolithErr, Result};
+use crate::{MonolithErr, Result, Builder};
 use std::ops::Add;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::indexer::Indexer;
 use crate::utils::intersect_time_series_id_vec;
@@ -200,6 +200,30 @@ impl Indexer for SledIndexer {
         Ok(())
     }
 }
+
+pub struct SledIndexerBuilder {
+    path: PathBuf
+}
+
+impl Builder<SledIndexer> for SledIndexerBuilder {
+    fn build(&self) -> Result<SledIndexer> {
+        SledIndexer::new(self.path.as_path().join("indexer").as_path())
+    }
+}
+
+impl SledIndexerBuilder {
+    pub fn new() -> Self {
+        SledIndexerBuilder {
+            path: Default::default()
+        }
+    }
+
+    pub fn path(&mut self, path: PathBuf) -> &mut Self {
+        self.path = path;
+        self
+    }
+}
+
 
 #[cfg(test)]
 mod tests {

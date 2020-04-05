@@ -5,6 +5,7 @@ use crate::Result;
 mod sled_storage;
 
 pub use sled_storage::SledStorage;
+pub use sled_storage::SledStorageBuilder;
 
 ///
 /// Storage is in charge of storing time series data

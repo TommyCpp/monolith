@@ -4,10 +4,10 @@ use crate::common::time_point::TimePoint;
 use crate::storage::{Decoder, Encoder, Storage};
 use crate::time_point::Timestamp;
 use crate::MonolithErr::{NotFoundErr, OutOfRangeErr};
-use crate::Result;
+use crate::{Result, Builder};
 use sled::{Db, Tree};
 use std::ops::Deref;
-use std::path::{Path};
+use std::path::{Path, PathBuf};
 
 const TIME_SERIES_PREFIX: &str = "TS";
 const TIME_POINT_PREFIX: &str = "TP";
@@ -126,5 +126,28 @@ impl Decoder for SledProcessor {
         let timestamp = timepoint.get(0).unwrap().deref().parse::<u64>()?;
         let value = timepoint.get(1).unwrap().deref().parse::<f64>()?;
         Ok(TimePoint::new(timestamp, value))
+    }
+}
+
+pub struct SledStorageBuilder {
+    path: PathBuf
+}
+
+impl Builder<SledStorage> for SledStorageBuilder {
+    fn build(&self) -> Result<SledStorage> {
+        SledStorage::new(self.path.as_path().join("storage").as_path())
+    }
+}
+
+impl SledStorageBuilder {
+    pub fn new() -> Self {
+        SledStorageBuilder {
+            path: Default::default()
+        }
+    }
+
+    pub fn path(&mut self, path: PathBuf) -> &mut Self {
+        self.path = path;
+        self
     }
 }
