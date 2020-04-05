@@ -12,20 +12,25 @@ use crate::common::utils::get_current_timestamp;
 use std::cell::{Cell, RefCell};
 use std::thread;
 use std::sync::mpsc::{Receiver, channel};
+use std::borrow::BorrowMut;
+use std::path::PathBuf;
 
 /// MonolithDb is thread-safe
-pub struct MonolithDb<S: Storage, I: Indexer> {
+pub struct MonolithDb<S: Storage, I: Indexer>
+    where S: Storage + Send + Sync,
+          I: Indexer + Send + Sync {
     current_chuck: RwLock<Arc<Chunk<S, I>>>,
     secondary_chunks: RwLock<Vec<Arc<Chunk<S, I>>>>,
-    //todo: chunk swap
     options: DbOpts,
     storage_builder: Box<dyn Builder<S> + Sync + Send>,
-    indexer_builder: Box<dyn Builder<I> + Sync + Send>
+    indexer_builder: Box<dyn Builder<I> + Sync + Send>,
 }
 
-impl<S: Storage, I: Indexer> MonolithDb<S, I> {
-    pub fn new(ops: DbOpts, mut storage_builder: Box<dyn Builder<S> + Sync + Send>, mut indexer_builder: Box<dyn Builder<I> + Sync + Send>) -> Result<Self>{
-        let (storage, indexer) = (storage_builder.build()?, indexer_builder.build()?);
+impl<S, I> MonolithDb<S, I>
+    where S: Storage + Send + Sync + 'static,
+          I: Indexer + Send + Sync + 'static {
+    pub fn new(ops: DbOpts, storage_builder: Box<dyn Builder<S> + Sync + Send>, indexer_builder: Box<dyn Builder<I> + Sync + Send>) -> Result<Arc<Self>> {
+        let (storage, indexer) = (storage_builder.build(ops.base_dir().clone())?, indexer_builder.build(ops.base_dir().clone())?);
         let current_time = get_current_timestamp();
         let chunk_opt = ChunkOpts {
             start_time: Some(current_time),
@@ -33,20 +38,27 @@ impl<S: Storage, I: Indexer> MonolithDb<S, I> {
         };
         let chunk = Chunk::<S, I>::new(storage, indexer, &chunk_opt);
         let (swap_tx, swap_rx) = channel::<Timestamp>();
-        let db = MonolithDb {
+        let db = Arc::new(MonolithDb {
             current_chuck: RwLock::new(Arc::new(chunk)),
             secondary_chunks: RwLock::new(Vec::new()),
             options: ops,
             storage_builder,
-            indexer_builder
-        };
+            indexer_builder,
+        });
         thread::spawn(move || {
             loop {
                 thread::sleep(TIME_UNIT * chunk_opt.end_time.unwrap() as u32);
                 swap_tx.send(chunk_opt.end_time.unwrap());
             }
         });
-        Ok(db)
+        let _db = db.clone();
+        thread::spawn(move || {
+            loop {
+                let start_time = swap_rx.recv().unwrap() + 1;
+                _db.clone().swap(start_time);
+            }
+        });
+        Ok(db.clone())
     }
 
     pub fn write_time_points(&self, labels: Labels, timepoints: Vec<TimePoint>) -> Result<()> {
@@ -80,12 +92,12 @@ impl<S: Storage, I: Indexer> MonolithDb<S, I> {
         _c.query(labels, start_time, end_time)
     }
 
-    fn swap(&self) -> Result<()> {
-        let (storage, indexer) = (self.storage_builder.build()?, self.indexer_builder.build()?);
-        let current_time = get_current_timestamp();
+    fn swap(&self, start_time: Timestamp) -> Result<()> {
+        //todo: replace with individual dir for each chunk
+        let (storage, indexer) = (self.storage_builder.build(self.options.base_dir().clone())?, self.indexer_builder.build(self.options.base_dir().clone())?);
         let chunk_opt = ChunkOpts {
-            start_time: Some(current_time),
-            end_time: Some(current_time + self.options.chunk_size().as_millis() as Timestamp),
+            start_time: Some(start_time),
+            end_time: Some(start_time + self.options.chunk_size().as_millis() as Timestamp),
         };
         let chunk = Chunk::<S, I>::new(storage, indexer, &chunk_opt);
         {
@@ -94,7 +106,8 @@ impl<S: Storage, I: Indexer> MonolithDb<S, I> {
         }
         {
             let mut current = self.current_chuck.write().unwrap(); //will also block all read util swap finish
-            *current = Arc::new(chunk);
+            current.close(); //close the stale one
+            *current = Arc::new(chunk); //crate new one
         }
         Ok(())
     }

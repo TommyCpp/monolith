@@ -5,9 +5,12 @@ use monolith::option::DbOpts;
 use monolith::storage::{SledStorage, SledStorageBuilder};
 use monolith::{MonolithDb, CHUNK_SIZE, DEFAULT_CHUNK_SIZE, FILE_DIR_ARG, STORAGE_ARG};
 use monolith::server::MonolithServer;
+use std::sync::Arc;
 
 #[macro_use]
 extern crate log;
+
+type SledMonolithDb = MonolithDb<SledStorage, SledIndexer>;
 
 ///
 /// Binary command line wrapper for application
@@ -38,10 +41,8 @@ fn main() {
 
     let mut storage_builder = SledStorageBuilder::new();
     let mut indexer_builder = SledIndexerBuilder::new();
-    storage_builder.path(options.base_dir().clone());
-    indexer_builder.path(options.base_dir().clone());
 
-    let db: MonolithDb<SledStorage, SledIndexer> = MonolithDb::<SledStorage, SledIndexer>::new(options, Box::new(storage_builder), Box::new(indexer_builder)).unwrap();
+    let db: Arc<SledMonolithDb> = MonolithDb::<SledStorage, SledIndexer>::new(options, Box::new(storage_builder), Box::new(indexer_builder)).unwrap();
 
     let server = MonolithServer::new(db);
     server.serve();

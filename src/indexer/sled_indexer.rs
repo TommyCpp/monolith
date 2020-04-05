@@ -206,8 +206,8 @@ pub struct SledIndexerBuilder {
 }
 
 impl Builder<SledIndexer> for SledIndexerBuilder {
-    fn build(&self) -> Result<SledIndexer> {
-        SledIndexer::new(self.path.as_path().join("indexer").as_path())
+    fn build(&self, path: PathBuf) -> Result<SledIndexer> {
+        SledIndexer::new(path.as_path().join("indexer").as_path())
     }
 }
 
@@ -216,11 +216,6 @@ impl SledIndexerBuilder {
         SledIndexerBuilder {
             path: Default::default()
         }
-    }
-
-    pub fn path(&mut self, path: PathBuf) -> &mut Self {
-        self.path = path;
-        self
     }
 }
 

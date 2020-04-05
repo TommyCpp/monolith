@@ -4,6 +4,7 @@ use crate::common::time_series::TimeSeriesId;
 use std::ops::Index;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
+use std::path::PathBuf;
 
 pub mod label;
 pub mod option;
@@ -49,7 +50,7 @@ impl OrderIntersect for Vec<TimeSeriesId> {
 }
 
 pub trait Builder<T>{
-    fn build(&self) -> Result<T>;
+    fn build(&self, path: PathBuf) -> Result<T>;
 }
 
 

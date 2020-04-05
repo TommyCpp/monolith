@@ -134,8 +134,8 @@ pub struct SledStorageBuilder {
 }
 
 impl Builder<SledStorage> for SledStorageBuilder {
-    fn build(&self) -> Result<SledStorage> {
-        SledStorage::new(self.path.as_path().join("storage").as_path())
+    fn build(&self, path: PathBuf) -> Result<SledStorage> {
+        SledStorage::new(path.as_path().join("storage").as_path())
     }
 }
 
@@ -144,10 +144,5 @@ impl SledStorageBuilder {
         SledStorageBuilder {
             path: Default::default()
         }
-    }
-
-    pub fn path(&mut self, path: PathBuf) -> &mut Self {
-        self.path = path;
-        self
     }
 }

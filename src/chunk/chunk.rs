@@ -11,6 +11,8 @@ use crate::storage::Storage;
 use crate::MonolithErr::OutOfRangeErr;
 
 use crate::indexer::Indexer;
+use std::sync::RwLock;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 
 pub const DEFAULT_CHUNK_SIZE: Timestamp = Duration::from_secs(2 * 60 * 60).as_millis() as Timestamp;
@@ -39,11 +41,12 @@ pub struct Chunk<S: Storage, I: Indexer> {
     indexer: I,
     start_time: Timestamp,
     end_time: Timestamp,
-    closed: bool,
+    closed: AtomicBool,
     id_generator: IdGenerator,
 }
 
 //todo: add concurrent control
+//todo: add meta data file for chunk, build dir for each individual chunk
 impl<S: Storage, I: Indexer> Chunk<S, I> {
     pub fn new(storage: S, indexer: I, ops: &ChunkOpts) -> Self {
         let start_time = ops
@@ -54,9 +57,17 @@ impl<S: Storage, I: Indexer> Chunk<S, I> {
             indexer,
             start_time,
             end_time: start_time + ops.end_time.unwrap_or(DEFAULT_CHUNK_SIZE),
-            closed: false,
+            closed: AtomicBool::new(false),
             id_generator: IdGenerator::new(1),
         }
+    }
+
+    pub fn close(&self) {
+        self.closed.store(true, Ordering::SeqCst)
+    }
+
+    pub fn is_closed(&self) -> bool {
+        self.closed.load(Ordering::SeqCst)
     }
 
     pub fn insert(&self, labels: Labels, timepoint: TimePoint) -> Result<()> {
@@ -105,11 +116,6 @@ impl<S: Storage, I: Indexer> Chunk<S, I> {
     }
 }
 
-fn get_chunk_size(sec: u64) -> Timestamp {
-    Duration::from_secs(sec * 60 * 60).as_nanos() as Timestamp
-}
-
-pub struct ChunkBuilder {}
 
 #[cfg(test)]
 mod test {
