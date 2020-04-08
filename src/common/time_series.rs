@@ -1,6 +1,8 @@
 use crate::common::label::{Labels, Label};
+use crate::{Result, MonolithErr};
 use crate::common::time_point::{TimePoint, Timestamp, Value};
 use crate::proto::Sample;
+use std::borrow::BorrowMut;
 
 pub type TimeSeriesId = u64;
 
@@ -46,23 +48,34 @@ impl TimeSeries {
 }
 
 
-impl From<&TimeSeries> for crate::proto::TimeSeries{
+impl From<&TimeSeries> for crate::proto::TimeSeries {
     fn from(t: &TimeSeries) -> Self {
-        crate::proto::TimeSeries{
+        crate::proto::TimeSeries {
             labels: t.meta_data.vec().iter().map(crate::proto::Label::from).collect(),
             samples: t.time_points.iter().map(Sample::from).collect(),
             unknown_fields: Default::default(),
-            cached_size: Default::default()
+            cached_size: Default::default(),
         }
     }
 }
 
-impl From<&crate::proto::TimeSeries> for TimeSeries{
+impl From<&(Labels, Vec<TimePoint>)> for crate::proto::TimeSeries{
+    fn from(t: &(Labels, Vec<TimePoint>)) -> Self {
+        crate::proto::TimeSeries {
+            labels: t.0.vec().iter().map(crate::proto::Label::from).collect(),
+            samples: t.1.iter().map(Sample::from).collect(),
+            unknown_fields: Default::default(),
+            cached_size: Default::default(),
+        }
+    }
+}
+
+impl From<&crate::proto::TimeSeries> for TimeSeries {
     fn from(t: &crate::proto::TimeSeries) -> Self {
-        TimeSeries{
+        TimeSeries {
             id: 0,
             time_points: t.samples.iter().map(TimePoint::from).collect(),
-            meta_data: Labels::from_vec(t.labels.to_vec().iter().map(Label::from).collect())
+            meta_data: Labels::from_vec(t.labels.to_vec().iter().map(Label::from).collect()),
         }
     }
 }

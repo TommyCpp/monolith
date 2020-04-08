@@ -21,7 +21,7 @@ pub const CHUNK_SIZE: &str = "chunk_size";
 pub const TIME_UNIT: Duration = Duration::from_micros(1);
 
 //in seconds, used in default value field of cli, so has to be str
-pub const DEFAULT_CHUNK_SIZE: &str = "86400";
+pub const DEFAULT_CHUNK_SIZE: &str = "120";
 
 #[macro_use]
 extern crate log;

@@ -3,7 +3,7 @@ use std::time::{Duration, UNIX_EPOCH};
 use crate::common::label::Labels;
 use crate::common::time_point::{TimePoint, Timestamp};
 use crate::common::time_series::TimeSeries;
-use crate::common::utils::is_duration_overlap;
+use crate::common::utils::{is_duration_overlap, get_current_timestamp};
 use crate::common::IdGenerator;
 use crate::{MonolithErr, Result};
 
@@ -51,12 +51,12 @@ impl<S: Storage, I: Indexer> Chunk<S, I> {
     pub fn new(storage: S, indexer: I, ops: &ChunkOpts) -> Self {
         let start_time = ops
             .start_time
-            .unwrap_or(UNIX_EPOCH.elapsed().unwrap().as_millis() as Timestamp);
+            .unwrap_or(get_current_timestamp());
         Chunk {
             storage,
             indexer,
             start_time,
-            end_time: start_time + ops.end_time.unwrap_or(DEFAULT_CHUNK_SIZE),
+            end_time: ops.end_time.unwrap_or(start_time + DEFAULT_CHUNK_SIZE),
             closed: AtomicBool::new(false),
             id_generator: IdGenerator::new(1),
         }
@@ -72,6 +72,7 @@ impl<S: Storage, I: Indexer> Chunk<S, I> {
 
     pub fn insert(&self, labels: Labels, timepoint: TimePoint) -> Result<()> {
         if !self.is_in_range(&timepoint.timestamp) {
+            info!("Chunk range {}, {}; But trying to insert {}", self.start_time, self.end_time, timepoint.timestamp);
             return Err(MonolithErr::OutOfRangeErr(self.start_time, self.end_time));
         }
         let id = self.indexer.get_series_id_by_labels(labels.clone())?;
@@ -109,6 +110,11 @@ impl<S: Storage, I: Indexer> Chunk<S, I> {
             res.push(TimeSeries::new_with_data(id, metadata, data))
         }
         Ok(res)
+    }
+
+    ///start time and end time of this chunk
+    pub fn start_end_time(&self) -> (Timestamp, Timestamp) {
+        (self.start_time, self.end_time)
     }
 
     fn is_in_range(&self, timestamp: &Timestamp) -> bool {

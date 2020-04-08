@@ -3,7 +3,7 @@ use crate::option::DbOpts;
 use crate::{Result, MonolithErr, TIME_UNIT, Builder};
 
 use crate::storage::{Storage, SledStorage};
-use std::sync::{RwLock, Arc};
+use std::sync::{RwLock, Arc, Mutex};
 use crate::common::label::Labels;
 use crate::common::time_point::{TimePoint, Timestamp};
 use crate::common::time_series::TimeSeries;
@@ -11,13 +11,14 @@ use crate::indexer::{SledIndexer, Indexer};
 use crate::common::utils::{get_current_timestamp, encode_chunk_dir};
 use std::cell::{Cell, RefCell};
 use std::thread;
-use std::sync::mpsc::{Receiver, channel};
+use std::sync::mpsc::{Receiver, channel, Sender};
 use std::borrow::BorrowMut;
 use std::path::PathBuf;
 use crate::MonolithErr::OutOfRangeErr;
 use failure::Fail;
 use std::any::Any;
 use std::time::Duration;
+use std::collections::HashMap;
 
 /// MonolithDb is thread-safe
 pub struct MonolithDb<S: Storage, I: Indexer>
@@ -29,10 +30,12 @@ pub struct MonolithDb<S: Storage, I: Indexer>
     storage_builder: Box<dyn Builder<S> + Sync + Send>,
     indexer_builder: Box<dyn Builder<I> + Sync + Send>,
 }
+
 impl<S, I> MonolithDb<S, I>
     where S: Storage + Send + Sync + 'static,
           I: Indexer + Send + Sync + 'static {
     pub fn new(ops: DbOpts, storage_builder: Box<dyn Builder<S> + Sync + Send>, indexer_builder: Box<dyn Builder<I> + Sync + Send>) -> Result<Arc<Self>> {
+        let chunk_size = ops.chunk_size().as_millis() as Timestamp;
         let current_time = get_current_timestamp();
         let chunk_opt = ChunkOpts {
             start_time: Some(current_time),
@@ -58,8 +61,8 @@ impl<S, I> MonolithDb<S, I>
         //TODO: test chunk swap with prom, still get out of range error sometimes.
         thread::spawn(move || {
             loop {
-                thread::sleep(Duration::from_millis(chunk_opt.end_time - get_current_timestamp()));
-                swap_tx.send(chunk_opt.end_time.unwrap());
+                thread::sleep(Duration::from_millis(chunk_size));
+                swap_tx.send(get_current_timestamp());
             }
         });
         let _db = db.clone();
@@ -78,10 +81,21 @@ impl<S, I> MonolithDb<S, I>
             if tp.timestamp == 0 {
                 return Ok(()); //skip null
             }
-            _c.insert(labels.clone(), tp)
+            let res = _c.insert(labels.clone(), tp);
+            if res.is_err() {
+                let err = res.err().unwrap();
+                return if let MonolithErr::OutOfRangeErr(st, et) = err {
+                    // skip out of range error
+                    info!("one out of range error with target range {}, {}", st, et);
+                    Ok(())
+                } else {
+                    Err(err)
+                };
+            }
+            Ok(())
         }).filter(|res| res.is_err()).collect::<Vec<_>>();
         if !res.is_empty() {
-            error!("num of error {}", res.len());
+            error!("{} time point failed to insert", res.len());
             return Err(MonolithErr::InternalErr("multiple time point cannot insert".to_string()));
         }
         Ok(())
@@ -99,8 +113,20 @@ impl<S, I> MonolithDb<S, I>
         start_time: Timestamp,
         end_time: Timestamp,
     ) -> Result<Vec<TimeSeries>> {
-        let _c = &self.current_chuck.read().unwrap();
-        _c.query(labels, start_time, end_time)
+        let mut res = HashMap::<Labels, Vec<TimePoint>>::new();
+        let res_ref = &mut res;
+        {
+            //check current chunk
+            let _c = &self.current_chuck.read().unwrap();
+            let _res = _c.query(labels, start_time, end_time);
+            if _res.is_ok() {
+                _res.unwrap().iter_mut().map(|t| {
+                   //todo: insert label, timepoint vec pair
+                });
+            } else {}
+        };
+
+        Ok(res.values().cloned().collect::<Vec<TimeSeries>>())
     }
 
     fn swap(&self, start_time: Timestamp) -> Result<()> {
@@ -109,6 +135,7 @@ impl<S, I> MonolithDb<S, I>
             start_time: Some(start_time),
             end_time: Some(start_time + self.options.chunk_size().as_millis() as Timestamp),
         };
+
         let chunk_dir = self.options.base_dir()
             .join(
                 encode_chunk_dir(chunk_opt.start_time.unwrap(), chunk_opt.end_time.unwrap())
@@ -123,11 +150,11 @@ impl<S, I> MonolithDb<S, I>
         }
         {
             let mut current = self.current_chuck.write().unwrap(); //will also block all read util swap finish
+            let (_, end_time) = current.start_end_time();
+            info!("The old chunk with end time {} is closing", end_time);
             current.close(); //close the stale one
             *current = Arc::new(chunk); //crate new one
         }
         Ok(())
     }
 }
-
-

@@ -64,22 +64,22 @@ impl PartialEq for Label {
     }
 }
 
-impl From<&Label> for crate::proto::Label{
+impl From<&Label> for crate::proto::Label {
     fn from(l: &Label) -> Self {
-        crate::proto::Label{
+        crate::proto::Label {
             name: l.key.clone(),
             value: l.value.clone(),
             unknown_fields: Default::default(),
-            cached_size: Default::default()
+            cached_size: Default::default(),
         }
     }
 }
 
-impl From<&crate::proto::Label> for Label{
+impl From<&crate::proto::Label> for Label {
     fn from(l: &crate::proto::Label) -> Self {
-        Label{
+        Label {
             key: l.name.clone(),
-            value: l.value.clone()
+            value: l.value.clone(),
         }
     }
 }
@@ -92,6 +92,19 @@ impl Hash for Labels {
         for label in self.0.iter() {
             label.hash(state)
         }
+    }
+}
+
+impl Eq for Labels {}
+
+impl PartialEq for Labels {
+    fn eq(&self, other: &Self) -> bool {
+        for i in 0..self.len() {
+            if !self.0.get(i).unwrap().eq(other.0.get(i).unwrap()) {
+                return false;
+            }
+        }
+        true
     }
 }
 
