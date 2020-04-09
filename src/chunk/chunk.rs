@@ -112,6 +112,10 @@ impl<S: Storage, I: Indexer> Chunk<S, I> {
         Ok(res)
     }
 
+    pub fn is_with_range(&self, start_time: Timestamp, end_time: Timestamp) -> bool{
+        is_duration_overlap(self.start_time, self.end_time, start_time, end_time)
+    }
+
     ///start time and end time of this chunk
     pub fn start_end_time(&self) -> (Timestamp, Timestamp) {
         (self.start_time, self.end_time)

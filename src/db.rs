@@ -7,6 +7,7 @@ use std::sync::{RwLock, Arc, Mutex};
 use crate::common::label::Labels;
 use crate::common::time_point::{TimePoint, Timestamp};
 use crate::common::time_series::TimeSeries;
+use crate::common::time_series::LabelPointPairs;
 use crate::indexer::{SledIndexer, Indexer};
 use crate::common::utils::{get_current_timestamp, encode_chunk_dir};
 use std::cell::{Cell, RefCell};
@@ -112,21 +113,52 @@ impl<S, I> MonolithDb<S, I>
         labels: Labels,
         start_time: Timestamp,
         end_time: Timestamp,
-    ) -> Result<Vec<TimeSeries>> {
+    ) -> Result<LabelPointPairs> {
         let mut res = HashMap::<Labels, Vec<TimePoint>>::new();
         let res_ref = &mut res;
+        //insert in reverse time order in order to quickly append vec
         {
             //check current chunk
             let _c = &self.current_chuck.read().unwrap();
-            let _res = _c.query(labels, start_time, end_time);
+            let _res = _c.query(labels.clone(), start_time, end_time);
             if _res.is_ok() {
-                _res.unwrap().iter_mut().map(|t| {
-                   //todo: insert label, timepoint vec pair
-                });
+                for ref t in _res.unwrap() {
+                    res_ref.insert(t.meta_data().clone(), t.time_points().clone().into_iter().rev().collect());
+                };
             } else {}
         };
-
-        Ok(res.values().cloned().collect::<Vec<TimeSeries>>())
+        {
+            //chuck previous chunk, normally users query more on recent data, so we go backwards
+            let chunks = &self.secondary_chunks.read().unwrap();
+            for _c in chunks.iter().rev() {
+                if _c.is_with_range(start_time, end_time) {
+                    let _res = _c.query(labels.clone(), start_time, end_time);
+                    if _res.is_ok() {
+                        for ref t in _res.unwrap() {
+                            let mut current_val = t.time_points().clone().into_iter().rev().collect::<Vec<TimePoint>>();
+                            match res_ref.get_mut(t.meta_data()) {
+                                Some(val) => {
+                                    val.append(&mut current_val);
+                                }
+                                None => {
+                                    res_ref.insert(t.meta_data().clone(), current_val);
+                                }
+                            };
+                        };
+                    } else {}
+                };
+            }
+        }
+        //reverse time again before return
+        let res_vec: Vec<(Labels, Vec<TimePoint>)> = res.keys()
+            .map(|k| res.get_key_value(k))
+            .filter(|o| o.is_some())
+            .map(|o| o.unwrap())
+            .map(|(labels, points)|
+                (labels.clone(), points.iter().cloned().rev().collect::<Vec<TimePoint>>())
+            )
+            .collect();
+        Ok(res_vec)
     }
 
     fn swap(&self, start_time: Timestamp) -> Result<()> {

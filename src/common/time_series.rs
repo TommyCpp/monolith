@@ -3,8 +3,10 @@ use crate::{Result, MonolithErr};
 use crate::common::time_point::{TimePoint, Timestamp, Value};
 use crate::proto::Sample;
 use std::borrow::BorrowMut;
+use std::collections::HashMap;
 
 pub type TimeSeriesId = u64;
+pub type LabelPointPairs = Vec<(Labels, Vec<TimePoint>)>;
 
 #[derive(Clone)]
 pub struct TimeSeries {
@@ -59,7 +61,7 @@ impl From<&TimeSeries> for crate::proto::TimeSeries {
     }
 }
 
-impl From<&(Labels, Vec<TimePoint>)> for crate::proto::TimeSeries{
+impl From<&(Labels, Vec<TimePoint>)> for crate::proto::TimeSeries {
     fn from(t: &(Labels, Vec<TimePoint>)) -> Self {
         crate::proto::TimeSeries {
             labels: t.0.vec().iter().map(crate::proto::Label::from).collect(),
