@@ -11,6 +11,7 @@ timeseries database. It's still a **WIP** project(Including this README).
 `Storage` stores `(timestamp, value)` pair. `Storage` doesn't store `label` information. All data will be reference by an generated id.
 
 3. Indexer
+
 `Indexer` stores `label` information and generated id. User should use `Indexer` to find the target time series's id. And use this id to query data from `Storage`
 
 
