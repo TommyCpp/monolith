@@ -9,9 +9,9 @@ use crate::common::time_point::{TimePoint, Timestamp};
 use crate::common::time_series::TimeSeries;
 use crate::common::time_series::LabelPointPairs;
 use crate::indexer::{SledIndexer, Indexer};
-use crate::common::utils::{get_current_timestamp, encode_chunk_dir};
+use crate::common::utils::{get_current_timestamp, encode_chunk_dir, decode_chunk_dir};
 use std::cell::{Cell, RefCell};
-use std::thread;
+use std::{thread, fs};
 use std::sync::mpsc::{Receiver, channel, Sender};
 use std::borrow::BorrowMut;
 use std::path::PathBuf;
@@ -20,6 +20,8 @@ use failure::Fail;
 use std::any::Any;
 use std::time::Duration;
 use std::collections::HashMap;
+use std::process::exit;
+use std::ops::Index;
 
 /// MonolithDb is thread-safe
 pub struct MonolithDb<S: Storage, I: Indexer>
@@ -37,11 +39,16 @@ impl<S, I> MonolithDb<S, I>
           I: Indexer + Send + Sync + 'static {
     pub fn new(ops: DbOpts, storage_builder: Box<dyn Builder<S> + Sync + Send>, indexer_builder: Box<dyn Builder<I> + Sync + Send>) -> Result<Arc<Self>> {
         let chunk_size = ops.chunk_size().as_millis() as Timestamp;
+        //read existing data
+        let existing_chunk = Self::read_existing_chunk(ops.base_dir().clone())?;
+
+
         let current_time = get_current_timestamp();
         let chunk_opt = ChunkOpts {
             start_time: Some(current_time),
             end_time: Some(current_time + ops.chunk_size().as_millis() as Timestamp),
         };
+
         let chunk_dir = ops.base_dir()
             .as_path()
             .join(
@@ -54,12 +61,11 @@ impl<S, I> MonolithDb<S, I>
         let (swap_tx, swap_rx) = channel::<Timestamp>();
         let db = Arc::new(MonolithDb {
             current_chuck: RwLock::new(Arc::new(chunk)),
-            secondary_chunks: RwLock::new(Vec::new()),
+            secondary_chunks: RwLock::new(existing_chunk),
             options: ops,
             storage_builder,
             indexer_builder,
         });
-        //TODO: test chunk swap with prom, still get out of range error sometimes.
         thread::spawn(move || {
             loop {
                 thread::sleep(Duration::from_millis(chunk_size));
@@ -74,6 +80,34 @@ impl<S, I> MonolithDb<S, I>
             }
         });
         Ok(db.clone())
+    }
+
+    //todo: test with Prom to see if this works
+    fn read_existing_chunk(dir: PathBuf) -> Result<Vec<Arc<Chunk<S, I>>>> {
+        let mut res = Vec::new();
+        for entry in fs::read_dir(dir)? {
+            let path_str = entry?.path().into_os_string().into_string().unwrap();
+            let _slash = path_str.rfind("/").unwrap() + 1; //todo: make this cross platform
+            let dir_name = path_str.clone();
+            let dir_name = dir_name.chars().skip(_slash).take(dir_name.len() - _slash).collect();
+            match decode_chunk_dir(dir_name) {
+                Ok((start_time, end_time)) => {
+                    let storage = S::read_from_existing(PathBuf::from(path_str.clone()).join("storage"))?;
+                    let indexer = I::read_from_existing(PathBuf::from(path_str.clone()).join("indexer"))?;
+                    let current_time = get_current_timestamp();
+                    let chunk_opt = ChunkOpts {
+                        start_time: Some(start_time),
+                        end_time: Some(if end_time > current_time { current_time } else { end_time }),
+                    };
+                    let chunk = Chunk::new(storage, indexer, &chunk_opt);
+                    chunk.close();
+                    (&mut res).push(Arc::new(chunk));
+                }
+                Err(_) => {}
+            }
+        }
+
+        Ok(res)
     }
 
     pub fn write_time_points(&self, labels: Labels, timepoints: Vec<TimePoint>) -> Result<()> {

@@ -2,14 +2,13 @@ use crate::common::label::Labels;
 
 use crate::common::time_series::TimeSeriesId;
 use crate::{Result};
-
-
+use std::path::{Path, PathBuf};
 
 
 ///
 /// Indexer is in charge of query appropriate time series based on the labels.
 ///
-pub trait Indexer {
+pub trait Indexer: Sized {
     /// Get all time series and their meta data which contains all labels in __labels__
     fn get_series_with_label_matching(&self, labels: Labels)
         -> Result<Vec<(TimeSeriesId, Labels)>>;
@@ -26,6 +25,8 @@ pub trait Indexer {
     /// 2. mapping form label set to time series id, used to find target series id by complete label set
     /// 3. mapping from time series id to label set, used to get all meta data from time series id.
     fn create_index(&self, labels: Labels, time_series_id: TimeSeriesId) -> Result<()>;
+
+    fn read_from_existing(dir: PathBuf) -> Result<Self>;
 }
 
 #[cfg(test)]

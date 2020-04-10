@@ -199,6 +199,14 @@ impl Indexer for SledIndexer {
 
         Ok(())
     }
+
+    fn read_from_existing(dir: PathBuf) -> Result<Self> {
+        Ok(
+            SledIndexer {
+                storage: sled::Db::start_default(dir)?
+            }
+        )
+    }
 }
 
 pub struct SledIndexerBuilder {

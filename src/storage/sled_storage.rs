@@ -4,7 +4,7 @@ use crate::common::time_point::TimePoint;
 use crate::storage::{Decoder, Encoder, Storage};
 use crate::time_point::Timestamp;
 use crate::MonolithErr::{NotFoundErr, OutOfRangeErr};
-use crate::{Result, Builder};
+use crate::{Result, Builder, MonolithErr};
 use sled::{Db, Tree};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
@@ -108,6 +108,18 @@ impl Storage for SledStorage {
             ));
         }
         SledStorage::_read_time_series(series, start_time, end_time)
+    }
+
+    fn read_from_existing(dir: PathBuf) -> Result<Self> {
+        // Sled will create an empty db if there is nothing in dir.
+        let config = sled::ConfigBuilder::default()
+            .path(dir)
+            .read_only(true);
+        Ok(
+            SledStorage {
+                storage: sled::Db::start(config.build())?,
+            }
+        )
     }
 }
 

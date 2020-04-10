@@ -6,11 +6,12 @@ mod sled_storage;
 
 pub use sled_storage::SledStorage;
 pub use sled_storage::SledStorageBuilder;
+use std::path::PathBuf;
 
 ///
 /// Storage is in charge of storing time series data
 /// Note that the label should be store in Indexer instead of Storage
-pub trait Storage {
+pub trait Storage: Sized {
     fn write_time_point(
         &self,
         time_series_id: TimeSeriesId,
@@ -24,6 +25,8 @@ pub trait Storage {
         start_time: Timestamp,
         end_time: Timestamp,
     ) -> Result<Vec<TimePoint>>;
+
+    fn read_from_existing(dir: PathBuf) -> Result<Self>;
 }
 
 pub trait Encoder {

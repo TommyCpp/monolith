@@ -201,6 +201,7 @@ mod tests {
     
     
     use crate::indexer::{Indexer};
+    use std::path::PathBuf;
 
     struct StubStorage {}
 
@@ -210,6 +211,10 @@ mod tests {
         }
 
         fn read_time_series(&self, _time_series_id: u64, _start_time: u64, _end_time: u64) -> Result<Vec<TimePoint>> {
+            unimplemented!()
+        }
+
+        fn read_from_existing(dir: PathBuf) -> Result<Self> {
             unimplemented!()
         }
     }
@@ -230,6 +235,10 @@ mod tests {
         }
 
         fn create_index(&self, _labels: Labels, _time_series_id: u64) -> Result<()> {
+            unimplemented!()
+        }
+
+        fn read_from_existing(dir: PathBuf) -> Result<Self> {
             unimplemented!()
         }
     }
