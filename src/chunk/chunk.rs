@@ -112,7 +112,7 @@ impl<S: Storage, I: Indexer> Chunk<S, I> {
         Ok(res)
     }
 
-    pub fn is_with_range(&self, start_time: Timestamp, end_time: Timestamp) -> bool{
+    pub fn is_with_range(&self, start_time: Timestamp, end_time: Timestamp) -> bool {
         is_duration_overlap(self.start_time, self.end_time, start_time, end_time)
     }
 
@@ -123,6 +123,33 @@ impl<S: Storage, I: Indexer> Chunk<S, I> {
 
     fn is_in_range(&self, timestamp: &Timestamp) -> bool {
         return self.start_time < *timestamp && self.end_time > *timestamp;
+    }
+}
+
+impl<S, I> PartialEq for Chunk<S, I>
+    where S: Storage, I: Indexer {
+    fn eq(&self, other: &Self) -> bool {
+        self.start_time == other.start_time && self.end_time == other.end_time
+    }
+}
+
+//todo: more precise equal strategy
+impl<S, I> Eq for Chunk<S, I>
+    where S: Storage, I: Indexer{
+}
+
+impl<S, I> PartialOrd for Chunk<S, I>
+    where S: Storage, I: Indexer {
+
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.start_time.cmp(&other.start_time))
+    }
+}
+
+impl<S, I> Ord for Chunk<S, I>
+    where S: Storage, I: Indexer{
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.partial_cmp(other).unwrap()
     }
 }
 

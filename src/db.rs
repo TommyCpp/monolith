@@ -106,6 +106,7 @@ impl<S, I> MonolithDb<S, I>
                 Err(_) => {}
             }
         }
+        res.sort();
 
         Ok(res)
     }
