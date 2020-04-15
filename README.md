@@ -20,6 +20,7 @@ timeseries database. It's still a **WIP** project(Including this README).
 Sled is a embedding key-value database. The API of Sled is similar with BTreeMap or any other map. 
 
 ## TODO List
+- [ ] Add metadata file in base dir
 - [ ] Add unit tests
 - [ ] Add e2e tests with Prometheus
 - [ ] Add CI/CD pipeline
