@@ -1,4 +1,6 @@
 # monolith
+![Rust](https://github.com/TommyCpp/monolith/workflows/Rust/badge.svg)
+
 timeseries database. It's still a **WIP** project(Including this README).
 
 ## Components
@@ -23,4 +25,4 @@ Sled is a embedding key-value database. The API of Sled is similar with BTreeMap
 - [ ] Add metadata file in base dir
 - [ ] Add unit tests
 - [ ] Add e2e tests with Prometheus
-- [ ] Add CI/CD pipeline
+- [x] Add CI/CD pipeline
