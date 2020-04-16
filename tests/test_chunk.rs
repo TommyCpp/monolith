@@ -117,7 +117,7 @@ fn time_series_generator(
         for t in data.get(i).unwrap() {
             time_points.push(TimePoint::new(t.clone().0, t.clone().1));
         }
-        let time_series = TimeSeries::new_with_data(*(ids.get(i).unwrap()), Labels::from_vec(meta), time_points);
+        let time_series = TimeSeries::from_data(*(ids.get(i).unwrap()), Labels::from_vec(meta), time_points);
         res.push(time_series);
     }
 

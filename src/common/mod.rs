@@ -12,6 +12,8 @@ pub mod time_point;
 pub mod time_series;
 pub mod utils;
 
+pub(crate) mod test_utils;
+
 pub mod ops {
     pub trait OrderIntersect {
         fn order_intersect(&self, other: &Self) -> Self;

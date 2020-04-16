@@ -24,7 +24,7 @@ impl TimeSeries {
         }
     }
 
-    pub fn new_with_data(id: TimeSeriesId, meta_data: Labels, time_points: Vec<TimePoint>) -> Self {
+    pub fn from_data(id: TimeSeriesId, meta_data: Labels, time_points: Vec<TimePoint>) -> Self {
         TimeSeries {
             id,
             time_points,

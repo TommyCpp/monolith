@@ -11,7 +11,7 @@ use crate::storage::Storage;
 use crate::MonolithErr::OutOfRangeErr;
 
 use crate::indexer::Indexer;
-use std::sync::RwLock;
+use std::sync::{RwLock, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 
@@ -36,6 +36,7 @@ impl ChunkOpts {
 ///
 /// Chunk store a set of time series fallen into certain time range;
 ///
+/// Chunk is thread safe
 pub struct Chunk<S: Storage, I: Indexer> {
     storage: S,
     indexer: I,
@@ -43,9 +44,9 @@ pub struct Chunk<S: Storage, I: Indexer> {
     end_time: Timestamp,
     closed: AtomicBool,
     id_generator: IdGenerator,
+    mutex: RwLock<()>
 }
 
-//todo: add concurrent control
 //todo: add meta data file for chunk, build dir for each individual chunk
 impl<S: Storage, I: Indexer> Chunk<S, I> {
     pub fn new(storage: S, indexer: I, ops: &ChunkOpts) -> Self {
@@ -56,6 +57,7 @@ impl<S: Storage, I: Indexer> Chunk<S, I> {
             storage,
             indexer,
             start_time,
+            mutex: RwLock::new(()),
             end_time: ops.end_time.unwrap_or(start_time + DEFAULT_CHUNK_SIZE),
             closed: AtomicBool::new(false),
             id_generator: IdGenerator::new(1),
@@ -63,6 +65,7 @@ impl<S: Storage, I: Indexer> Chunk<S, I> {
     }
 
     pub fn close(&self) {
+        let _m = self.mutex.write().expect("Poisoned mutex in chunk when try to close chunk");
         self.closed.store(true, Ordering::SeqCst)
     }
 
@@ -71,8 +74,9 @@ impl<S: Storage, I: Indexer> Chunk<S, I> {
     }
 
     pub fn insert(&self, labels: Labels, timepoint: TimePoint) -> Result<()> {
+        let _m = self.mutex.write().expect("Poisoned mutex when try to insert into chunk");
         if !self.is_in_range(&timepoint.timestamp) {
-            info!("Chunk range {}, {}; But trying to insert {}", self.start_time, self.end_time, timepoint.timestamp);
+            info!("Chunk range {}, {}; but trying to insert {}", self.start_time, self.end_time, timepoint.timestamp);
             return Err(MonolithErr::OutOfRangeErr(self.start_time, self.end_time));
         }
         let id = self.indexer.get_series_id_by_labels(labels.clone())?;
@@ -97,6 +101,7 @@ impl<S: Storage, I: Indexer> Chunk<S, I> {
         start_time: Timestamp,
         end_time: Timestamp,
     ) -> Result<Vec<TimeSeries>> {
+        self.mutex.read().expect("Poisoned mutex when try to read from chunk");
         if !is_duration_overlap(self.start_time, self.end_time, start_time, end_time) {
             return Err(OutOfRangeErr(self.start_time, self.end_time));
         }
@@ -107,7 +112,7 @@ impl<S: Storage, I: Indexer> Chunk<S, I> {
             if data.len() == 0 {
                 continue; //skip empty series
             }
-            res.push(TimeSeries::new_with_data(id, metadata, data))
+            res.push(TimeSeries::from_data(id, metadata, data))
         }
         Ok(res)
     }
@@ -156,103 +161,5 @@ impl<S, I> Ord for Chunk<S, I>
 
 #[cfg(test)]
 mod test {
-    // use crate::chunk::chunk::DEFAULT_CHUNK_SIZE;
-    // use crate::common::label::{Label, Labels};
-    // use crate::common::time_point::Timestamp;
-    //
-    // use crate::Chunk;
-    //
-    // #[test]
-    // fn test_timestamp_in_range() {
-    //     let mut db = Chunk::new();
-    //     db.start_time = 10000 as Timestamp;
-    //     db.end_time = 15000 as Timestamp;
-    //     let ts1 = 12000 as Timestamp;
-    //     let ts2 = 1000 as Timestamp;
-    //     assert_eq!(db.is_in_range(&ts1), true);
-    //     assert_eq!(db.is_in_range(&ts2), false);
-    // }
-    //
-    // #[test]
-    // fn test_insert() {
-    //     let mut db = Chunk::new();
-    //     db.start_time = 10000 as Timestamp;
-    //     db.end_time = 15000 as Timestamp;
-    //     let mut meta_data = Labels::new();
-    //     let label_x = Label::from("x", "y");
-    //     meta_data.add(label_x);
-    //     db.insert(11000 as Timestamp, 10 as f64, meta_data);
-    //     let res = db.get_series_id_by_label(&Label::from("x", "y")).unwrap();
-    //     assert_eq!(1, res.len());
-    //     assert_eq!(res.get(0), Some(&0));
-    // }
-    //
-    // #[test]
-    // fn test_get_series_id_by_labels() {
-    //     let mut db = Chunk::new();
-    //     let _i = 0;
-    //     let mut labels_ts_1 = Labels::new();
-    //     labels_ts_1.add(Label::new(String::from("test1"), String::from("value1")));
-    //     labels_ts_1.add(Label::new(String::from("test2"), String::from("value2")));
-    //     labels_ts_1.add(Label::new(String::from("test3"), String::from("value2")));
-    //     labels_ts_1.add(Label::new(String::from("test4"), String::from("value2")));
-    //
-    //     let mut labels_ts_2 = Labels::new();
-    //     labels_ts_2.add(Label::new(String::from("test1"), String::from("value1")));
-    //     labels_ts_2.add(Label::new(String::from("test2"), String::from("value2")));
-    //     labels_ts_2.add(Label::new(String::from("test3"), String::from("value2")));
-    //
-    //     db.create_series(labels_ts_1.clone(), 11);
-    //     db.create_series(labels_ts_2.clone(), 12);
-    //
-    //     let label1 = Label::new(String::from("test1"), String::from("value1"));
-    //     let label2 = Label::new(String::from("test2"), String::from("value2"));
-    //     let label3 = Label::new(String::from("test3"), String::from("value2"));
-    //
-    //     let target = vec![label1, label2, label3];
-    //     match db.get_series_to_insert(&target) {
-    //         Some(res) => assert_eq!(res, 12),
-    //         None => {
-    //             assert_eq!(true, false) //fail the test
-    //         }
-    //     }
-    // }
-    //
-    // #[test]
-    // fn test_new_database() {
-    //     let chunk = Chunk::new();
-    //     assert_eq!(chunk.end_time - chunk.start_time, DEFAULT_CHUNK_SIZE)
-    // }
-    //
-    // #[test]
-    // fn test_create_time_series() {
-    //     let mut db = Chunk::new();
-    //     let mut labels: Labels = Labels::new();
-    //     labels.add(Label::new(String::from("test"), String::from("series")));
-    //     db.create_series(labels, 12);
-    //     assert_eq!(db.label_series.len(), 1)
-    // }
-    //
-    // #[test]
-    // fn test_get_series_id_by_label() {
-    //     //create timeseries
-    //     let mut db = Chunk::new();
-    //     let mut labels: Labels = Labels::new();
-    //     labels.add(Label::new(String::from("test"), String::from("series")));
-    //     db.create_series(labels.clone(), 12);
-    //
-    //     //get series id by labels
-    //     let query: Label = Label::new(String::from("test"), String::from("series"));
-    //     {
-    //         let res = db.get_series_id_by_label(&query).unwrap();
-    //         assert_eq!(res.len(), 1);
-    //         assert_eq!(*res.get(0).unwrap(), 12 as u64);
-    //     }
-    //     {
-    //         db.create_series(labels.clone(), 11);
-    //         let res = db.get_series_id_by_label(&query).unwrap();
-    //         assert_eq!(res.len(), 2);
-    //         assert_eq!(*res.get(1).unwrap(), 11 as u64);
-    //     }
-    // }
+
 }

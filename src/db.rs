@@ -82,7 +82,6 @@ impl<S, I> MonolithDb<S, I>
         Ok(db.clone())
     }
 
-    //todo: test with Prom to see if this works
     fn read_existing_chunk(dir: PathBuf) -> Result<Vec<Arc<Chunk<S, I>>>> {
         let mut res = Vec::new();
         for entry in fs::read_dir(dir)? {

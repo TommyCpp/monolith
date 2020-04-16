@@ -41,8 +41,8 @@ impl<S, I> Clone for MonolithServer<S, I>
         MonolithServer {
             db: Arc::clone(&self.db),
             port: self.port,
-            read_path: &self.read_path.clone(),
-            write_path: &self.write_path.clone(),
+            read_path: self.read_path.clone(),
+            write_path: self.write_path.clone(),
             worker_num: self.worker_num,
         }
     }
@@ -202,46 +202,6 @@ mod tests {
     
     use crate::indexer::{Indexer};
     use std::path::PathBuf;
-
-    struct StubStorage {}
-
-    impl Storage for StubStorage {
-        fn write_time_point(&self, _time_series_id: u64, _timestamp: u64, _value: f64) -> Result<()> {
-            unimplemented!()
-        }
-
-        fn read_time_series(&self, _time_series_id: u64, _start_time: u64, _end_time: u64) -> Result<Vec<TimePoint>> {
-            unimplemented!()
-        }
-
-        fn read_from_existing(dir: PathBuf) -> Result<Self> {
-            unimplemented!()
-        }
-    }
-
-    struct StubIndexer {}
-
-    impl Indexer for StubIndexer {
-        fn get_series_with_label_matching(&self, _labels: Labels) -> Result<Vec<(u64, Labels)>> {
-            unimplemented!()
-        }
-
-        fn get_series_id_with_label_matching(&self, _labels: Labels) -> Result<Vec<u64>> {
-            unimplemented!()
-        }
-
-        fn get_series_id_by_labels(&self, _labels: Labels) -> Result<Option<u64>> {
-            unimplemented!()
-        }
-
-        fn create_index(&self, _labels: Labels, _time_series_id: u64) -> Result<()> {
-            unimplemented!()
-        }
-
-        fn read_from_existing(dir: PathBuf) -> Result<Self> {
-            unimplemented!()
-        }
-    }
 
 
     #[test]
