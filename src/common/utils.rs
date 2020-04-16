@@ -1,5 +1,5 @@
 use crate::time_point::Timestamp;
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH};
 use crate::time_series::TimeSeriesId;
 use std::ops::Index;
 use crate::ops::OrderIntersect;

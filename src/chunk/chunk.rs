@@ -1,4 +1,4 @@
-use std::time::{Duration, UNIX_EPOCH};
+use std::time::{Duration};
 
 use crate::common::label::Labels;
 use crate::common::time_point::{TimePoint, Timestamp};
@@ -11,7 +11,7 @@ use crate::storage::Storage;
 use crate::MonolithErr::OutOfRangeErr;
 
 use crate::indexer::Indexer;
-use std::sync::{RwLock, Mutex};
+use std::sync::{RwLock};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 

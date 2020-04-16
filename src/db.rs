@@ -1,27 +1,27 @@
 use crate::chunk::{Chunk, ChunkOpts};
 use crate::option::DbOpts;
-use crate::{Result, MonolithErr, TIME_UNIT, Builder};
+use crate::{Result, MonolithErr, Builder};
 
-use crate::storage::{Storage, SledStorage};
-use std::sync::{RwLock, Arc, Mutex};
+use crate::storage::{Storage};
+use std::sync::{RwLock, Arc};
 use crate::common::label::Labels;
 use crate::common::time_point::{TimePoint, Timestamp};
-use crate::common::time_series::TimeSeries;
+
 use crate::common::time_series::LabelPointPairs;
-use crate::indexer::{SledIndexer, Indexer};
+use crate::indexer::{Indexer};
 use crate::common::utils::{get_current_timestamp, encode_chunk_dir, decode_chunk_dir};
-use std::cell::{Cell, RefCell};
+
 use std::{thread, fs};
-use std::sync::mpsc::{Receiver, channel, Sender};
-use std::borrow::BorrowMut;
+use std::sync::mpsc::channel;
+
 use std::path::PathBuf;
-use crate::MonolithErr::OutOfRangeErr;
-use failure::Fail;
-use std::any::Any;
+
+
+
 use std::time::Duration;
 use std::collections::HashMap;
-use std::process::exit;
-use std::ops::Index;
+
+
 
 /// MonolithDb is thread-safe
 pub struct MonolithDb<S: Storage, I: Indexer>

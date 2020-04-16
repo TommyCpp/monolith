@@ -2,7 +2,7 @@ use crate::common::label::Labels;
 
 use crate::common::time_series::TimeSeriesId;
 use crate::{Result};
-use std::path::{Path, PathBuf};
+use std::path::{PathBuf};
 
 
 ///

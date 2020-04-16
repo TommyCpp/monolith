@@ -2,7 +2,7 @@ use failure::_core::convert::Infallible;
 use failure::_core::num::{ParseFloatError, ParseIntError};
 
 use std::string::FromUtf8Error;
-use std::sync::{Arc, PoisonError, RwLockWriteGuard};
+use std::sync::{Arc};
 use crate::storage::Storage;
 use crate::indexer::Indexer;
 use crate::chunk::Chunk;

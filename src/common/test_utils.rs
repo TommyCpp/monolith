@@ -17,13 +17,13 @@ impl Storage for StubStorage {
         unimplemented!()
     }
 
-    fn read_from_existing(dir: PathBuf) -> Result<Self> {
+    fn read_from_existing(_dir: PathBuf) -> Result<Self> {
         unimplemented!()
     }
 }
 
 impl Builder<StubStorage> for StubStorage {
-    fn build(&self, path: PathBuf) -> Result<StubStorage> {
+    fn build(&self, _path: PathBuf) -> Result<StubStorage> {
         Ok(StubStorage {})
     }
 }
@@ -47,13 +47,13 @@ impl Indexer for StubIndexer {
         unimplemented!()
     }
 
-    fn read_from_existing(dir: PathBuf) -> Result<Self> {
+    fn read_from_existing(_dir: PathBuf) -> Result<Self> {
         unimplemented!()
     }
 }
 
 impl Builder<StubIndexer> for StubIndexer {
-    fn build(&self, path: PathBuf) -> Result<StubIndexer> {
+    fn build(&self, _path: PathBuf) -> Result<StubIndexer> {
         Ok(StubIndexer{})
     }
 }

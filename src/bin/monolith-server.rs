@@ -1,11 +1,12 @@
 use clap::{App, Arg};
-use monolith::Builder;
+
 use monolith::indexer::{SledIndexer, SledIndexerBuilder};
 use monolith::option::DbOpts;
 use monolith::storage::{SledStorage, SledStorageBuilder};
 use monolith::{MonolithDb, CHUNK_SIZE, DEFAULT_CHUNK_SIZE, FILE_DIR_ARG, STORAGE_ARG};
 use monolith::server::MonolithServer;
 use std::sync::Arc;
+
 
 #[macro_use]
 extern crate log;
@@ -39,11 +40,11 @@ fn main() {
 
     let options = DbOpts::get_config(matches).expect("Cannot read config");
 
-    let mut storage_builder = SledStorageBuilder::new();
-    let mut indexer_builder = SledIndexerBuilder::new();
+    let storage_builder = SledStorageBuilder::new();
+    let indexer_builder = SledIndexerBuilder::new();
 
     let db: Arc<SledMonolithDb> = MonolithDb::<SledStorage, SledIndexer>::new(options, Box::new(storage_builder), Box::new(indexer_builder)).unwrap();
 
     let server = MonolithServer::new(db);
-    server.serve();
+    let _ = server.serve();
 }

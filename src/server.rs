@@ -8,7 +8,7 @@ use crate::common::time_point::Timestamp;
 use crate::common::label::{Labels, Label};
 use crate::common::time_series::TimeSeries;
 use tiny_http::{Server, Response, Request};
-use std::io::{Write, Cursor, Read};
+use std::io::{Cursor, Read};
 
 use crate::indexer::Indexer;
 use std::sync::Arc;
@@ -192,16 +192,16 @@ impl<S, I> MonolithServer<S, I>
 
 #[cfg(test)]
 mod tests {
-    use crate::{Result, MonolithErr, MonolithDb, IdGenerator};
-    use crate::storage::{Storage};
-    use crate::common::time_point::{TimePoint};
-    use crate::common::label::Labels;
-    use crate::common::option::{DbOpts};
-    use crate::server::MonolithServer;
+    use crate::{Result};
     
     
-    use crate::indexer::{Indexer};
-    use std::path::PathBuf;
+    
+    
+    
+    
+    
+    
+    
 
 
     #[test]
