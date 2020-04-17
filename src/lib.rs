@@ -14,14 +14,25 @@ pub use error::*;
 pub use db::MonolithDb;
 use std::time::Duration;
 
-
+// cli option name
 pub const STORAGE_ARG: &str = "storage";
 pub const FILE_DIR_ARG: &str = "file_dir";
 pub const CHUNK_SIZE: &str = "chunk_size";
+pub const PORT: &str = "port";
+pub const READ_PATH: &str = "read_path";
+pub const WRITE_PATH: &str = "write_path";
+pub const WORKER_NUM: &str = "worker_num";
+
+
 pub const TIME_UNIT: Duration = Duration::from_micros(1);
 
+// cli option default value
 //in seconds, used in default value field of cli, so has to be str
 pub const DEFAULT_CHUNK_SIZE: &str = "120";
+pub const DEFAULT_PORT: i32 = 9001;
+pub const DEFAULT_READ_PATH: &str = "/read";
+pub const DEFAULT_WRITE_PATH: &str = "/write";
+pub const DEFAULT_WORKER_NUM: usize = 8;
 
 #[macro_use]
 extern crate log;

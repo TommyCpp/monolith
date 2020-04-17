@@ -2,13 +2,13 @@ use crate::chunk::{Chunk, ChunkOpts};
 use crate::option::DbOpts;
 use crate::{Result, MonolithErr, Builder};
 
-use crate::storage::{Storage};
+use crate::storage::Storage;
 use std::sync::{RwLock, Arc};
 use crate::common::label::Labels;
 use crate::common::time_point::{TimePoint, Timestamp};
 
 use crate::common::time_series::LabelPointPairs;
-use crate::indexer::{Indexer};
+use crate::indexer::Indexer;
 use crate::common::utils::{get_current_timestamp, encode_chunk_dir, decode_chunk_dir};
 
 use std::{thread, fs};
@@ -17,10 +17,8 @@ use std::sync::mpsc::channel;
 use std::path::PathBuf;
 
 
-
 use std::time::Duration;
 use std::collections::HashMap;
-
 
 
 /// MonolithDb is thread-safe
@@ -112,23 +110,12 @@ impl<S, I> MonolithDb<S, I>
 
     pub fn write_time_points(&self, labels: Labels, timepoints: Vec<TimePoint>) -> Result<()> {
         let _c = &self.current_chuck.read().unwrap();
-        let res = timepoints.into_iter().map(|tp| {
-            if tp.timestamp == 0 {
-                return Ok(()); //skip null
-            }
-            let res = _c.insert(labels.clone(), tp);
-            if res.is_err() {
-                let err = res.err().unwrap();
-                return if let MonolithErr::OutOfRangeErr(st, et) = err {
-                    // skip out of range error
-                    info!("one out of range error with target range {}, {}", st, et);
-                    Ok(())
-                } else {
-                    Err(err)
-                };
-            }
-            Ok(())
-        }).filter(|res| res.is_err()).collect::<Vec<_>>();
+        let (start_time, end_time) = _c.start_end_time();
+        let res = timepoints.into_iter()
+            .filter(|tp| tp.timestamp >= start_time && tp.timestamp <= end_time && tp.timestamp != 0)
+            .map(|tp| {
+                _c.insert(labels.clone(), tp)
+            }).filter(|res| res.is_err()).collect::<Vec<_>>();
         if !res.is_empty() {
             error!("{} time point failed to insert", res.len());
             return Err(MonolithErr::InternalErr("multiple time point cannot insert".to_string()));

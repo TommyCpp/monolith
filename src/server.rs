@@ -12,52 +12,34 @@ use std::io::{Cursor, Read};
 
 use crate::indexer::Indexer;
 use std::sync::Arc;
+use crate::option::ServerOpts;
 
-
-pub const DEFAULT_PORT: i32 = 9001;
-pub const DEFAULT_READ_PATH: &str = "/read";
-pub const DEFAULT_WRITE_PATH: &str = "/write";
-pub const DEFAULT_WORKER_NUM: usize = 8;
 
 //todo: add options for server
 /// Http Server that accept Prometheus requests
 ///
 /// Note that the Prometheus remote storage requests using __unframed__ snappy encoding __proto__ object.
 ///
-pub struct MonolithServer<S, I>
+pub struct MonolithServer<'a, S, I>
     where S: Sync + Storage + Send + 'static,
           I: Sync + Indexer + Send + 'static {
     db: Arc<MonolithDb<S, I>>,
     port: i32,
-    read_path: &'static str,
-    write_path: &'static str,
+    read_path: &'a str,
+    write_path: &'a str,
     worker_num: usize,
 }
 
-impl<S, I> Clone for MonolithServer<S, I>
-    where S: Sync + Send + Storage + 'static,
-          I: Sync + Send + Indexer + 'static {
-    fn clone(&self) -> Self {
-        MonolithServer {
-            db: Arc::clone(&self.db),
-            port: self.port,
-            read_path: self.read_path.clone(),
-            write_path: self.write_path.clone(),
-            worker_num: self.worker_num,
-        }
-    }
-}
-
-impl<S, I> MonolithServer<S, I>
+impl<'a, S, I> MonolithServer<'a, S, I>
     where S: Sync + Storage + Send + 'static,
           I: Sync + Indexer + Send + 'static {
-    pub fn new(db: Arc<MonolithDb<S, I>>) -> Self {
+    pub fn new(opts: ServerOpts<'a>, db: Arc<MonolithDb<S, I>>) -> Self {
         MonolithServer {
             db,
-            port: DEFAULT_PORT,
-            read_path: DEFAULT_READ_PATH,
-            write_path: DEFAULT_WRITE_PATH,
-            worker_num: DEFAULT_WORKER_NUM,
+            port: opts.port,
+            read_path: opts.read_path,
+            write_path: opts.write_path,
+            worker_num: opts.worker_num,
         }
     }
 
@@ -190,18 +172,23 @@ impl<S, I> MonolithServer<S, I>
     }
 }
 
+impl<'a, S, I> Clone for MonolithServer<'a, S, I>
+    where S: Sync + Send + Storage + 'static,
+          I: Sync + Send + Indexer + 'static {
+    fn clone(&self) -> Self {
+        MonolithServer {
+            db: Arc::clone(&self.db),
+            port: self.port,
+            read_path: self.read_path.clone(),
+            write_path: self.write_path.clone(),
+            worker_num: self.worker_num,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::{Result};
-    
-    
-    
-    
-    
-    
-    
-    
-    
+    use crate::Result;
 
 
     #[test]

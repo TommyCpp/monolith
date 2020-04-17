@@ -5,7 +5,7 @@ use crate::common::time_point::{TimePoint, Timestamp};
 use crate::common::time_series::TimeSeries;
 use crate::common::utils::{is_duration_overlap, get_current_timestamp};
 use crate::common::IdGenerator;
-use crate::{MonolithErr, Result};
+use crate::{MonolithErr, Result, DEFAULT_CHUNK_SIZE};
 
 use crate::storage::Storage;
 use crate::MonolithErr::OutOfRangeErr;
@@ -13,9 +13,6 @@ use crate::MonolithErr::OutOfRangeErr;
 use crate::indexer::Indexer;
 use std::sync::{RwLock};
 use std::sync::atomic::{AtomicBool, Ordering};
-
-
-pub const DEFAULT_CHUNK_SIZE: Timestamp = Duration::from_secs(2 * 60 * 60).as_millis() as Timestamp;
 
 /// ChunkOps contains all options for chunk
 pub struct ChunkOpts {
