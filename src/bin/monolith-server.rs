@@ -34,6 +34,7 @@ fn main() {
                 .default_value("sled"),
             Arg::with_name(FILE_DIR_ARG)
                 .short("dir")
+                .long(FILE_DIR_ARG)
                 .default_value(env!("PWD")),
             Arg::with_name(CHUNK_SIZE)
                 .long(CHUNK_SIZE)

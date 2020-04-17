@@ -3,6 +3,19 @@
 
 timeseries database. It's still a **WIP** project(Including this README).
 
+## Usage
+```shell script
+monolith-server [Options]
+    
+    -s   --storage    type of storage.
+    -dir --file_dir   dictionary of data.
+         --chunk_size size of one chunk in seconds.
+         --port       port of server.
+         --write_path path of write endpoint. 
+         --read_path  path of read endpoint.
+         --worker_num number of thread to process incoming requests.
+```
+
 ## Components
 1. Chunk
 

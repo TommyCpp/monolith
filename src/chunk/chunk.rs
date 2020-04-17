@@ -1,4 +1,4 @@
-use std::time::{Duration};
+use std::time::Duration;
 
 use crate::common::label::Labels;
 use crate::common::time_point::{TimePoint, Timestamp};
@@ -11,7 +11,7 @@ use crate::storage::Storage;
 use crate::MonolithErr::OutOfRangeErr;
 
 use crate::indexer::Indexer;
-use std::sync::{RwLock};
+use std::sync::RwLock;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 /// ChunkOps contains all options for chunk
@@ -41,7 +41,7 @@ pub struct Chunk<S: Storage, I: Indexer> {
     end_time: Timestamp,
     closed: AtomicBool,
     id_generator: IdGenerator,
-    mutex: RwLock<()>
+    mutex: RwLock<()>,
 }
 
 //todo: add meta data file for chunk, build dir for each individual chunk
@@ -55,7 +55,7 @@ impl<S: Storage, I: Indexer> Chunk<S, I> {
             indexer,
             start_time,
             mutex: RwLock::new(()),
-            end_time: ops.end_time.unwrap_or(start_time + DEFAULT_CHUNK_SIZE),
+            end_time: ops.end_time.unwrap_or(start_time + DEFAULT_CHUNK_SIZE.parse::<Timestamp>().unwrap()),
             closed: AtomicBool::new(false),
             id_generator: IdGenerator::new(1),
         }
@@ -137,19 +137,17 @@ impl<S, I> PartialEq for Chunk<S, I>
 
 //todo: more precise equal strategy
 impl<S, I> Eq for Chunk<S, I>
-    where S: Storage, I: Indexer{
-}
+    where S: Storage, I: Indexer {}
 
 impl<S, I> PartialOrd for Chunk<S, I>
     where S: Storage, I: Indexer {
-
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.start_time.cmp(&other.start_time))
     }
 }
 
 impl<S, I> Ord for Chunk<S, I>
-    where S: Storage, I: Indexer{
+    where S: Storage, I: Indexer {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.partial_cmp(other).unwrap()
     }
@@ -157,6 +155,4 @@ impl<S, I> Ord for Chunk<S, I>
 
 
 #[cfg(test)]
-mod test {
-
-}
+mod test {}
