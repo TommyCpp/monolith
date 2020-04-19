@@ -14,8 +14,6 @@ use crate::indexer::Indexer;
 use std::sync::Arc;
 use crate::option::ServerOpts;
 
-
-//todo: add options for server
 /// Http Server that accept Prometheus requests
 ///
 /// Note that the Prometheus remote storage requests using __unframed__ snappy encoding __proto__ object.
