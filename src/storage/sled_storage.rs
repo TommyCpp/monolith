@@ -124,6 +124,7 @@ impl Storage for SledStorage {
 }
 
 //TODO: create a independent package for processor, create a KvProcessor for all key-value database
+//TODO: convert u64 and f64 into double u8 to improve store performance
 struct SledProcessor {}
 
 impl Encoder for SledProcessor {

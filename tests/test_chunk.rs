@@ -7,6 +7,11 @@ use monolith::Result;
 use tempfile::TempDir;
 use monolith::chunk::{ChunkOpts, Chunk};
 use monolith::test_utils::Ingester;
+use std::thread;
+use std::sync::Arc;
+use std::ops::Index;
+use std::collections::{HashSet, BTreeMap, BTreeSet};
+use std::iter::FromIterator;
 
 #[test]
 fn test_query() -> Result<()> {
@@ -100,3 +105,52 @@ fn test_insert() -> Result<()> {
     Ok(())
 }
 
+#[test]
+//todo: add similar test in benchmark
+fn test_ingest_data() -> Result<()> {
+    let ingester = Ingester::new(Some(100), Some(50), Some(10), 170000);
+    let mut data_chunks = ingester.data.chunks(ingester.data.len() / 2);
+    let first = Vec::from(data_chunks.next().unwrap());
+    let second = Vec::from(data_chunks.next().unwrap());
+    let dir = TempDir::new()?;
+    let storage = SledStorage::new(dir.path().join("storage").as_path())?;
+    let indexer = SledIndexer::new(dir.path().join("indexer").as_path())?;
+    let ops = ChunkOpts {
+        start_time: Some(170000),
+        end_time: Some(330000),
+    };
+    let chunk = Chunk::new(storage, indexer, &ops);
+    let arc = Arc::new(chunk);
+
+    let chunk_ref = arc.clone();
+    let handler1 = thread::spawn(move || {
+        for ts in first {
+            for tp in ts.time_points() {
+                chunk_ref.insert(ts.meta_data().clone(), tp.clone());
+            }
+        }
+    });
+
+    let chunk_ref = arc.clone();
+    let handler2 = thread::spawn(move || {
+        for ts in second {
+            for tp in ts.time_points() {
+                chunk_ref.insert(ts.meta_data().clone(), tp.clone());
+            }
+        }
+    });
+
+    handler1.join();
+    handler2.join();
+
+    for ts in ingester.data {
+        let series = arc.query(ts.meta_data().clone(), 170000, 330000)?;
+        assert_eq!(series.len(), 1);
+        let set: BTreeSet<TimePoint> = BTreeSet::from_iter(ts.time_points().into_iter().cloned());
+        for tp in series[0].time_points() {
+            assert!(set.get(tp).is_some())
+        }
+    }
+
+    Ok(())
+}

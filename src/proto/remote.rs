@@ -2,6 +2,7 @@
 // @generated
 
 // https://github.com/rust-lang/rust-clippy/issues/702
+#![allow(warnings)]
 #![allow(unknown_lints)]
 #![allow(clippy::all)]
 
