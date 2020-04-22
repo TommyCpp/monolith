@@ -4,5 +4,6 @@ mod benchmarks;
 
 criterion_main! {
     // benchmarks::util::benches,
-    benchmarks::indexer::intersect,
+    // benchmarks::indexer::intersect,
+    benchmarks::common::serialization
 }

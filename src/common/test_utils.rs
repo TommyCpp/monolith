@@ -66,6 +66,7 @@ impl Builder<StubIndexer> for StubIndexer {
     }
 }
 
+//todo: add internal concurrent test function, use a closure as param for real test logic.
 /// Ingester generate and ingest time series data with volume of user's choice.
 pub struct Ingester {
     pub data: Vec<TimeSeries>

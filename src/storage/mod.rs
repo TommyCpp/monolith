@@ -30,9 +30,9 @@ pub trait Storage: Sized {
 }
 
 pub trait Encoder {
-    fn encode_time_point(time_stamp: Timestamp, value: Value) -> Result<String>;
+    fn encode_time_point(time_stamp: Timestamp, value: Value) -> Result<Vec<u8>>;
 }
 
 pub trait Decoder {
-    fn decode_time_point(raw: String) -> Result<TimePoint>;
+    fn decode_time_point(raw: &[u8]) -> Result<TimePoint>;
 }

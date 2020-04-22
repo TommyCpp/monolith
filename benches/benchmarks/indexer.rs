@@ -30,7 +30,7 @@ pub fn generate_time_series_id_vec(len: usize) -> Result<Vec<Vec<TimeSeriesId>>>
     Ok(setup(len))
 }
 
-fn criterion_benchmark(c: &mut Criterion) {
+fn intersect_criterion_benchmark(c: &mut Criterion) {
     let input = generate_time_series_id_vec(20).unwrap();
 
     c.bench_function("concurrent one", |b| {
@@ -41,4 +41,4 @@ fn criterion_benchmark(c: &mut Criterion) {
     });
 }
 
-criterion_group!(intersect, criterion_benchmark);
+criterion_group!(intersect, intersect_criterion_benchmark);
