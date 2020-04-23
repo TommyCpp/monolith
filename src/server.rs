@@ -1,10 +1,9 @@
 use crate::MonolithDb;
 
 use crate::storage::Storage;
-use crate::Result;
+use crate::{Result, Timestamp};
 use crate::proto::{ReadRequest, ReadResponse, WriteRequest, QueryResult};
 use protobuf::{RepeatedField, Message, CodedInputStream, CodedOutputStream};
-use crate::common::time_point::Timestamp;
 use crate::common::label::{Labels, Label};
 use crate::common::time_series::TimeSeries;
 use tiny_http::{Server, Response, Request};

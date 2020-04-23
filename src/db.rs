@@ -1,25 +1,19 @@
-use crate::chunk::{Chunk, ChunkOpts};
-use crate::option::DbOpts;
-use crate::{Result, MonolithErr, Builder};
-
-use crate::storage::Storage;
-use std::sync::{RwLock, Arc};
-use crate::common::label::Labels;
-use crate::common::time_point::{TimePoint, Timestamp};
-
-use crate::common::time_series::LabelPointPairs;
-use crate::indexer::Indexer;
-use crate::common::utils::{get_current_timestamp, encode_chunk_dir, decode_chunk_dir};
-
-use std::{thread, fs};
-use std::sync::mpsc::channel;
-
-use std::path::PathBuf;
-
-
-use std::time::Duration;
+use std::{fs, thread};
 use std::collections::HashMap;
+use std::path::PathBuf;
+use std::sync::{Arc, RwLock};
+use std::sync::mpsc::channel;
+use std::time::Duration;
 
+use crate::{Builder, MonolithErr, Result, Timestamp};
+use crate::chunk::{Chunk, ChunkOpts};
+use crate::common::label::Labels;
+use crate::common::time_series::LabelPointPairs;
+use crate::common::utils::{decode_chunk_dir, encode_chunk_dir, get_current_timestamp};
+use crate::indexer::Indexer;
+use crate::option::DbOpts;
+use crate::storage::Storage;
+use crate::common::time_point::TimePoint;
 
 /// MonolithDb is thread-safe
 pub struct MonolithDb<S: Storage, I: Indexer>
@@ -52,9 +46,10 @@ impl<S, I> MonolithDb<S, I>
             .join(
                 encode_chunk_dir(chunk_opt.start_time.unwrap(),
                                  chunk_opt.end_time.unwrap()));
+        let chunk_dir_str = chunk_dir.as_path().display().to_string();
         let (storage, indexer) =
-            (storage_builder.build(chunk_dir.clone())?,
-             indexer_builder.build(chunk_dir.clone())?);
+            (storage_builder.build(chunk_dir_str.clone())?,
+             indexer_builder.build(chunk_dir_str.clone())?);
         let chunk = Chunk::<S, I>::new(storage, indexer, &chunk_opt);
         let (swap_tx, swap_rx) = channel::<Timestamp>();
         let db = Arc::new(MonolithDb {
@@ -193,9 +188,10 @@ impl<S, I> MonolithDb<S, I>
             .join(
                 encode_chunk_dir(chunk_opt.start_time.unwrap(), chunk_opt.end_time.unwrap())
             );
+        let chunk_dir_str = chunk_dir.as_path().display().to_string();
         let (storage, indexer) =
-            (self.storage_builder.build(chunk_dir.clone())?,
-             self.indexer_builder.build(chunk_dir.clone())?);
+            (self.storage_builder.build(chunk_dir_str.clone())?,
+             self.indexer_builder.build(chunk_dir_str.clone())?);
         let chunk = Chunk::<S, I>::new(storage, indexer, &chunk_opt);
         {
             let stale = self.current_chuck.read().unwrap();

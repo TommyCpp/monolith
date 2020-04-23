@@ -1,11 +1,11 @@
-use std::time::Duration;
+
 
 use crate::common::label::Labels;
-use crate::common::time_point::{TimePoint, Timestamp};
+use crate::common::time_point::{TimePoint};
 use crate::common::time_series::TimeSeries;
 use crate::common::utils::{is_duration_overlap, get_current_timestamp};
 use crate::common::IdGenerator;
-use crate::{MonolithErr, Result, DEFAULT_CHUNK_SIZE};
+use crate::{MonolithErr, Result, DEFAULT_CHUNK_SIZE, Timestamp};
 
 use crate::storage::Storage;
 use crate::MonolithErr::OutOfRangeErr;

@@ -2,11 +2,10 @@ use crate::common::time_point::TimePoint;
 
 
 use crate::storage::{Decoder, Encoder, Storage};
-use crate::time_point::{Timestamp, Value};
 use crate::MonolithErr::{NotFoundErr, OutOfRangeErr};
-use crate::{Result, Builder, MonolithErr};
+use crate::{Result, Builder, MonolithErr, Timestamp, Value};
 use sled::{Db, Tree};
-use std::ops::Deref;
+
 use std::path::{Path, PathBuf};
 use std::convert::TryInto;
 
@@ -148,51 +147,17 @@ impl Decoder for SledProcessor {
 }
 
 pub struct SledStorageBuilder {
-    path: PathBuf
 }
 
 impl Builder<SledStorage> for SledStorageBuilder {
-    fn build(&self, path: PathBuf) -> Result<SledStorage> {
-        SledStorage::new(path.as_path().join("storage").as_path())
+    fn build(&self, path: String) -> Result<SledStorage> {
+        SledStorage::new(PathBuf::from(path).as_path().join("storage").as_path())
     }
 }
 
 impl SledStorageBuilder {
     pub fn new() -> Self {
         SledStorageBuilder {
-            path: Default::default()
         }
-    }
-}
-
-#[cfg(test)]
-mod tests{
-    use crate::Result;
-    use tempfile::TempDir;
-    use crate::storage::{SledStorage, Storage};
-    use crate::common::test_utils::Ingester;
-
-    #[test]
-    fn test_storage() -> Result<()>{
-        let temp_dir = TempDir::new()?;
-        let storage = SledStorage::new(temp_dir.path())?;
-
-        let ingester = Ingester::new(None, None, None, 10);
-        for (idx, series) in ingester.data.iter().enumerate(){
-            for tp in series.time_points() {
-                storage.write_time_point(idx as u64, tp.timestamp, tp.value);
-            }
-        }
-
-        for (idx, series) in ingester.data.iter().enumerate(){
-            let res_series = storage.read_time_series(idx as u64, 0, 1000000)?;
-            let expect_series = series.time_points();
-            for idx in 0..expect_series.len(){
-                assert_eq!(res_series[idx], expect_series[idx])
-            }
-        }
-
-
-        Ok(())
     }
 }

@@ -4,7 +4,7 @@ use crate::common::time_series::TimeSeriesId;
 use std::ops::Index;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
-use std::path::PathBuf;
+
 
 pub mod label;
 pub mod option;
@@ -17,17 +17,6 @@ pub mod test_utils;
 pub mod ops {
     pub trait OrderIntersect {
         fn order_intersect(&self, other: &Self) -> Self;
-    }
-}
-
-pub struct IdGenerator(AtomicU64);
-
-impl IdGenerator {
-    pub fn new(init_id: TimeSeriesId) -> IdGenerator {
-        IdGenerator(AtomicU64::new(init_id))
-    }
-    pub fn next(&self) -> TimeSeriesId {
-        self.0.fetch_add(1, Ordering::SeqCst)
     }
 }
 
@@ -51,8 +40,19 @@ impl OrderIntersect for Vec<TimeSeriesId> {
     }
 }
 
+pub struct IdGenerator(AtomicU64);
+
+impl IdGenerator {
+    pub fn new(init_id: TimeSeriesId) -> IdGenerator {
+        IdGenerator(AtomicU64::new(init_id))
+    }
+    pub fn next(&self) -> TimeSeriesId {
+        self.0.fetch_add(1, Ordering::SeqCst)
+    }
+}
+
 pub trait Builder<T>{
-    fn build(&self, path: PathBuf) -> Result<T>;
+    fn build(&self, path: String) -> Result<T>;
 }
 
 

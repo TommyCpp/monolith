@@ -1,8 +1,8 @@
 use crate::common::label::{Labels, Label};
 
-use crate::common::time_point::{TimePoint, Timestamp, Value};
+use crate::common::time_point::{TimePoint};
 use crate::proto::Sample;
-
+use crate::{Timestamp, Value};
 
 
 pub type TimeSeriesId = u64;

@@ -1,12 +1,8 @@
 use failure::_core::cmp::Ordering;
-
-
 use crate::proto::Sample;
+use crate::{Timestamp, Value};
 
 const F64_MARGIN: f64 = 0.000000001;
-
-pub type Timestamp = u64;
-pub type Value = f64;
 
 #[derive(Clone, Debug)]
 pub struct TimePoint {

@@ -81,6 +81,7 @@ impl SledIndexer {
         for pair in pairs {
             let key_value: Vec<&str> = pair.split("=").collect();
             if key_value.len() != 2 {
+                //todo: currently we do not support = in either label or label value
                 return Err(MonolithErr::ParseErr);
             } else {
                 let label = Label::from_key_value(key_value.get(0).unwrap(), key_value.get(1).unwrap());
@@ -210,19 +211,17 @@ impl Indexer for SledIndexer {
 }
 
 pub struct SledIndexerBuilder {
-    path: PathBuf
 }
 
 impl Builder<SledIndexer> for SledIndexerBuilder {
-    fn build(&self, path: PathBuf) -> Result<SledIndexer> {
-        SledIndexer::new(path.as_path().join("indexer").as_path())
+    fn build(&self, path: String) -> Result<SledIndexer> {
+        SledIndexer::new(PathBuf::from(path).as_path().join("indexer").as_path())
     }
 }
 
 impl SledIndexerBuilder {
     pub fn new() -> Self {
         SledIndexerBuilder {
-            path: Default::default()
         }
     }
 }

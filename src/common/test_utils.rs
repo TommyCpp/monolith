@@ -2,15 +2,16 @@ use std::path::PathBuf;
 use crate::storage::Storage;
 use crate::indexer::Indexer;
 
-use crate::{Result, Builder};
+use crate::{Result, Builder, Timestamp, Value};
 use crate::label::Labels;
-use crate::time_point::{TimePoint, Value};
 use crate::common::time_series::TimeSeries;
-use rand::Rng;
-use crate::common::time_point::Timestamp;
+use crate::common::time_point::TimePoint;
 use crate::common::label::Label;
-use rand::distributions::Alphanumeric;
 use crate::time_series::TimeSeriesId;
+
+use rand::Rng;
+use rand::distributions::Alphanumeric;
+
 
 ///Stub Storage for testing
 struct StubStorage {}
@@ -30,7 +31,7 @@ impl Storage for StubStorage {
 }
 
 impl Builder<StubStorage> for StubStorage {
-    fn build(&self, _path: PathBuf) -> Result<StubStorage> {
+    fn build(&self, _path: String) -> Result<StubStorage> {
         Ok(StubStorage {})
     }
 }
@@ -61,7 +62,7 @@ impl Indexer for StubIndexer {
 }
 
 impl Builder<StubIndexer> for StubIndexer {
-    fn build(&self, _path: PathBuf) -> Result<StubIndexer> {
+    fn build(&self, _path: String) -> Result<StubIndexer> {
         Ok(StubIndexer {})
     }
 }

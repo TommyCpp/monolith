@@ -1,16 +1,16 @@
 use monolith::indexer::{SledIndexer, Indexer};
 use monolith::label::{Label, Labels};
 use monolith::storage::{SledStorage, Storage};
-use monolith::time_point::{TimePoint, Timestamp, Value};
-use monolith::time_series::{TimeSeries, TimeSeriesId};
-use monolith::Result;
+use monolith::time_point::{TimePoint};
+use monolith::time_series::{TimeSeriesId};
+use monolith::{Result};
 use tempfile::TempDir;
 use monolith::chunk::{ChunkOpts, Chunk};
 use monolith::test_utils::Ingester;
 use std::thread;
 use std::sync::Arc;
-use std::ops::Index;
-use std::collections::{HashSet, BTreeMap, BTreeSet};
+
+use std::collections::{BTreeSet};
 use std::iter::FromIterator;
 
 #[test]

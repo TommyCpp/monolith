@@ -1,9 +1,8 @@
-use crate::time_point::Timestamp;
 use std::time::{SystemTime, UNIX_EPOCH};
 use crate::time_series::TimeSeriesId;
 use std::ops::Index;
 use crate::ops::OrderIntersect;
-use crate::{MonolithErr, Result};
+use crate::{MonolithErr, Result, Timestamp};
 use std::sync::mpsc::{channel, Sender, Receiver, TryRecvError};
 use std::thread;
 

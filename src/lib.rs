@@ -14,6 +14,9 @@ pub use error::*;
 pub use db::MonolithDb;
 use std::time::Duration;
 
+pub type Timestamp = u64;
+pub type Value = f64;
+
 // cli option name
 pub const STORAGE_ARG: &str = "storage";
 pub const FILE_DIR_ARG: &str = "file_dir";
