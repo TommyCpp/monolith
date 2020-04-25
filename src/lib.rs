@@ -37,6 +37,10 @@ pub const DEFAULT_READ_PATH: &str = "/read";
 pub const DEFAULT_WRITE_PATH: &str = "/write";
 pub const DEFAULT_WORKER_NUM: usize = 8;
 
+pub const DB_METADATA_FILENAME: &'static str = "metadata.json";
+pub const CHUNK_METADATA_FILENAME: &'static str = "metadata.json";
+
+
 #[macro_use]
 extern crate log;
 #[macro_use]

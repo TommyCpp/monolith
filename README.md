@@ -37,7 +37,9 @@ monolith-server [Options]
 Sled is a embedding key-value database. The API of Sled is similar with BTreeMap or any other map. 
 
 ## TODO List
-- [ ] Add metadata file in base dir
+- [x] Add metadata file in base dir
+- [ ] Compression on swap chunk
 - [ ] Add unit tests
 - [ ] Add e2e tests with Prometheus
 - [x] Add CI/CD pipeline
+- [ ] Add more storage options

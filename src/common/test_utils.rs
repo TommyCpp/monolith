@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use crate::storage::Storage;
 use crate::indexer::Indexer;
 
-use crate::{Result, Builder, Timestamp, Value};
+use crate::{Result, Builder, Timestamp, Value, HasTypeName};
 use crate::label::Labels;
 use crate::common::time_series::TimeSeries;
 use crate::common::time_point::TimePoint;
@@ -14,7 +14,13 @@ use rand::distributions::Alphanumeric;
 
 
 ///Stub Storage for testing
-struct StubStorage {}
+pub struct StubStorage {}
+
+impl HasTypeName for StubStorage{
+    fn get_type_name() -> &'static str {
+        "StubStorage"
+    }
+}
 
 impl Storage for StubStorage {
     fn write_time_point(&self, _time_series_id: u64, _timestamp: u64, _value: f64) -> Result<()> {
@@ -37,7 +43,13 @@ impl Builder<StubStorage> for StubStorage {
 }
 
 ///Stub indexer for testing
-struct StubIndexer {}
+pub struct StubIndexer {}
+
+impl HasTypeName for StubIndexer{
+    fn get_type_name() -> &'static str {
+        "StubIndexer"
+    }
+}
 
 impl Indexer for StubIndexer {
     fn get_series_with_label_matching(&self, _labels: Labels) -> Result<Vec<(u64, Labels)>> {

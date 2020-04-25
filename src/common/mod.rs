@@ -11,6 +11,7 @@ pub mod option;
 pub mod time_point;
 pub mod time_series;
 pub mod utils;
+pub mod metadata;
 
 pub mod test_utils;
 
@@ -53,6 +54,10 @@ impl IdGenerator {
 
 pub trait Builder<T>{
     fn build(&self, path: String) -> Result<T>;
+}
+
+pub trait HasTypeName{
+    fn get_type_name() -> &'static str;
 }
 
 

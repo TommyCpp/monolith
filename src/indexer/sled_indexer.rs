@@ -3,8 +3,8 @@ use sled::Db;
 use crate::common::label::{Label, Labels};
 
 use crate::common::time_series::TimeSeriesId;
-use crate::{MonolithErr, Result, Builder};
-use std::ops::Add;
+use crate::{MonolithErr, Result, Builder, HasTypeName};
+use std::ops::{Add};
 use std::path::{Path, PathBuf};
 
 use crate::indexer::Indexer;
@@ -79,14 +79,18 @@ impl SledIndexer {
         let pairs: Vec<&str> = _labels_str.split(",").collect();
         let mut res = Vec::new();
         for pair in pairs {
-            let key_value: Vec<&str> = pair.split("=").collect();
-            if key_value.len() != 2 {
-                //todo: currently we do not support = in either label or label value
-                return Err(MonolithErr::ParseErr);
-            } else {
-                let label = Label::from_key_value(key_value.get(0).unwrap(), key_value.get(1).unwrap());
-                res.push(label)
-            }
+            // Per Prometheus doc https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels
+            // Label name must match regex [a-zA-Z_][a-zA-Z0-9_]*
+            // Thus, we can always use the first = to split label name from label value
+            let equal_idx = pair.find("=").ok_or(MonolithErr::InternalErr("Cannot parse label data".to_string()))?;
+            let (key, value_with_equal) = pair.split_at(equal_idx);
+            let value = {
+                let mut s = String::from(value_with_equal);
+                s.remove(0);
+                s
+            };
+            let label = Label::from_key_value(key, value.as_str());
+            res.push(label)
         }
         Ok(Labels::from_vec(res))
     }
@@ -123,6 +127,14 @@ impl SledIndexer {
         } else {
             Ok(None)
         };
+    }
+
+
+}
+
+impl HasTypeName for SledIndexer{
+    fn get_type_name() -> &'static str{
+        return "SledIndexer"
     }
 }
 
@@ -210,8 +222,7 @@ impl Indexer for SledIndexer {
     }
 }
 
-pub struct SledIndexerBuilder {
-}
+pub struct SledIndexerBuilder {}
 
 impl Builder<SledIndexer> for SledIndexerBuilder {
     fn build(&self, path: String) -> Result<SledIndexer> {
@@ -221,8 +232,7 @@ impl Builder<SledIndexer> for SledIndexerBuilder {
 
 impl SledIndexerBuilder {
     pub fn new() -> Self {
-        SledIndexerBuilder {
-        }
+        SledIndexerBuilder {}
     }
 }
 

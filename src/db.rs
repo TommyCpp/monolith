@@ -1,11 +1,11 @@
 use std::{fs, thread};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
 use std::sync::{Arc, RwLock};
 use std::sync::mpsc::channel;
 use std::time::Duration;
 
-use crate::{Builder, MonolithErr, Result, Timestamp};
+use crate::{Builder, MonolithErr, Result, Timestamp, DB_METADATA_FILENAME, CHUNK_METADATA_FILENAME};
 use crate::chunk::{Chunk, ChunkOpts};
 use crate::common::label::Labels;
 use crate::common::time_series::LabelPointPairs;
@@ -14,6 +14,9 @@ use crate::indexer::Indexer;
 use crate::option::DbOpts;
 use crate::storage::Storage;
 use crate::common::time_point::TimePoint;
+use crate::common::metadata::{DbMetadata, ChunkMetadata};
+use std::fs::File;
+use std::io::{BufReader, BufWriter};
 
 /// MonolithDb is thread-safe
 pub struct MonolithDb<S: Storage, I: Indexer>
@@ -30,10 +33,15 @@ impl<S, I> MonolithDb<S, I>
     where S: Storage + Send + Sync + 'static,
           I: Indexer + Send + Sync + 'static {
     pub fn new(ops: DbOpts, storage_builder: Box<dyn Builder<S> + Sync + Send>, indexer_builder: Box<dyn Builder<I> + Sync + Send>) -> Result<Arc<Self>> {
+        let db_metadata = DbMetadata {
+            indexer_type: S::get_type_name().to_string(),
+            storage_type: I::get_type_name().to_string(),
+        };
+        Self::read_or_create_metadata(&ops.base_dir(), &db_metadata);
+
         let chunk_size = ops.chunk_size().as_millis() as Timestamp;
         //read existing data
-        let existing_chunk = Self::read_existing_chunk(ops.base_dir().clone())?;
-
+        let existing_chunk = Self::read_existing_chunk(&ops.base_dir())?;
 
         let current_time = get_current_timestamp();
         let chunk_opt = ChunkOpts {
@@ -75,11 +83,33 @@ impl<S, I> MonolithDb<S, I>
         Ok(db.clone())
     }
 
-    fn read_existing_chunk(dir: PathBuf) -> Result<Vec<Arc<Chunk<S, I>>>> {
+    fn read_or_create_metadata(base_dir: &Path, db_metadata: &DbMetadata) -> Result<()> {
+        let metadata_file = Option::transpose(
+            fs::read_dir(base_dir)?
+                .find(|entry|
+                    entry.is_ok() && entry.as_ref().unwrap().file_name().into_string().unwrap() == DB_METADATA_FILENAME)).unwrap();
+
+        if metadata_file.is_some() {
+            let file = File::open(metadata_file.unwrap().path())?;
+            let reader = BufReader::new(file);
+            let metadata: DbMetadata = serde_json::from_reader(reader)?;
+            if metadata.indexer_type != db_metadata.indexer_type || metadata.storage_type != db_metadata.storage_type {
+                return Err(MonolithErr::OptionErr);
+            }
+        } else {
+            let file = File::create(base_dir.join(DB_METADATA_FILENAME))?;
+            let writer = BufWriter::new(file);
+            serde_json::to_writer(writer, db_metadata);
+        }
+
+        Ok(())
+    }
+
+    fn read_existing_chunk(dir: &Path) -> Result<Vec<Arc<Chunk<S, I>>>> {
         let mut res = Vec::new();
         for entry in fs::read_dir(dir)? {
             let path_str = entry?.path().into_os_string().into_string().unwrap();
-            let _slash = path_str.rfind("/").unwrap() + 1; //todo: make this cross platform
+            let _slash = path_str.rfind(std::path::MAIN_SEPARATOR).unwrap() + 1;
             let dir_name = path_str.clone();
             let dir_name = dir_name.chars().skip(_slash).take(dir_name.len() - _slash).collect();
             match decode_chunk_dir(dir_name) {
@@ -192,6 +222,19 @@ impl<S, I> MonolithDb<S, I>
         let (storage, indexer) =
             (self.storage_builder.build(chunk_dir_str.clone())?,
              self.indexer_builder.build(chunk_dir_str.clone())?);
+        // write metadata into chunk
+        let metadata = ChunkMetadata {
+            start_time,
+            end_time: chunk_opt.end_time.unwrap(),
+        };
+        let file = File::create(chunk_dir.as_path().join(PathBuf::from(CHUNK_METADATA_FILENAME)));
+        if file.is_err(){
+            error!("Cannot create metadata file for chunk");
+            return Err(MonolithErr::InternalErr("Cannot create metadata file for chunk".to_string()));
+        } else{
+            let writer = BufWriter::new(file.unwrap());
+            serde_json::to_writer(writer, &metadata);
+        }
         let chunk = Chunk::<S, I>::new(storage, indexer, &chunk_opt);
         {
             let stale = self.current_chuck.read().unwrap();
@@ -204,6 +247,48 @@ impl<S, I> MonolithDb<S, I>
             current.close(); //close the stale one
             *current = Arc::new(chunk); //crate new one
         }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use tempfile::TempDir;
+    use crate::common::metadata::DbMetadata;
+    use crate::{MonolithDb, Result, DB_METADATA_FILENAME};
+    use crate::indexer::SledIndexer;
+    use crate::common::test_utils::{StubStorage, StubIndexer};
+    use std::path::PathBuf;
+    use std::fs::File;
+    use std::io::BufWriter;
+
+    #[test]
+    fn test_read_metadata() -> Result<()> {
+        let tempdir = TempDir::new()?;
+        let metadata = DbMetadata {
+            indexer_type: "TestIndexer".to_string(),
+            storage_type: "TestStorage".to_string(),
+        };
+
+        let mut res = MonolithDb::<StubStorage, StubIndexer>::read_or_create_metadata(tempdir.as_ref(), &metadata);
+        assert!(res.is_ok());
+        assert!(File::open(tempdir.path().join(PathBuf::from(DB_METADATA_FILENAME))).is_ok());
+
+        let file = File::open(tempdir.path().join(PathBuf::from(DB_METADATA_FILENAME))).unwrap();
+        let writer = BufWriter::new(file);
+        serde_json::to_writer(writer, &metadata);
+
+        let new_metadata = DbMetadata {
+            indexer_type: "StubIndexer".to_string(),
+            storage_type: "StubStorage".to_string(),
+        };
+        res = MonolithDb::<StubStorage, StubIndexer>::read_or_create_metadata(tempdir.as_ref(), &new_metadata);
+        assert!(res.is_err());
+
+        res = MonolithDb::<StubStorage, StubIndexer>::read_or_create_metadata(tempdir.as_ref(), &metadata);
+        assert!(res.is_ok());
+
+
         Ok(())
     }
 }

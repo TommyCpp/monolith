@@ -3,7 +3,7 @@ use crate::common::time_point::TimePoint;
 
 use crate::storage::{Decoder, Encoder, Storage};
 use crate::MonolithErr::{NotFoundErr, OutOfRangeErr};
-use crate::{Result, Builder, MonolithErr, Timestamp, Value};
+use crate::{Result, Builder, MonolithErr, Timestamp, Value, HasTypeName};
 use sled::{Db, Tree};
 
 use std::path::{Path, PathBuf};
@@ -118,6 +118,13 @@ impl Storage for SledStorage {
                 storage: sled::Db::start(config.build())?,
             }
         )
+    }
+
+}
+
+impl HasTypeName for SledStorage{
+    fn get_type_name() -> &'static str{
+        return "SledStorage"
     }
 }
 

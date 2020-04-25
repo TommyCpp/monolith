@@ -6,6 +6,7 @@ use std::sync::{Arc};
 use crate::storage::Storage;
 use crate::indexer::Indexer;
 use crate::chunk::Chunk;
+use serde_json::Error;
 
 #[derive(Debug, Fail)]
 pub enum MonolithErr {
@@ -22,6 +23,8 @@ pub enum MonolithErr {
     OutOfRangeErr(u64, u64),
     #[fail(display = "Internal error, {}", _0)]
     InternalErr(String), // Logical error, usually indicate a bug inside system
+    #[fail(display = "Error when convert Json with serde")]
+    SerdeJsonErr(serde_json::error::Error)
 }
 
 pub type Result<T> = std::result::Result<T, MonolithErr>;
@@ -69,5 +72,11 @@ impl std::convert::From<std::num::ParseFloatError> for MonolithErr {
 impl<S: Storage, I: Indexer> std::convert::From<std::sync::Arc<Chunk<S, I>>> for MonolithErr {
     fn from(_: Arc<Chunk<S, I>>) -> Self {
         MonolithErr::InternalErr("Cannot get ownership".to_string())
+    }
+}
+
+impl std::convert::From<serde_json::error::Error> for MonolithErr{
+    fn from(err: Error) -> Self {
+        MonolithErr::SerdeJsonErr(err)
     }
 }

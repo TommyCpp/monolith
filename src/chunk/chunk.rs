@@ -44,9 +44,8 @@ pub struct Chunk<S: Storage, I: Indexer> {
     mutex: RwLock<()>,
 }
 
-//todo: add meta data file for chunk, build dir for each individual chunk
 impl<S: Storage, I: Indexer> Chunk<S, I> {
-    pub fn new(storage: S, indexer: I, ops: &ChunkOpts) -> Self {
+    pub fn new(storage: S, indexer: I, ops: &ChunkOpts) -> Self {1
         let start_time = ops
             .start_time
             .unwrap_or(get_current_timestamp());

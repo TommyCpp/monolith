@@ -1,14 +1,14 @@
 use crate::common::label::Labels;
 
 use crate::common::time_series::TimeSeriesId;
-use crate::{Result};
+use crate::{Result, HasTypeName};
 use std::path::{PathBuf};
 
 
 ///
 /// Indexer is in charge of query appropriate time series based on the labels.
 ///
-pub trait Indexer: Sized {
+pub trait Indexer: Sized + HasTypeName{
     /// Get all time series and their meta data which contains all labels in __labels__
     fn get_series_with_label_matching(&self, labels: Labels)
         -> Result<Vec<(TimeSeriesId, Labels)>>;
