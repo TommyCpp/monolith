@@ -45,7 +45,7 @@ pub struct Chunk<S: Storage, I: Indexer> {
 }
 
 impl<S: Storage, I: Indexer> Chunk<S, I> {
-    pub fn new(storage: S, indexer: I, ops: &ChunkOpts) -> Self {1
+    pub fn new(storage: S, indexer: I, ops: &ChunkOpts) -> Self {
         let start_time = ops
             .start_time
             .unwrap_or(get_current_timestamp());
