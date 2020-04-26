@@ -6,6 +6,7 @@ pub mod db;
 pub mod server;
 pub mod indexer;
 pub mod storage;
+mod backend;
 /// Generated proto definition
 pub(crate) mod proto;
 
@@ -30,8 +31,7 @@ pub const WORKER_NUM: &str = "worker_num";
 pub const TIME_UNIT: Duration = Duration::from_micros(1);
 
 // cli option default value
-//in seconds, used in default value field of cli, so has to be str
-pub const DEFAULT_CHUNK_SIZE: &str = "120";
+pub const DEFAULT_CHUNK_SIZE: &str = "12000"; //in seconds
 pub const DEFAULT_PORT: i32 = 9001;
 pub const DEFAULT_READ_PATH: &str = "/read";
 pub const DEFAULT_WRITE_PATH: &str = "/write";

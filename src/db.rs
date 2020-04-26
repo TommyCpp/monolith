@@ -83,6 +83,8 @@ impl<S, I> MonolithDb<S, I>
         Ok(db.clone())
     }
 
+    /// Check if there is a metadata file in base_dir. If it does, then read file and check if the existing Indexer and Storage
+    /// is the same type. If it doesn't, then create one base on db_metadata
     fn read_or_create_metadata(base_dir: &Path, db_metadata: &DbMetadata) -> Result<()> {
         let metadata_file = Option::transpose(
             fs::read_dir(base_dir)?
@@ -105,6 +107,7 @@ impl<S, I> MonolithDb<S, I>
         Ok(())
     }
 
+    ///Read the existing chunk in dir. If no chunk found, return an empty vec.
     fn read_existing_chunk(dir: &Path) -> Result<Vec<Arc<Chunk<S, I>>>> {
         let mut res = Vec::new();
         for entry in fs::read_dir(dir)? {
@@ -133,6 +136,7 @@ impl<S, I> MonolithDb<S, I>
         Ok(res)
     }
 
+    /// Write time points with same labels into chunk.
     pub fn write_time_points(&self, labels: Labels, timepoints: Vec<TimePoint>) -> Result<()> {
         let _c = &self.current_chuck.read().unwrap();
         let (start_time, end_time) = _c.start_end_time();

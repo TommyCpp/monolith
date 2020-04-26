@@ -5,9 +5,9 @@ use crate::{Result, Timestamp, Value};
 use std::path::PathBuf;
 
 mod sled_storage;
+mod tikv_storage;
 mod common;
 
-pub use sled_storage::SledStorage;
-pub use sled_storage::SledStorageBuilder;
+pub use sled_storage::{SledStorage, SledStorageBuilder};
 pub use common::*;
 

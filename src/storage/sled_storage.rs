@@ -44,7 +44,7 @@ impl SledStorage {
                 let val_vec = AsRef::<[u8]>::as_ref(&val).to_vec();
                 let mut res: Vec<TimePoint> = Vec::new();
                 for timepoint_bytes in val_vec.chunks(std::mem::size_of::<Timestamp>() + std::mem::size_of::<Value>()) {
-                    res.push(SledProcessor::decode_time_point(timepoint_bytes)?);
+                    res.push(KvStorageProcessor::decode_time_point(timepoint_bytes)?);
                 }
 
                 return Ok(Some(res));
@@ -76,7 +76,7 @@ impl Storage for SledStorage {
     fn write_time_point(&self, time_series_id: u64, timestamp: Timestamp, value: Value) -> Result<()> {
         let tree: &Tree = &self.storage;
         let key_name = SledStorage::parse_key_name::<u64>(TIME_SERIES_PREFIX, time_series_id);
-        let mut value = SledProcessor::encode_time_point(timestamp, value)?;
+        let mut value = KvStorageProcessor::encode_time_point(timestamp, value)?;
         if let Some(current_val) = tree.get(key_name.clone())? {
             let mut current_val_bytes = current_val.to_vec();
             current_val_bytes.append(&mut value);
@@ -129,10 +129,10 @@ impl HasTypeName for SledStorage{
 }
 
 //TODO: create a independent package for processor, create a KvProcessor for all key-value database
-struct SledProcessor {}
+struct KvStorageProcessor {}
 
-impl Encoder for SledProcessor {
-    fn encode_time_point(timestamp: u64, value: f64) -> Result<Vec<u8>> {
+impl Encoder for KvStorageProcessor {
+    fn encode_time_point(timestamp: Timestamp, value: Value) -> Result<Vec<u8>> {
         let timestamp_bytes = timestamp.to_be_bytes();
         let value_bytes = value.to_be_bytes();
         let mut res = Vec::from(&timestamp_bytes[..]);
@@ -141,7 +141,7 @@ impl Encoder for SledProcessor {
     }
 }
 
-impl Decoder for SledProcessor {
+impl Decoder for KvStorageProcessor {
     fn decode_time_point(raw: &[u8]) -> Result<TimePoint> {
         if raw.len() != 16 {
             return Err(MonolithErr::InternalErr("Wrong number of bytes in input".to_string()));
