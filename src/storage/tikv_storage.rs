@@ -4,14 +4,15 @@ use crate::{Result, HasTypeName, Builder, Timestamp, Value};
 use std::path::PathBuf;
 use crate::common::time_point::TimePoint;
 use crate::common::time_series::TimeSeriesId;
+use crate::backend::tikv::{TiKvRawBackend, TiKvRawBackendBuilder};
 
 
-struct TiKvStorage{
+struct TiKvStorage {
     config: Config,
-    client: RawClient
+    client: TiKvRawBackend,
 }
 
-impl Storage for TiKvStorage{
+impl Storage for TiKvStorage {
     fn write_time_point(&self, time_series_id: TimeSeriesId, timestamp: Timestamp, value: Value) -> Result<()> {
         unimplemented!()
     }
@@ -25,13 +26,27 @@ impl Storage for TiKvStorage{
     }
 }
 
-impl HasTypeName for TiKvStorage{
+impl HasTypeName for TiKvStorage {
     fn get_type_name() -> &'static str {
-        unimplemented!()
+        "TiKvStorage"
     }
 }
 
-impl Builder<TiKvStorage> for TiKvStorage{
+struct TiKvStorageBuilder{
+    backend_builder: TiKvRawBackendBuilder
+}
+
+impl TiKvStorageBuilder{
+    fn new(backend_builder: TiKvRawBackendBuilder) -> Result<TiKvStorageBuilder> {
+        Ok(
+            TiKvStorageBuilder{
+                backend_builder
+            }
+        )
+    }
+}
+
+impl Builder<TiKvStorage> for TiKvStorage {
     fn build(&self, path: String) -> Result<TiKvStorage> {
         unimplemented!()
     }
