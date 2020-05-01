@@ -9,7 +9,7 @@ use crate::backend::tikv::{TiKvRawBackend, TiKvRawBackendBuilder};
 
 struct TiKvStorage {
     config: Config,
-    client: TiKvRawBackend,
+    client: Box<dyn TiKvRawBackend>,
 }
 
 impl Storage for TiKvStorage {
@@ -32,22 +32,27 @@ impl HasTypeName for TiKvStorage {
     }
 }
 
-struct TiKvStorageBuilder{
+struct TiKvStorageBuilder {
     backend_builder: TiKvRawBackendBuilder
 }
 
-impl TiKvStorageBuilder{
+impl TiKvStorageBuilder {
     fn new(backend_builder: TiKvRawBackendBuilder) -> Result<TiKvStorageBuilder> {
         Ok(
-            TiKvStorageBuilder{
+            TiKvStorageBuilder {
                 backend_builder
             }
         )
     }
 }
 
-impl Builder<TiKvStorage> for TiKvStorage {
-    fn build(&self, path: String) -> Result<TiKvStorage> {
-        unimplemented!()
+impl Builder<TiKvStorage> for TiKvStorageBuilder {
+    fn build(&self, _: String) -> Result<TiKvStorage> {
+        Ok(
+            TiKvStorage {
+                config: Default::default(),
+                client: self.backend_builder.build("".to_string())?,
+            }
+        )
     }
 }
