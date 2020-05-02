@@ -1,11 +1,11 @@
-use crate::{Builder, Result};
+use crate::{Builder, Result, IdGenerator};
 use tikv_client::{RawClient, Config};
 use futures::prelude::*;
 use tikv_client::raw::Client;
 
 pub trait TiKvRawBackend {
-    fn set(&self, key: Vec<u8>, value: Vec<u8>, cf: String) -> Result<()>;
-    fn get(&self, key: Vec<u8>, cf: String) -> Result<Option<Vec<u8>>>;
+    fn set(&self, key: Vec<u8>, value: Vec<u8>) -> Result<()>;
+    fn get(&self, key: Vec<u8>) -> Result<Option<Vec<u8>>>;
 }
 
 /// Wrapper of TiKv Raw client
@@ -14,25 +14,22 @@ struct TiKvRawBackendImpl {
 }
 
 impl TiKvRawBackendImpl {
-    fn with_cf(&self, cf: String) -> Client{
-        self.client
-            .with_cf(tikv_client::ColumnFamily::from(cf))
-    }
+
 }
 
 impl TiKvRawBackend for TiKvRawBackendImpl {
-    fn set(&self, key: Vec<u8>, value: Vec<u8>, cf: String) -> Result<()> {
+    fn set(&self, key: Vec<u8>, value: Vec<u8>) -> Result<()> {
         let res: tikv_client::Result<()> = futures::executor::block_on(
-            self.with_cf(cf)
+            self.client
                 .put(key, value)
         );
         Ok(res?)
     }
 
 
-    fn get(&self, key: Vec<u8>, cf: String) -> Result<Option<Vec<u8>>> {
+    fn get(&self, key: Vec<u8>) -> Result<Option<Vec<u8>>> {
         let res: tikv_client::Result<Option<tikv_client::Value>> = futures::executor::block_on(
-            self.with_cf(cf)
+            self.client
                 .get(key)
         );
         Ok(res?.map(|v| v.into()))
