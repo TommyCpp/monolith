@@ -4,7 +4,9 @@ use std::ops::Index;
 use crate::ops::OrderIntersect;
 use crate::{MonolithErr, Result, Timestamp};
 use std::sync::mpsc::{channel, Sender, Receiver, TryRecvError};
-use std::thread;
+use std::{thread, fs};
+use std::path::Path;
+use std::fs::File;
 
 pub fn is_duration_overlap(
     start_time_1: Timestamp,
@@ -124,6 +126,22 @@ pub fn intersect_time_series_id_vec(mut ts: Vec<Vec<TimeSeriesId>>) -> Result<Ve
         }
 
         intersect_time_series_id_vec(next_vec)
+    }
+}
+
+/// Read file from dir, filename must be constant
+///
+/// Return None if no such file found
+pub fn get_file_from_dir(base_dir: &Path, filename: &'static str) -> Result<Option<File>>{
+    let file = Option::transpose(
+        fs::read_dir(base_dir)?
+            .find(|entry|
+                entry.is_ok() && entry.as_ref().unwrap().file_name().into_string().unwrap() == filename)).unwrap();
+
+    return if file.is_some() {
+        Ok(Some(File::open(file.unwrap().path())?))
+    } else {
+        Ok(None)
     }
 }
 

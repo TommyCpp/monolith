@@ -13,12 +13,15 @@ use rand::Rng;
 use rand::distributions::Alphanumeric;
 use crate::common::option::DbOpts;
 use crate::chunk::ChunkOpts;
+use std::collections::BTreeMap;
+use crate::backend::tikv::TiKvRawBackend;
+use std::sync::Mutex;
 
 
 ///Stub Storage for testing
 pub struct StubStorage {}
 
-impl HasTypeName for StubStorage{
+impl HasTypeName for StubStorage {
     fn get_type_name() -> &'static str {
         "StubStorage"
     }
@@ -39,7 +42,7 @@ impl Storage for StubStorage {
 }
 
 impl Builder<StubStorage> for StubStorage {
-    fn build(&self, _path: String, _: Option<&ChunkOpts>, _:Option<&DbOpts>) -> Result<StubStorage> {
+    fn build(&self, _path: String, _: Option<&ChunkOpts>, _: Option<&DbOpts>) -> Result<StubStorage> {
         Ok(StubStorage {})
     }
 }
@@ -47,7 +50,7 @@ impl Builder<StubStorage> for StubStorage {
 ///Stub indexer for testing
 pub struct StubIndexer {}
 
-impl HasTypeName for StubIndexer{
+impl HasTypeName for StubIndexer {
     fn get_type_name() -> &'static str {
         "StubIndexer"
     }
@@ -76,7 +79,7 @@ impl Indexer for StubIndexer {
 }
 
 impl Builder<StubIndexer> for StubIndexer {
-    fn build(&self, _path: String, _: Option<&ChunkOpts>, _:Option<&DbOpts>) -> Result<StubIndexer> {
+    fn build(&self, _path: String, _: Option<&ChunkOpts>, _: Option<&DbOpts>) -> Result<StubIndexer> {
         Ok(StubIndexer {})
     }
 }
@@ -171,3 +174,25 @@ impl Ingester {
     }
 }
 
+struct DummyTiKvBackend {
+    tree: Mutex<BTreeMap<Vec<u8>, Vec<u8>>>
+}
+
+impl TiKvRawBackend for DummyTiKvBackend {
+    fn set(&self, key: Vec<u8>, value: Vec<u8>) -> Result<()> {
+        let mut map = self.tree.lock().unwrap();
+        map.insert(key, value);
+        Ok(())
+    }
+
+    fn get(&self, key: Vec<u8>) -> Result<Option<Vec<u8>>> {
+        let mut map = self.tree.lock().unwrap();
+        let get_res = map.get(&key);
+        if get_res.is_some() {
+            Ok(Some(get_res.unwrap().clone()))
+        } else {
+            Ok(None)
+        }
+    }
+
+}

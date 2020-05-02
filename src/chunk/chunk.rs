@@ -1,41 +1,49 @@
-
-
 use crate::common::label::Labels;
-use crate::common::time_point::{TimePoint};
+use crate::common::time_point::TimePoint;
 use crate::common::time_series::TimeSeries;
-use crate::common::utils::{is_duration_overlap, get_current_timestamp};
+use crate::common::utils::{is_duration_overlap, get_current_timestamp, get_file_from_dir};
 use crate::common::IdGenerator;
-use crate::{MonolithErr, Result, DEFAULT_CHUNK_SIZE, Timestamp};
+use crate::{MonolithErr, Result, DEFAULT_CHUNK_SIZE, Timestamp, CHUNK_METADATA_FILENAME};
 
 use crate::storage::Storage;
-use crate::MonolithErr::OutOfRangeErr;
+use crate::MonolithErr::{OutOfRangeErr, NotFoundErr};
 
 use crate::indexer::Indexer;
 use std::sync::RwLock;
 use std::sync::atomic::{AtomicBool, Ordering};
-
+use std::path::Path;
+use std::fs;
+use std::io::BufReader;
+use serde::{Serialize, Deserialize};
 /// ChunkOps contains all options for chunk
+#[derive(Serialize, Deserialize, Debug)]
 pub struct ChunkOpts {
     // as mil sec
     pub start_time: Option<Timestamp>,
     pub end_time: Option<Timestamp>,
+    pub identifier: Vec<u8>,
 }
 
 impl ChunkOpts {
-    fn new() -> ChunkOpts {
-        ChunkOpts {
-            start_time: None,
-            end_time: None,
+    pub fn from_dir(dir: &Path) -> Result<Self> {
+        let file_res = get_file_from_dir(dir, CHUNK_METADATA_FILENAME)?;
+        return if file_res.is_some(){
+            let reader = BufReader::new(file_res.unwrap());
+            let opts: ChunkOpts = serde_json::from_reader(reader)?;
+            Ok(opts)
+        } else{
+            error!("Cannot open option file from dir {}", dir.as_os_str().to_str().unwrap_or("<unreadable path>"));
+            Err(MonolithErr::NotFoundErr)
         }
     }
 }
 
-impl Default for ChunkOpts{
+impl Default for ChunkOpts {
     fn default() -> Self {
-        ChunkOpts{
+        ChunkOpts {
             start_time: None,
             end_time: None,
-
+            identifier: uuid::Uuid::new_v4().as_bytes().to_vec(),
         }
     }
 }
