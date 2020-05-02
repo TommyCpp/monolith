@@ -4,7 +4,9 @@ use crate::{Result, HasTypeName, Builder, Timestamp, Value};
 use std::path::PathBuf;
 use crate::common::time_point::TimePoint;
 use crate::common::time_series::TimeSeriesId;
-use crate::backend::tikv::{TiKvRawBackend, TiKvRawBackendBuilder};
+use crate::backend::tikv::{TiKvRawBackend, TakeBackendSingleton};
+use crate::common::option::DbOpts;
+use crate::chunk::ChunkOpts;
 
 
 struct TiKvStorage {
@@ -33,11 +35,11 @@ impl HasTypeName for TiKvStorage {
 }
 
 struct TiKvStorageBuilder {
-    backend_builder: TiKvRawBackendBuilder
+    backend_builder: TakeBackendSingleton
 }
 
 impl TiKvStorageBuilder {
-    fn new(backend_builder: TiKvRawBackendBuilder) -> Result<TiKvStorageBuilder> {
+    fn new(backend_builder: TakeBackendSingleton) -> Result<TiKvStorageBuilder> {
         Ok(
             TiKvStorageBuilder {
                 backend_builder
@@ -47,11 +49,11 @@ impl TiKvStorageBuilder {
 }
 
 impl Builder<TiKvStorage> for TiKvStorageBuilder {
-    fn build(&self, _: String) -> Result<TiKvStorage> {
+    fn build(&self, _: String, chunk_opts: Option<&ChunkOpts>, db_opts: Option<&DbOpts>) -> Result<TiKvStorage> {
         Ok(
             TiKvStorage {
                 config: Default::default(),
-                client: self.backend_builder.build("".to_string())?,
+                client: self.backend_builder.get_instance()?,
             }
         )
     }

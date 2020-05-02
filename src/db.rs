@@ -44,10 +44,11 @@ impl<S, I> MonolithDb<S, I>
         let existing_chunk = Self::read_existing_chunk(&ops.base_dir())?;
 
         let current_time = get_current_timestamp();
-        let chunk_opt = ChunkOpts {
-            start_time: Some(current_time),
-            end_time: Some(current_time + ops.chunk_size().as_millis() as Timestamp),
-        };
+
+        let mut chunk_opt = ChunkOpts::default();
+        chunk_opt.start_time = Some(current_time);
+        chunk_opt.end_time = Some(current_time + ops.chunk_size().as_millis() as Timestamp);
+
 
         let chunk_dir = ops.base_dir()
             .as_path()
@@ -56,8 +57,8 @@ impl<S, I> MonolithDb<S, I>
                                  chunk_opt.end_time.unwrap()));
         let chunk_dir_str = chunk_dir.as_path().display().to_string();
         let (storage, indexer) =
-            (storage_builder.build(chunk_dir_str.clone())?,
-             indexer_builder.build(chunk_dir_str.clone())?);
+            (storage_builder.build(chunk_dir_str.clone(), Some(&chunk_opt), Some(&ops))?,
+             indexer_builder.build(chunk_dir_str.clone(), Some(&chunk_opt), Some(&ops))?);
         let chunk = Chunk::<S, I>::new(storage, indexer, &chunk_opt);
         let (swap_tx, swap_rx) = channel::<Timestamp>();
         let db = Arc::new(MonolithDb {
@@ -120,10 +121,11 @@ impl<S, I> MonolithDb<S, I>
                     let storage = S::read_from_existing(PathBuf::from(path_str.clone()).join("storage"))?;
                     let indexer = I::read_from_existing(PathBuf::from(path_str.clone()).join("indexer"))?;
                     let current_time = get_current_timestamp();
-                    let chunk_opt = ChunkOpts {
-                        start_time: Some(start_time),
-                        end_time: Some(if end_time > current_time { current_time } else { end_time }),
-                    };
+
+                    let mut chunk_opt = ChunkOpts::default();
+                    chunk_opt.start_time = Some(start_time);
+                    chunk_opt.end_time = Some(if end_time > current_time { current_time } else { end_time });
+
                     let chunk = Chunk::new(storage, indexer, &chunk_opt);
                     chunk.close();
                     (&mut res).push(Arc::new(chunk));
@@ -213,10 +215,10 @@ impl<S, I> MonolithDb<S, I>
 
     fn swap(&self, start_time: Timestamp) -> Result<()> {
         info!("Chunk swap, new chunk with start time {}", start_time);
-        let chunk_opt = ChunkOpts {
-            start_time: Some(start_time),
-            end_time: Some(start_time + self.options.chunk_size().as_millis() as Timestamp),
-        };
+        let mut chunk_opt = ChunkOpts::default();
+        chunk_opt.start_time = Some(start_time);
+        chunk_opt.end_time = Some(start_time + self.options.chunk_size().as_millis() as Timestamp);
+
 
         let chunk_dir = self.options.base_dir()
             .join(
@@ -224,18 +226,18 @@ impl<S, I> MonolithDb<S, I>
             );
         let chunk_dir_str = chunk_dir.as_path().display().to_string();
         let (storage, indexer) =
-            (self.storage_builder.build(chunk_dir_str.clone())?,
-             self.indexer_builder.build(chunk_dir_str.clone())?);
+            (self.storage_builder.build(chunk_dir_str.clone(), Some(&chunk_opt), Some(&self.options))?,
+             self.indexer_builder.build(chunk_dir_str.clone(), Some(&chunk_opt), Some(&self.options))?);
         // write metadata into chunk
         let metadata = ChunkMetadata {
             start_time,
             end_time: chunk_opt.end_time.unwrap(),
         };
         let file = File::create(chunk_dir.as_path().join(PathBuf::from(CHUNK_METADATA_FILENAME)));
-        if file.is_err(){
+        if file.is_err() {
             error!("Cannot create metadata file for chunk");
             return Err(MonolithErr::InternalErr("Cannot create metadata file for chunk".to_string()));
-        } else{
+        } else {
             let writer = BufWriter::new(file.unwrap());
             serde_json::to_writer(writer, &metadata);
         }

@@ -8,6 +8,8 @@ use sled::{Db, Tree};
 
 use std::path::{Path, PathBuf};
 use std::convert::TryInto;
+use crate::chunk::ChunkOpts;
+use crate::option::DbOpts;
 
 const TIME_SERIES_PREFIX: &str = "TS";
 const TIME_POINT_PREFIX: &str = "TP";
@@ -82,7 +84,7 @@ impl Storage for SledStorage {
             current_val_bytes.append(&mut value);
             tree.set(
                 key_name.clone(),
-                current_val_bytes
+                current_val_bytes,
             );
         } else {
             tree.set(key_name.clone(), value)?;
@@ -119,12 +121,11 @@ impl Storage for SledStorage {
             }
         )
     }
-
 }
 
-impl HasTypeName for SledStorage{
-    fn get_type_name() -> &'static str{
-        return "SledStorage"
+impl HasTypeName for SledStorage {
+    fn get_type_name() -> &'static str {
+        return "SledStorage";
     }
 }
 
@@ -153,18 +154,16 @@ impl Decoder for KvStorageProcessor {
     }
 }
 
-pub struct SledStorageBuilder {
-}
+pub struct SledStorageBuilder {}
 
 impl Builder<SledStorage> for SledStorageBuilder {
-    fn build(&self, path: String) -> Result<SledStorage> {
+    fn build(&self, path: String, _: Option<&ChunkOpts>, _: Option<&DbOpts>) -> Result<SledStorage> {
         SledStorage::new(PathBuf::from(path).as_path().join("storage").as_path())
     }
 }
 
 impl SledStorageBuilder {
     pub fn new() -> Self {
-        SledStorageBuilder {
-        }
+        SledStorageBuilder {}
     }
 }

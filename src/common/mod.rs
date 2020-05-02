@@ -4,6 +4,8 @@ use crate::common::time_series::TimeSeriesId;
 use std::ops::Index;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
+use crate::chunk::ChunkOpts;
+use crate::common::option::DbOpts;
 
 
 pub mod label;
@@ -52,11 +54,14 @@ impl IdGenerator {
     }
 }
 
-pub trait Builder<T>{
-    fn build(&self, path: String) -> Result<T>;
+/// Build a Indexer or Storage object.
+///
+/// Implementation may add more function to let user pass more configs or options
+pub trait Builder<T> {
+    fn build(&self, path: String, chunk_opts: Option<&ChunkOpts>, db_opts: Option<&DbOpts>) -> Result<T>;
 }
 
-pub trait HasTypeName{
+pub trait HasTypeName {
     fn get_type_name() -> &'static str;
 }
 

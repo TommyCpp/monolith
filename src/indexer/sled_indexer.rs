@@ -4,11 +4,13 @@ use crate::common::label::{Label, Labels};
 
 use crate::common::time_series::TimeSeriesId;
 use crate::{MonolithErr, Result, Builder, HasTypeName};
-use std::ops::{Add};
+use std::ops::Add;
 use std::path::{Path, PathBuf};
 
 use crate::indexer::Indexer;
 use crate::utils::intersect_time_series_id_vec;
+use crate::chunk::ChunkOpts;
+use crate::common::option::DbOpts;
 
 const LABEL_REVERSE_PREFIX: &str = "LR";
 const LABEL_PREFIX: &str = "L";
@@ -128,13 +130,11 @@ impl SledIndexer {
             Ok(None)
         };
     }
-
-
 }
 
-impl HasTypeName for SledIndexer{
-    fn get_type_name() -> &'static str{
-        return "SledIndexer"
+impl HasTypeName for SledIndexer {
+    fn get_type_name() -> &'static str {
+        return "SledIndexer";
     }
 }
 
@@ -225,7 +225,7 @@ impl Indexer for SledIndexer {
 pub struct SledIndexerBuilder {}
 
 impl Builder<SledIndexer> for SledIndexerBuilder {
-    fn build(&self, path: String) -> Result<SledIndexer> {
+    fn build(&self, path: String, _: Option<&ChunkOpts>, _: Option<&DbOpts>) -> Result<SledIndexer> {
         SledIndexer::new(PathBuf::from(path).as_path().join("indexer").as_path())
     }
 }

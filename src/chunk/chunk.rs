@@ -30,6 +30,16 @@ impl ChunkOpts {
     }
 }
 
+impl Default for ChunkOpts{
+    fn default() -> Self {
+        ChunkOpts{
+            start_time: None,
+            end_time: None,
+
+        }
+    }
+}
+
 ///
 /// Chunk store a set of time series fallen into certain time range;
 ///

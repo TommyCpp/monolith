@@ -11,6 +11,8 @@ use crate::time_series::TimeSeriesId;
 
 use rand::Rng;
 use rand::distributions::Alphanumeric;
+use crate::common::option::DbOpts;
+use crate::chunk::ChunkOpts;
 
 
 ///Stub Storage for testing
@@ -37,7 +39,7 @@ impl Storage for StubStorage {
 }
 
 impl Builder<StubStorage> for StubStorage {
-    fn build(&self, _path: String) -> Result<StubStorage> {
+    fn build(&self, _path: String, _: Option<&ChunkOpts>, _:Option<&DbOpts>) -> Result<StubStorage> {
         Ok(StubStorage {})
     }
 }
@@ -74,7 +76,7 @@ impl Indexer for StubIndexer {
 }
 
 impl Builder<StubIndexer> for StubIndexer {
-    fn build(&self, _path: String) -> Result<StubIndexer> {
+    fn build(&self, _path: String, _: Option<&ChunkOpts>, _:Option<&DbOpts>) -> Result<StubIndexer> {
         Ok(StubIndexer {})
     }
 }

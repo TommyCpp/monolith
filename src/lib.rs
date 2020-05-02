@@ -16,7 +16,7 @@ pub use common::*;
 pub use error::*;
 
 pub use db::MonolithDb;
-pub use backend::TiKvRawBackendBuilder;
+pub use backend::TakeBackendSingleton;
 
 pub type Timestamp = u64;
 pub type Value = f64;

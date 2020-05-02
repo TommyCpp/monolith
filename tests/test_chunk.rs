@@ -38,10 +38,9 @@ fn test_query() -> Result<()> {
         }
         indexer.create_index(s.meta_data().clone(), s.id());
     }
-    let ops = ChunkOpts {
-        start_time: Some(0u64),
-        end_time: Some(1000u64),
-    };
+    let mut ops = ChunkOpts::default();
+    ops.start_time = Some(0u64);
+    ops.end_time = Some(1000u64);
     let chunk = Chunk::new(storage.clone(), indexer.clone(), &ops);
     let res1 = chunk.query(Labels::from_vec(vec![Label::from_key_value("test1", "1")]), 0, 100)?;
     assert_eq!(res1.len(), 2);
@@ -82,10 +81,9 @@ fn test_insert() -> Result<()> {
             vec![(11, 12.9), (16, 13.5)],
         ],
     ).data;
-    let ops = ChunkOpts {
-        start_time: Some(0u64),
-        end_time: Some(1000u64),
-    };
+    let mut ops = ChunkOpts::default();
+    ops.start_time = Some(0u64);
+    ops.end_time = Some(1000u64);
     let chunk = Chunk::new(storage.clone(), indexer.clone(), &ops);
 
     for s in series.clone() {

@@ -13,9 +13,7 @@ struct TiKvRawBackendImpl {
     client: RawClient,
 }
 
-impl TiKvRawBackendImpl {
-
-}
+impl TiKvRawBackendImpl {}
 
 impl TiKvRawBackend for TiKvRawBackendImpl {
     fn set(&self, key: Vec<u8>, value: Vec<u8>) -> Result<()> {
@@ -36,22 +34,21 @@ impl TiKvRawBackend for TiKvRawBackendImpl {
     }
 }
 
-pub struct TiKvRawBackendBuilder {
+
+// Return shared backend
+pub struct TakeBackendSingleton {
     config: Config
 }
 
-impl TiKvRawBackendBuilder {
-    pub fn new(config: Config) -> Result<TiKvRawBackendBuilder> {
+impl TakeBackendSingleton {
+    pub fn new(config: Config) -> Result<TakeBackendSingleton> {
         Ok(
-            TiKvRawBackendBuilder {
+            TakeBackendSingleton {
                 config
             }
         )
     }
-}
-
-impl Builder<Box<dyn TiKvRawBackend>> for TiKvRawBackendBuilder {
-    fn build(&self, _: String) -> Result<Box<dyn TiKvRawBackend>> {
+    pub fn get_instance(&self) -> Result<Box<dyn TiKvRawBackend>> {
         Ok(
             Box::new(TiKvRawBackendImpl {
                 client: RawClient::new(self.config.clone())?
