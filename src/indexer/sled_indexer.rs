@@ -213,13 +213,6 @@ impl Indexer for SledIndexer {
         Ok(())
     }
 
-    fn read_from_existing(dir: PathBuf) -> Result<Self> {
-        Ok(
-            SledIndexer {
-                storage: sled::Db::start_default(dir)?
-            }
-        )
-    }
 }
 
 pub struct SledIndexerBuilder {}
@@ -227,6 +220,26 @@ pub struct SledIndexerBuilder {}
 impl Builder<SledIndexer> for SledIndexerBuilder {
     fn build(&self, path: String, _: Option<&ChunkOpts>, _: Option<&DbOpts>) -> Result<SledIndexer> {
         SledIndexer::new(PathBuf::from(path).as_path().join("indexer").as_path())
+    }
+
+    fn write_to_chunk(&self, dir: &Path) -> Result<()> {
+        Ok(())
+    }
+
+    fn read_from_chunk(&self, dir: &Path) -> Result<Option<SledIndexer>> {
+        Ok(
+            Some(SledIndexer {
+                storage: sled::Db::start_default(dir)?
+            })
+        )
+    }
+
+    fn write_config(&self, dir: &Path) -> Result<()> {
+        Ok(())
+    }
+
+    fn read_config(&self, dir: &Path) -> Result<()> {
+        Ok(())
     }
 }
 

@@ -29,8 +29,24 @@ pub trait Storage: Sized + HasTypeName{
         end_time: Timestamp,
     ) -> Result<Vec<TimePoint>>;
 
-    /// Read data from an existing dir
-    fn read_from_existing(dir: PathBuf) -> Result<Self>;
+    /// Select time points that within [`start_time`, `end_time`]
+    fn trim_time_series(
+        series: Vec<TimePoint>,
+        start_time: Timestamp,
+        end_time: Timestamp,
+    ) -> Result<Vec<TimePoint>> {
+        //series should already sorted
+        let left = match series.binary_search(&TimePoint::new(start_time, 0.0)) {
+            Ok(idx) => idx,
+            Err(idx) => idx,
+        };
+        let right = match series.binary_search(&TimePoint::new(end_time, 0.0)) {
+            Ok(idx) => idx,
+            Err(idx) => idx - 1,
+        };
+        let res = &series[left..=right];
+        Ok(Vec::from(res))
+    }
 }
 
 pub trait Encoder {

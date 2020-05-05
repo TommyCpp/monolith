@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
 use crate::storage::Storage;
 use crate::indexer::Indexer;
 
@@ -35,15 +35,27 @@ impl Storage for StubStorage {
     fn read_time_series(&self, _time_series_id: u64, _start_time: u64, _end_time: u64) -> Result<Vec<TimePoint>> {
         unimplemented!()
     }
-
-    fn read_from_existing(_dir: PathBuf) -> Result<Self> {
-        unimplemented!()
-    }
 }
 
 impl Builder<StubStorage> for StubStorage {
     fn build(&self, _path: String, _: Option<&ChunkOpts>, _: Option<&DbOpts>) -> Result<StubStorage> {
         Ok(StubStorage {})
+    }
+
+    fn write_to_chunk(&self, dir: &Path) -> Result<()> {
+        unimplemented!()
+    }
+
+    fn read_from_chunk(&self, dir: &Path) -> Result<Option<StubStorage>> {
+        unimplemented!()
+    }
+
+    fn write_config(&self, dir: &Path) -> Result<()> {
+        unimplemented!()
+    }
+
+    fn read_config(&self, dir: &Path) -> Result<()> {
+        unimplemented!()
     }
 }
 
@@ -72,15 +84,27 @@ impl Indexer for StubIndexer {
     fn create_index(&self, _labels: Labels, _time_series_id: u64) -> Result<()> {
         unimplemented!()
     }
-
-    fn read_from_existing(_dir: PathBuf) -> Result<Self> {
-        unimplemented!()
-    }
 }
 
 impl Builder<StubIndexer> for StubIndexer {
     fn build(&self, _path: String, _: Option<&ChunkOpts>, _: Option<&DbOpts>) -> Result<StubIndexer> {
         Ok(StubIndexer {})
+    }
+
+    fn write_to_chunk(&self, dir: &Path) -> Result<()> {
+        unimplemented!()
+    }
+
+    fn read_from_chunk(&self, dir: &Path) -> Result<Option<StubIndexer>> {
+        unimplemented!()
+    }
+
+    fn write_config(&self, dir: &Path) -> Result<()> {
+        unimplemented!()
+    }
+
+    fn read_config(&self, dir: &Path) -> Result<()> {
+        unimplemented!()
     }
 }
 
@@ -194,5 +218,4 @@ impl TiKvRawBackend for DummyTiKvBackend {
             Ok(None)
         }
     }
-
 }

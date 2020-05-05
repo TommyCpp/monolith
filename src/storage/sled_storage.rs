@@ -53,24 +53,6 @@ impl SledStorage {
             }
         }
     }
-
-    fn _read_time_series(
-        series: Vec<TimePoint>,
-        start_time: Timestamp,
-        end_time: Timestamp,
-    ) -> Result<Vec<TimePoint>> {
-        //series should already sorted
-        let left = match series.binary_search(&TimePoint::new(start_time, 0.0)) {
-            Ok(idx) => idx,
-            Err(idx) => idx,
-        };
-        let right = match series.binary_search(&TimePoint::new(end_time, 0.0)) {
-            Ok(idx) => idx,
-            Err(idx) => idx - 1,
-        };
-        let res = &series[left..=right];
-        Ok(Vec::from(res))
-    }
 }
 
 impl Storage for SledStorage {
@@ -107,20 +89,9 @@ impl Storage for SledStorage {
                 series.last().unwrap().timestamp,
             ));
         }
-        SledStorage::_read_time_series(series, start_time, end_time)
+        SledStorage::trim_time_series(series, start_time, end_time)
     }
 
-    fn read_from_existing(dir: PathBuf) -> Result<Self> {
-        // Sled will create an empty db if there is nothing in dir.
-        let config = sled::ConfigBuilder::default()
-            .path(dir)
-            .read_only(true);
-        Ok(
-            SledStorage {
-                storage: sled::Db::start(config.build())?,
-            }
-        )
-    }
 }
 
 impl HasTypeName for SledStorage {
@@ -159,6 +130,30 @@ pub struct SledStorageBuilder {}
 impl Builder<SledStorage> for SledStorageBuilder {
     fn build(&self, path: String, _: Option<&ChunkOpts>, _: Option<&DbOpts>) -> Result<SledStorage> {
         SledStorage::new(PathBuf::from(path).as_path().join("storage").as_path())
+    }
+
+    fn write_to_chunk(&self, dir: &Path) -> Result<()> {
+        Ok(())
+    }
+
+    fn read_from_chunk(&self, dir: &Path) -> Result<Option<SledStorage>> {
+        // Sled will create an empty db if there is nothing in dir.
+        let config = sled::ConfigBuilder::default()
+            .path(dir)
+            .read_only(true);
+        Ok(
+            Some(SledStorage {
+                storage: sled::Db::start(config.build())?,
+            })
+        )
+    }
+
+    fn write_config(&self, dir: &Path) -> Result<()> {
+        Ok(())
+    }
+
+    fn read_config(&self, dir: &Path) -> Result<()> {
+        Ok(())
     }
 }
 

@@ -25,8 +25,6 @@ pub trait Indexer: Sized + HasTypeName{
     /// 2. mapping form label set to time series id, used to find target series id by complete label set
     /// 3. mapping from time series id to label set, used to get all meta data from time series id.
     fn create_index(&self, labels: Labels, time_series_id: TimeSeriesId) -> Result<()>;
-
-    fn read_from_existing(dir: PathBuf) -> Result<Self>;
 }
 
 #[cfg(test)]

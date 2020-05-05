@@ -1,18 +1,17 @@
 use monolith::indexer::{SledIndexer, Indexer};
 use monolith::label::{Label, Labels};
 use monolith::storage::{SledStorage, Storage};
-use monolith::time_point::{TimePoint};
-use monolith::time_series::{TimeSeriesId};
-use monolith::{Result};
+use monolith::time_point::TimePoint;
+use monolith::time_series::TimeSeriesId;
+use monolith::Result;
 use tempfile::TempDir;
 use monolith::chunk::{ChunkOpts, Chunk};
 use monolith::test_utils::Ingester;
 use std::thread;
 use std::sync::Arc;
 
-use std::collections::{BTreeSet};
+use std::collections::BTreeSet;
 use std::iter::FromIterator;
-
 #[test]
 fn test_query() -> Result<()> {
     let index_tmp = TempDir::new().unwrap();
@@ -116,6 +115,7 @@ fn test_ingest_data() -> Result<()> {
     let ops = ChunkOpts {
         start_time: Some(170000),
         end_time: Some(330000),
+        identifier: vec![10, 10, 10],
     };
     let chunk = Chunk::new(storage, indexer, &ops);
     let arc = Arc::new(chunk);

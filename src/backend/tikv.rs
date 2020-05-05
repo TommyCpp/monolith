@@ -7,6 +7,8 @@ use uuid::Uuid;
 pub trait TiKvRawBackend {
     fn set(&self, key: Vec<u8>, value: Vec<u8>) -> Result<()>;
     fn get(&self, key: Vec<u8>) -> Result<Option<Vec<u8>>>;
+
+    /// Store chunk and storage/indexer mapping information
     fn init_component(&self, chunk_identifier: Vec<u8>, is_indexer: bool) -> Result<Vec<u8>> {
         let mut value = self.get(chunk_identifier.clone())?.unwrap_or(
             {
@@ -69,14 +71,14 @@ impl TiKvRawBackend for TiKvRawBackendImpl {
 
 
 // Return shared backend
-pub struct TakeBackendSingleton {
+pub struct TiKvRawBackendSingleton {
     config: Config
 }
 
-impl TakeBackendSingleton {
-    pub fn new(config: Config) -> Result<TakeBackendSingleton> {
+impl TiKvRawBackendSingleton {
+    pub fn new(config: Config) -> Result<TiKvRawBackendSingleton> {
         Ok(
-            TakeBackendSingleton {
+            TiKvRawBackendSingleton {
                 config
             }
         )

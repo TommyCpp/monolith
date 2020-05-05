@@ -6,6 +6,7 @@ use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 use crate::chunk::ChunkOpts;
 use crate::common::option::DbOpts;
+use std::path::Path;
 
 
 pub mod label;
@@ -59,6 +60,19 @@ impl IdGenerator {
 /// Implementation may add more function to let user pass more configs or options
 pub trait Builder<T> {
     fn build(&self, path: String, chunk_opts: Option<&ChunkOpts>, db_opts: Option<&DbOpts>) -> Result<T>;
+
+    /// Write config or metadata to chunk dir;
+    fn write_to_chunk(&self, dir: &Path) -> Result<()>;
+
+    /// Read config information or data from chunk dir
+    fn read_from_chunk(&self, dir: &Path) -> Result<Option<T>>;
+
+    /// Write additional config or metadata information in db dir.
+    fn write_config(&self, dir: &Path) -> Result<()>;
+
+    /// Read additional config or metadata information from db dir.
+    fn read_config(&self, dir: &Path) -> Result<()>;
+
 }
 
 pub trait HasTypeName {

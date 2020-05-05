@@ -1,2 +1,2 @@
 pub mod tikv;
-pub use tikv::TakeBackendSingleton;
+pub use tikv::TiKvRawBackendSingleton;

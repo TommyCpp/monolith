@@ -39,9 +39,13 @@ impl<S, I> MonolithDb<S, I>
         };
         Self::read_or_create_metadata(&ops.base_dir(), &db_metadata);
 
+        // write custom config
+        storage_builder.write_config(&ops.base_dir())?;
+        storage_builder.write_config(&ops.base_dir())?;
+
         let chunk_size = ops.chunk_size().as_millis() as Timestamp;
         //read existing data
-        let existing_chunk = Self::read_existing_chunk(&ops.base_dir())?;
+        let existing_chunk = Self::read_existing_chunk(&ops.base_dir(), &storage_builder, &indexer_builder)?;
 
         let current_time = get_current_timestamp();
 
@@ -55,6 +59,8 @@ impl<S, I> MonolithDb<S, I>
             .join(
                 encode_chunk_dir(chunk_opt.start_time.unwrap(),
                                  chunk_opt.end_time.unwrap()));
+        storage_builder.write_to_chunk(&chunk_dir);
+        indexer_builder.write_to_chunk(&chunk_dir);
         let chunk_dir_str = chunk_dir.as_path().display().to_string();
         let (storage, indexer) =
             (storage_builder.build(chunk_dir_str.clone(), Some(&chunk_opt), Some(&ops))?,
@@ -87,7 +93,7 @@ impl<S, I> MonolithDb<S, I>
     /// Check if there is a metadata file in base_dir. If it does, then read file and check if the existing Indexer and Storage
     /// is the same type. If it doesn't, then create one base on db_metadata
     fn read_or_create_metadata(base_dir: &Path, db_metadata: &DbMetadata) -> Result<()> {
-       let file_res = get_file_from_dir(base_dir, DB_METADATA_FILENAME)?;
+        let file_res = get_file_from_dir(base_dir, DB_METADATA_FILENAME)?;
 
         if file_res.is_some() {
             let file = file_res.unwrap();
@@ -106,7 +112,10 @@ impl<S, I> MonolithDb<S, I>
     }
 
     ///Read the existing chunk in dir. If no chunk found, return an empty vec.
-    fn read_existing_chunk(dir: &Path) -> Result<Vec<Arc<Chunk<S, I>>>> {
+    fn read_existing_chunk(dir: &Path,
+                                 storage_builder: &Box<dyn Builder<S> + Sync + Send>,
+                                 indexer_builder: &Box<dyn Builder<I> + Sync + Send>,
+    ) -> Result<Vec<Arc<Chunk<S, I>>>> {
         let mut res = Vec::new();
         for entry in fs::read_dir(dir)? {
             let path_str = entry?.path().into_os_string().into_string().unwrap();
@@ -115,17 +124,24 @@ impl<S, I> MonolithDb<S, I>
             let dir_name = dir_name.chars().skip(_slash).take(dir_name.len() - _slash).collect();
             match decode_chunk_dir(dir_name) {
                 Ok((start_time, end_time)) => {
-                    let storage = S::read_from_existing(PathBuf::from(path_str.clone()).join("storage"))?;
-                    let indexer = I::read_from_existing(PathBuf::from(path_str.clone()).join("indexer"))?;
+                    let storage = storage_builder
+                        .read_from_chunk(
+                            &PathBuf::from(path_str.clone())
+                                .join("storage"))?;
+                    let indexer = indexer_builder
+                        .read_from_chunk(
+                            &PathBuf::from(path_str.clone())
+                                .join("indexer"))?;
                     let current_time = get_current_timestamp();
-
                     let mut chunk_opt = ChunkOpts::default();
                     chunk_opt.start_time = Some(start_time);
                     chunk_opt.end_time = Some(if end_time > current_time { current_time } else { end_time });
 
-                    let chunk = Chunk::new(storage, indexer, &chunk_opt);
-                    chunk.close();
-                    (&mut res).push(Arc::new(chunk));
+                    if storage.is_some() && indexer.is_some() {
+                        let chunk = Chunk::new(storage.unwrap(), indexer.unwrap(), &chunk_opt);
+                        chunk.close();
+                        (&mut res).push(Arc::new(chunk));
+                    }
                 }
                 Err(_) => {}
             }
@@ -221,6 +237,8 @@ impl<S, I> MonolithDb<S, I>
             .join(
                 encode_chunk_dir(chunk_opt.start_time.unwrap(), chunk_opt.end_time.unwrap())
             );
+        self.storage_builder.write_to_chunk(&chunk_dir);
+        self.indexer_builder.write_to_chunk(&chunk_dir);
         let chunk_dir_str = chunk_dir.as_path().display().to_string();
         let (storage, indexer) =
             (self.storage_builder.build(chunk_dir_str.clone(), Some(&chunk_opt), Some(&self.options))?,

@@ -1,10 +1,10 @@
 use tikv_client::{RawClient, Config};
 use crate::storage::Storage;
 use crate::{Result, HasTypeName, Builder, Timestamp, Value, MonolithErr};
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
 use crate::common::time_point::TimePoint;
 use crate::common::time_series::TimeSeriesId;
-use crate::backend::tikv::{TiKvRawBackend, TakeBackendSingleton};
+use crate::backend::tikv::{TiKvRawBackend, TiKvRawBackendSingleton};
 use crate::common::option::DbOpts;
 use crate::chunk::{ChunkOpts, Chunk};
 
@@ -13,12 +13,10 @@ use crate::chunk::{ChunkOpts, Chunk};
 struct TiKvStorage {
     client: Box<dyn TiKvRawBackend>,
     chunk_identifier: Vec<u8>,
+    storage_identifier: Vec<u8>,
 }
 
 impl TiKvStorage{
-    fn init(&self) -> Result<()>{
-        unimplemented!()
-    }
 }
 
 impl Storage for TiKvStorage {
@@ -27,11 +25,6 @@ impl Storage for TiKvStorage {
     }
 
     fn read_time_series(&self, time_series_id: TimeSeriesId, start_time: Timestamp, end_time: Timestamp) -> Result<Vec<TimePoint>> {
-        unimplemented!()
-    }
-
-    fn read_from_existing(dir: PathBuf) -> Result<Self> {
-        let opts = ChunkOpts::from_dir(dir.as_path())?;
         unimplemented!()
     }
 }
@@ -43,11 +36,11 @@ impl HasTypeName for TiKvStorage {
 }
 
 struct TiKvStorageBuilder {
-    backend_builder: TakeBackendSingleton
+    backend_builder: TiKvRawBackendSingleton
 }
 
 impl TiKvStorageBuilder {
-    fn new(backend_builder: TakeBackendSingleton) -> Result<TiKvStorageBuilder> {
+    fn new(backend_builder: TiKvRawBackendSingleton) -> Result<TiKvStorageBuilder> {
         Ok(
             TiKvStorageBuilder {
                 backend_builder
@@ -58,13 +51,46 @@ impl TiKvStorageBuilder {
 
 impl Builder<TiKvStorage> for TiKvStorageBuilder {
     fn build(&self, _: String, chunk_opts: Option<&ChunkOpts>, _: Option<&DbOpts>) -> Result<TiKvStorage> {
-        let instance = TiKvStorage {
-            client: self.backend_builder.get_instance()?,
-            chunk_identifier: chunk_opts.ok_or(MonolithErr::OptionErr)?.identifier.clone()
+        let client = self.backend_builder.get_instance()?;
+        let chunk_identifier = chunk_opts.ok_or(MonolithErr::OptionErr)?.identifier.clone();
+        let mut instance = TiKvStorage {
+            storage_identifier: client.init_component(chunk_identifier.clone(), false)?,
+            client,
+            chunk_identifier,
         };
-        instance.init();
         Ok(
             instance
         )
+    }
+
+    fn write_to_chunk(&self, dir: &Path) -> Result<()> {
+        Ok(())
+    }
+
+    fn read_from_chunk(&self, dir: &Path) -> Result<Option<TiKvStorage>> {
+        let chunk_opts = ChunkOpts::from_dir(dir)?;
+        let client = self.backend_builder.get_instance()?;
+        if let Some(val) = client.get(chunk_opts.identifier.clone())?{
+            let storage_identifier = Vec::from(&val[16..]);
+            return Ok(
+                Some(
+                    TiKvStorage{
+                        client,
+                        chunk_identifier: chunk_opts.identifier,
+                        storage_identifier
+                    }
+                )
+            )
+        }
+
+        Ok(None)
+    }
+
+    fn write_config(&self, dir: &Path) -> Result<()> {
+        Ok(())
+    }
+
+    fn read_config(&self, dir: &Path) -> Result<()> {
+        Ok(())
     }
 }
