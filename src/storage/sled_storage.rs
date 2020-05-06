@@ -101,7 +101,7 @@ impl HasTypeName for SledStorage {
 }
 
 //TODO: create a independent package for processor, create a KvProcessor for all key-value database
-struct KvStorageProcessor {}
+pub(crate) struct KvStorageProcessor {}
 
 impl Encoder for KvStorageProcessor {
     fn encode_time_point(timestamp: Timestamp, value: Value) -> Result<Vec<u8>> {

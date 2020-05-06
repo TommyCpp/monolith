@@ -15,7 +15,7 @@ use crate::common::option::DbOpts;
 use crate::chunk::ChunkOpts;
 use std::collections::BTreeMap;
 use crate::backend::tikv::TiKvRawBackend;
-use std::sync::Mutex;
+use std::sync::{Mutex, Arc};
 
 
 ///Stub Storage for testing
@@ -198,8 +198,24 @@ impl Ingester {
     }
 }
 
-struct DummyTiKvBackend {
-    tree: Mutex<BTreeMap<Vec<u8>, Vec<u8>>>
+pub struct DummyTiKvBackend {
+    tree: Arc<Mutex<BTreeMap<Vec<u8>, Vec<u8>>>>
+}
+
+impl Clone for DummyTiKvBackend{
+    fn clone(&self) -> Self {
+        DummyTiKvBackend {
+            tree: self.tree.clone()
+        }
+    }
+}
+
+impl DummyTiKvBackend {
+    pub fn new() -> DummyTiKvBackend {
+        DummyTiKvBackend {
+            tree: Arc::new(Mutex::new(BTreeMap::<Vec<u8>, Vec<u8>>::new()))
+        }
+    }
 }
 
 impl TiKvRawBackend for DummyTiKvBackend {
