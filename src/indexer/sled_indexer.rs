@@ -35,78 +35,6 @@ impl SledIndexer {
         })
     }
 
-    fn _encode_label(label: &Label) -> String {
-        format!("{}={}", label.key(), label.value())
-    }
-
-    /// encode single label as key
-    fn encode_label(label: &Label) -> String {
-        format!(
-            "{}{}",
-            LABEL_REVERSE_PREFIX,
-            SledIndexer::_encode_label(label)
-        )
-    }
-
-    ///
-    /// Encode a set of label into string with format key1=value1,key2=value2...
-    /// Used to create a mapping from labels to time series id.
-    ///
-    /// set __with_prefix__ to true to add prefix on result
-    fn encode_labels(labels: &Labels, with_prefix: bool) -> String {
-        let mut time_series_meta = labels.clone();
-        time_series_meta.sort();
-        let mut res = String::new();
-        for label in time_series_meta.vec() {
-            let mut label_str = SledIndexer::_encode_label(label);
-            label_str.push(',');
-            res = res.add(label_str.as_str());
-        }
-        res.pop(); //remove last ,
-        if with_prefix {
-            res.insert_str(0, LABEL_PREFIX);
-        }
-        res
-    }
-
-    /// Decode a set of label string stored in SledIndexer
-    ///
-    /// if the string is value, set __with_prefix__ to false
-    /// if the string is key, set __with_prefix__ to true
-    fn decode_labels(labels_str: String, with_prefix: bool) -> Result<Labels> {
-        let mut _labels_str = labels_str.clone();
-        if with_prefix {
-            _labels_str.replace_range(..LABEL_PREFIX.len(), "");
-        }
-        let pairs: Vec<&str> = _labels_str.split(",").collect();
-        let mut res = Vec::new();
-        for pair in pairs {
-            // Per Prometheus doc https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels
-            // Label name must match regex [a-zA-Z_][a-zA-Z0-9_]*
-            // Thus, we can always use the first = to split label name from label value
-            let equal_idx = pair.find("=").ok_or(MonolithErr::InternalErr("Cannot parse label data".to_string()))?;
-            let (key, value_with_equal) = pair.split_at(equal_idx);
-            let value = {
-                let mut s = String::from(value_with_equal);
-                s.remove(0);
-                s
-            };
-            let label = Label::from_key_value(key, value.as_str());
-            res.push(label)
-        }
-        Ok(Labels::from_vec(res))
-    }
-
-    fn encode_time_series_id(id: TimeSeriesId) -> String {
-        format!("{}{}", ID_PREFIX, id)
-    }
-
-    fn decode_time_series_id(id_str: String) -> Result<TimeSeriesId> {
-        let mut _id_str = id_str.clone();
-        _id_str.replace_range(..ID_PREFIX.len(), "");
-        Ok(_id_str.parse::<TimeSeriesId>()?)
-    }
-
     fn get(&self, key: &String) -> Result<Option<String>> {
         return match self.storage.get(key)? {
             Some(val) => Ok(Some(String::from_utf8(
@@ -117,7 +45,7 @@ impl SledIndexer {
     }
 
     fn get_id(&self, label: &Label) -> Result<Option<Vec<TimeSeriesId>>> {
-        let key = SledIndexer::encode_label(label);
+        let key = KvIndexerProcessor::encode_label(label);
         let value = self.get(&key)?;
         return if let Some(val_str) = value {
             let id_str: Vec<&str> = val_str.split(",").collect();
@@ -146,9 +74,9 @@ impl Indexer for SledIndexer {
         let ids = self.get_series_id_with_label_matching(labels)?;
         let mut res = Vec::new();
         for time_series_id in ids {
-            let labels_str = self.get(&SledIndexer::encode_time_series_id(time_series_id))?;
+            let labels_str = self.get(&KvIndexerProcessor::encode_time_series_id(time_series_id))?;
             if labels_str.is_some() {
-                let labels = SledIndexer::decode_labels(labels_str.unwrap(), false)?;
+                let labels = KvIndexerProcessor::decode_labels(labels_str.unwrap(), false)?;
                 res.push((time_series_id, labels))
             }
         }
@@ -169,7 +97,7 @@ impl Indexer for SledIndexer {
     fn get_series_id_by_labels(&self, labels: Labels) -> Result<Option<u64>> {
         if let Some(val) = self
             .storage
-            .get(SledIndexer::encode_labels(&labels, true))?
+            .get(KvIndexerProcessor::encode_labels(&labels, true))?
         {
             let val_str = String::from_utf8(AsRef::<[u8]>::as_ref(&val).to_vec())?;
             return Ok(Some(val_str.parse::<TimeSeriesId>()?));
@@ -181,7 +109,7 @@ impl Indexer for SledIndexer {
         let tree = &self.storage;
 
         // from label set to time series id
-        let label_key = SledIndexer::encode_labels(&labels, true);
+        let label_key = KvIndexerProcessor::encode_labels(&labels, true);
         if tree.contains_key(label_key.clone())? {
             //duplicate label -> id pair
             return Err(MonolithErr::InternalErr(
@@ -192,12 +120,12 @@ impl Indexer for SledIndexer {
 
         // from time series to label set
         tree.set(
-            SledIndexer::encode_time_series_id(time_series_id),
-            SledIndexer::encode_labels(&labels, false).into_bytes(),
+            KvIndexerProcessor::encode_time_series_id(time_series_id),
+            KvIndexerProcessor::encode_labels(&labels, false).into_bytes(),
         );
 
         // from label to time series ids
-        let keys: Vec<String> = labels.vec().iter().map(SledIndexer::encode_label).collect();
+        let keys: Vec<String> = labels.vec().iter().map(KvIndexerProcessor::encode_label).collect();
         for key in keys {
             let val = match tree.get(&key)? {
                 None => format!("{}", time_series_id),
@@ -314,5 +242,81 @@ mod tests {
         assert_eq!("value1", *labels.vec().get(0).unwrap().value());
         assert_eq!("value2", *labels.vec().get(1).unwrap().value());
         Ok(())
+    }
+}
+
+pub(crate) struct KvIndexerProcessor{}
+
+impl KvIndexerProcessor {
+    fn _encode_label(label: &Label) -> String {
+        format!("{}={}", label.key(), label.value())
+    }
+
+    /// encode single label as key
+    pub fn encode_label(label: &Label) -> String {
+        format!(
+            "{}{}",
+            LABEL_REVERSE_PREFIX,
+            KvIndexerProcessor::_encode_label(label)
+        )
+    }
+
+    ///
+    /// Encode a set of label into string with format key1=value1,key2=value2...
+    /// Used to create a mapping from labels to time series id.
+    ///
+    /// set __with_prefix__ to true to add prefix on result
+    pub fn encode_labels(labels: &Labels, with_prefix: bool) -> String {
+        let mut time_series_meta = labels.clone();
+        time_series_meta.sort();
+        let mut res = String::new();
+        for label in time_series_meta.vec() {
+            let mut label_str = KvIndexerProcessor::_encode_label(label);
+            label_str.push(',');
+            res = res.add(label_str.as_str());
+        }
+        res.pop(); //remove last ,
+        if with_prefix {
+            res.insert_str(0, LABEL_PREFIX);
+        }
+        res
+    }
+
+    /// Decode a set of label string stored in SledIndexer
+    ///
+    /// if the string is value, set __with_prefix__ to false
+    /// if the string is key, set __with_prefix__ to true
+    pub fn decode_labels(labels_str: String, with_prefix: bool) -> Result<Labels> {
+        let mut _labels_str = labels_str.clone();
+        if with_prefix {
+            _labels_str.replace_range(..LABEL_PREFIX.len(), "");
+        }
+        let pairs: Vec<&str> = _labels_str.split(",").collect();
+        let mut res = Vec::new();
+        for pair in pairs {
+            // Per Prometheus doc https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels
+            // Label name must match regex [a-zA-Z_][a-zA-Z0-9_]*
+            // Thus, we can always use the first = to split label name from label value
+            let equal_idx = pair.find("=").ok_or(MonolithErr::InternalErr("Cannot parse label data".to_string()))?;
+            let (key, value_with_equal) = pair.split_at(equal_idx);
+            let value = {
+                let mut s = String::from(value_with_equal);
+                s.remove(0);
+                s
+            };
+            let label = Label::from_key_value(key, value.as_str());
+            res.push(label)
+        }
+        Ok(Labels::from_vec(res))
+    }
+
+    pub fn encode_time_series_id(id: TimeSeriesId) -> String {
+        format!("{}{}", ID_PREFIX, id)
+    }
+
+    pub fn decode_time_series_id(id_str: String) -> Result<TimeSeriesId> {
+        let mut _id_str = id_str.clone();
+        _id_str.replace_range(..ID_PREFIX.len(), "");
+        Ok(_id_str.parse::<TimeSeriesId>()?)
     }
 }
