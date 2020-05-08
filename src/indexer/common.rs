@@ -9,12 +9,18 @@ use std::path::{PathBuf};
 /// Indexer is in charge of query appropriate time series based on the labels.
 ///
 pub trait Indexer: Sized + HasTypeName{
-    /// Get all time series and their meta data which contains all labels in __labels__
-    fn get_series_with_label_matching(&self, labels: Labels)
-        -> Result<Vec<(TimeSeriesId, Labels)>>;
+    /// Get all time series and their meta data which contains __all__ labels
+    ///
+    /// Note that the result time series may contains other labels
+    fn get_series_metadata_contains_labels(&self, labels: Labels)
+                                           -> Result<Vec<(TimeSeriesId, Labels)>>;
 
-    fn get_series_id_with_label_matching(&self, labels: Labels) -> Result<Vec<TimeSeriesId>>;
+    /// Get all time series that contains __all__ label in labels
+    ///
+    /// Note that the result time series may contains other labels
+    fn get_series_id_contains_labels(&self, labels: Labels) -> Result<Vec<TimeSeriesId>>;
 
+    /// Get time series that match exactly with the labels
     fn get_series_id_by_labels(&self, labels: Labels) -> Result<Option<TimeSeriesId>>;
 
     ///

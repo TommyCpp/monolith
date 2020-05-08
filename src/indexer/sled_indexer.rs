@@ -67,11 +67,11 @@ impl HasTypeName for SledIndexer {
 }
 
 impl Indexer for SledIndexer {
-    fn get_series_with_label_matching(
+    fn get_series_metadata_contains_labels(
         &self,
         labels: Labels,
     ) -> Result<Vec<(TimeSeriesId, Labels)>> {
-        let ids = self.get_series_id_with_label_matching(labels)?;
+        let ids = self.get_series_id_contains_labels(labels)?;
         let mut res = Vec::new();
         for time_series_id in ids {
             let labels_str = self.get(&KvIndexerProcessor::encode_time_series_id(time_series_id))?;
@@ -83,7 +83,7 @@ impl Indexer for SledIndexer {
         Ok(res)
     }
 
-    fn get_series_id_with_label_matching(&self, labels: Labels) -> Result<Vec<TimeSeriesId>> {
+    fn get_series_id_contains_labels(&self, labels: Labels) -> Result<Vec<TimeSeriesId>> {
         let mut ts_vec = Vec::new();
         for label in labels.vec() {
             if let Some(ts) = self.get_id(label)? {
@@ -286,9 +286,9 @@ impl KvIndexerProcessor {
     ///
     /// if the string is value, set __with_prefix__ to false
     /// if the string is key, set __with_prefix__ to true
-    pub fn decode_labels(labels_str: String, with_prefix: bool) -> Result<Labels> {
+    pub fn decode_labels(labels_str: String, is_key: bool) -> Result<Labels> {
         let mut _labels_str = labels_str.clone();
-        if with_prefix {
+        if is_key {
             _labels_str.replace_range(..LABEL_PREFIX.len(), "");
         }
         let pairs: Vec<&str> = _labels_str.split(",").collect();

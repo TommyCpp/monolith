@@ -69,11 +69,11 @@ impl HasTypeName for StubIndexer {
 }
 
 impl Indexer for StubIndexer {
-    fn get_series_with_label_matching(&self, _labels: Labels) -> Result<Vec<(u64, Labels)>> {
+    fn get_series_metadata_contains_labels(&self, _labels: Labels) -> Result<Vec<(u64, Labels)>> {
         unimplemented!()
     }
 
-    fn get_series_id_with_label_matching(&self, _labels: Labels) -> Result<Vec<u64>> {
+    fn get_series_id_contains_labels(&self, _labels: Labels) -> Result<Vec<u64>> {
         unimplemented!()
     }
 
