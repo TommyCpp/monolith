@@ -181,7 +181,7 @@ impl SledIndexerBuilder {
 #[cfg(test)]
 mod tests {
     use crate::common::label::{Label, Labels};
-    use crate::indexer::sled_indexer::SledIndexer;
+    use crate::indexer::sled_indexer::{SledIndexer, KvIndexerProcessor};
     use crate::Result;
     use tempfile::TempDir;
 
@@ -193,7 +193,7 @@ mod tests {
         labels.add(Label::from_key_value("test1", "test1value"));
         labels.add(Label::from_key_value("test3", "test1value"));
         labels.add(Label::from_key_value("test2", "test1value"));
-        let res = SledIndexer::encode_labels(&labels, true);
+        let res = KvIndexerProcessor::encode_labels(&labels, true);
         assert_eq!(res, "Ltest1=test1value,test2=test1value,test3=test1value");
         Ok(())
     }
@@ -235,7 +235,7 @@ mod tests {
     #[test]
     fn test_decode_labels() -> Result<()> {
         let labels_str = "Lkey1=value1,key2=value2";
-        let labels = SledIndexer::decode_labels(labels_str.to_string(), true)?;
+        let labels = KvIndexerProcessor::decode_labels(labels_str.to_string(), true)?;
         assert_eq!(2, labels.len());
         assert_eq!("key1", *labels.vec().get(0).unwrap().key());
         assert_eq!("key2", *labels.vec().get(1).unwrap().key());

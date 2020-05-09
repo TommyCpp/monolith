@@ -124,21 +124,22 @@ impl Indexer for TiKvIndexer {
             // Create Reverse Search
             labels.vec().iter()
                 .map(|label|
-                    format!("{}{}", indexer_id_str.clone(), KvIndexerProcessor::encode_label(label).as_str()))
-                .map(|key| (key.clone(), self.client.get(key.as_bytes().to_vec())))
+                    self.add_indexer_id(KvIndexerProcessor::encode_label(label).into_bytes().as_mut()))
+                .map(|key| (key.clone(), self.client.get(key.to_vec())))
                 .filter(|(key, res)| res.is_ok())
                 .map(|(key, res)| {
                     match res.unwrap() {
                         Some(mut val) => {
                             val.append(Vec::from(&time_series_id.to_be_bytes()[..]).as_mut());
-                            self.client.set(key.clone().into_bytes(), val);
+                            self.client.set(key.clone(), val);
                         }
                         None => {
-                            self.client.set(key.clone().into_bytes(),
+                            self.client.set(key.clone(),
                                             Vec::from(&time_series_id.to_be_bytes()[..]));
                         }
                     }
-                });
+                })
+                .collect::<Vec<()>>();
         }
 
 
@@ -208,6 +209,58 @@ impl Builder<TiKvIndexer> for TiKvIndexerBuilder {
     }
 
     fn read_config(&self, dir: &Path) -> Result<()> {
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+    use crate::Result;
+    use crate::common::test_utils::DummyTiKvBackend;
+    use crate::indexer::{TiKvIndexer, Indexer};
+    use crate::label::{Labels, Label};
+    use crate::backend::tikv::TiKvRawBackend;
+    use crate::indexer::sled_indexer::KvIndexerProcessor;
+
+    #[test]
+    fn test_create_index() -> Result<()> {
+        let dummy_backend = DummyTiKvBackend::new();
+        let indexer = TiKvIndexer {
+            client: Box::new(dummy_backend.clone()),
+            chunk_identifier: "whatever".to_string().into_bytes(),
+            indexer_identifier: "indexer".to_string().into_bytes(),
+        };
+
+        let labels = Labels::from_vec(
+            vec![("key1", "value1"), ("key2", "value2"), ("key3", "value3")]
+                .into_iter()
+                .map(|(key, value)| Label::from_key_value(key, value)).collect());
+        let time_series_id = 1u64;
+        indexer.create_index(labels.clone(), time_series_id)?;
+
+        let mut indexer_id = indexer.indexer_identifier.to_vec();
+        let mut key1 = KvIndexerProcessor::encode_time_series_id(time_series_id).into_bytes();
+        indexer_id.append(key1.as_mut());
+        let result1 = dummy_backend.get(indexer_id)?;
+        assert!(result1.is_some());
+        assert_eq!(KvIndexerProcessor::encode_labels(&labels, false).into_bytes(), result1.unwrap());
+
+        indexer_id = indexer.indexer_identifier.to_vec();
+        let mut key2 = KvIndexerProcessor::encode_labels(&labels, true).into_bytes();
+        indexer_id.append(key2.as_mut());
+        let result2 = dummy_backend.get(indexer_id)?;
+        assert!(result2.is_some());
+        assert_eq!(Vec::from(&time_series_id.to_be_bytes()[..]), result2.unwrap());
+
+        indexer_id = indexer.indexer_identifier.to_vec();
+        for label in labels.vec(){
+            let mut key = indexer_id.clone();
+            key.append(KvIndexerProcessor::encode_label(&label).into_bytes().as_mut());
+            let result = dummy_backend.get(key)?;
+            assert!(result.is_some());
+            assert_eq!(Vec::from(&time_series_id.to_be_bytes()[..]), result.unwrap());
+        }
         Ok(())
     }
 }
