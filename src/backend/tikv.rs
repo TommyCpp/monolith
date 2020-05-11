@@ -41,9 +41,9 @@ pub trait TiKvRawBackend: Send + Sync {
 /// storage and indexer. Backend will assign a identifier(u64) to component.
 /// We will use the chunk identifier as the key. the component's identifier as value to store the relationship.
 /// The lay out would be
-/// ```not rust
+///
 /// {Chunk identifier}(8 bytes) -> {Indexer identifier}(16 bytes){Storage identifier}(16 bytes)
-/// ```
+///
 struct TiKvRawBackendImpl {
     client: RawClient,
 }

@@ -173,9 +173,10 @@ mod tests {
     }
 
     #[test]
+    /// Make sure we get a valid timestamp that larger than 0
     fn test_get_current_timestamp() -> Result<()> {
         let current_timestamp = get_current_timestamp();
-        if !current_timestamp > 0 {
+        if !(current_timestamp > 0) {
             assert_eq!(1, 0);
         }
         Ok(())
