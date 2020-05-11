@@ -1,16 +1,17 @@
-use crate::{Builder, Result, IdGenerator};
+use crate::Result;
 use tikv_client::{RawClient, Config};
 use futures::prelude::*;
-use tikv_client::raw::Client;
-use uuid::Uuid;
 
-pub trait TiKvRawBackend {
+use uuid::Uuid;
+use std::sync::Arc;
+
+pub trait TiKvRawBackend: Send + Sync {
     fn set(&self, key: Vec<u8>, value: Vec<u8>) -> Result<()>;
     fn get(&self, key: Vec<u8>) -> Result<Option<Vec<u8>>>;
 
     /// Store chunk and storage/indexer mapping information
     fn init_component(&self, chunk_identifier: Vec<u8>, is_indexer: bool) -> Result<Vec<u8>> {
-        let mut value = self.get(chunk_identifier.clone())?.unwrap_or(
+        let value = self.get(chunk_identifier.clone())?.unwrap_or(
             {
                 let mut id = Uuid::nil().as_bytes().to_vec();
                 let mut nil = Uuid::nil().as_bytes().to_vec();
@@ -66,11 +67,11 @@ impl TiKvRawBackend for TiKvRawBackendImpl {
         );
         Ok(res?.map(|v| v.into()))
     }
-
 }
 
 
 // Return shared backend
+#[derive(Clone)]
 pub struct TiKvRawBackendSingleton {
     config: Config
 }

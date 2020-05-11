@@ -277,7 +277,7 @@ mod tests {
     use tempfile::TempDir;
     use crate::common::metadata::DbMetadata;
     use crate::{MonolithDb, Result, DB_METADATA_FILENAME};
-    use crate::indexer::SledIndexer;
+    
     use crate::common::test_utils::{StubStorage, StubIndexer};
     use std::path::PathBuf;
     use std::fs::File;

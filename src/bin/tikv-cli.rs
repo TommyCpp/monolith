@@ -1,14 +1,28 @@
-use monolith::{TiKvRawBackendSingleton, Builder};
+use monolith::{TiKvRawBackendSingleton, DEFAULT_PORT, DEFAULT_READ_PATH, MonolithDb};
 use tikv_client::Config;
+use monolith::storage::{TiKvStorageBuilder, TiKvStorage};
+use monolith::indexer::{TiKvIndexer, TiKvIndexerBuilder};
+use monolith::option::{ServerOpts, DbOpts};
+use monolith::server::MonolithServer;
+use std::sync::Arc;
 
 /// Simple command line tool to connect to Tikv
 fn main() {
     //todo: add Dockerfile
+    //todo: test it
     let config = Config::new(vec!["http://pd.tikv:2379", "http://pd.tikv:2380"]);
     let builder = TiKvRawBackendSingleton::new(config).unwrap();
     let backend = builder.get_instance().unwrap();
-    backend.set(vec![8 as u8], vec![117 as u8]).unwrap();
-    let res: Vec<u8> = backend.get(vec![8 as u8]).unwrap().unwrap();
 
-    print!("{}", std::str::from_utf8(res.as_slice()).unwrap())
+    let storage_builder = TiKvStorageBuilder::new(builder.clone()).unwrap();
+    let indexer_builder = TiKvIndexerBuilder::new(builder).unwrap();
+
+    let server_opts = ServerOpts::default();
+    let db_opts = DbOpts::default();
+
+    let db= MonolithDb::<TiKvStorage, TiKvIndexer>::new(db_opts,
+                                    Box::new(storage_builder),
+                                    Box::new(indexer_builder)).unwrap();
+    let server = MonolithServer::new(server_opts, db);
+    let _ = server.serve();
 }

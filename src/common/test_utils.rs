@@ -1,4 +1,4 @@
-use std::path::{PathBuf, Path};
+use std::path::{Path};
 use crate::storage::Storage;
 use crate::indexer::Indexer;
 
@@ -42,19 +42,19 @@ impl Builder<StubStorage> for StubStorage {
         Ok(StubStorage {})
     }
 
-    fn write_to_chunk(&self, dir: &Path) -> Result<()> {
+    fn write_to_chunk(&self, _dir: &Path) -> Result<()> {
         unimplemented!()
     }
 
-    fn read_from_chunk(&self, dir: &Path) -> Result<Option<StubStorage>> {
+    fn read_from_chunk(&self, _dir: &Path) -> Result<Option<StubStorage>> {
         unimplemented!()
     }
 
-    fn write_config(&self, dir: &Path) -> Result<()> {
+    fn write_config(&self, _dir: &Path) -> Result<()> {
         unimplemented!()
     }
 
-    fn read_config(&self, dir: &Path) -> Result<()> {
+    fn read_config(&self, _dir: &Path) -> Result<()> {
         unimplemented!()
     }
 }
@@ -91,19 +91,19 @@ impl Builder<StubIndexer> for StubIndexer {
         Ok(StubIndexer {})
     }
 
-    fn write_to_chunk(&self, dir: &Path) -> Result<()> {
+    fn write_to_chunk(&self, _dir: &Path) -> Result<()> {
         unimplemented!()
     }
 
-    fn read_from_chunk(&self, dir: &Path) -> Result<Option<StubIndexer>> {
+    fn read_from_chunk(&self, _dir: &Path) -> Result<Option<StubIndexer>> {
         unimplemented!()
     }
 
-    fn write_config(&self, dir: &Path) -> Result<()> {
+    fn write_config(&self, _dir: &Path) -> Result<()> {
         unimplemented!()
     }
 
-    fn read_config(&self, dir: &Path) -> Result<()> {
+    fn read_config(&self, _dir: &Path) -> Result<()> {
         unimplemented!()
     }
 }
@@ -226,7 +226,7 @@ impl TiKvRawBackend for DummyTiKvBackend {
     }
 
     fn get(&self, key: Vec<u8>) -> Result<Option<Vec<u8>>> {
-        let mut map = self.tree.lock().unwrap();
+        let map = self.tree.lock().unwrap();
         let get_res = map.get(&key);
         if get_res.is_some() {
             Ok(Some(get_res.unwrap().clone()))

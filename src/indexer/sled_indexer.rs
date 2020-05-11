@@ -150,7 +150,7 @@ impl Builder<SledIndexer> for SledIndexerBuilder {
         SledIndexer::new(PathBuf::from(path).as_path().join("indexer").as_path())
     }
 
-    fn write_to_chunk(&self, dir: &Path) -> Result<()> {
+    fn write_to_chunk(&self, _dir: &Path) -> Result<()> {
         Ok(())
     }
 
@@ -162,11 +162,11 @@ impl Builder<SledIndexer> for SledIndexerBuilder {
         )
     }
 
-    fn write_config(&self, dir: &Path) -> Result<()> {
+    fn write_config(&self, _dir: &Path) -> Result<()> {
         Ok(())
     }
 
-    fn read_config(&self, dir: &Path) -> Result<()> {
+    fn read_config(&self, _dir: &Path) -> Result<()> {
         Ok(())
     }
 }

@@ -132,7 +132,7 @@ impl Builder<SledStorage> for SledStorageBuilder {
         SledStorage::new(PathBuf::from(path).as_path().join("storage").as_path())
     }
 
-    fn write_to_chunk(&self, dir: &Path) -> Result<()> {
+    fn write_to_chunk(&self, _dir: &Path) -> Result<()> {
         Ok(())
     }
 
@@ -148,11 +148,11 @@ impl Builder<SledStorage> for SledStorageBuilder {
         )
     }
 
-    fn write_config(&self, dir: &Path) -> Result<()> {
+    fn write_config(&self, _dir: &Path) -> Result<()> {
         Ok(())
     }
 
-    fn read_config(&self, dir: &Path) -> Result<()> {
+    fn read_config(&self, _dir: &Path) -> Result<()> {
         Ok(())
     }
 }

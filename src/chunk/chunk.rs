@@ -6,13 +6,13 @@ use crate::common::IdGenerator;
 use crate::{MonolithErr, Result, DEFAULT_CHUNK_SIZE, Timestamp, CHUNK_METADATA_FILENAME};
 
 use crate::storage::Storage;
-use crate::MonolithErr::{OutOfRangeErr, NotFoundErr};
+use crate::MonolithErr::{OutOfRangeErr};
 
 use crate::indexer::Indexer;
 use std::sync::RwLock;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::path::Path;
-use std::fs;
+
 use std::io::BufReader;
 use serde::{Serialize, Deserialize};
 /// ChunkOps contains all options for chunk
