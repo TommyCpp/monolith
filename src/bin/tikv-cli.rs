@@ -10,7 +10,8 @@ use std::sync::Arc;
 fn main() {
     //todo: add Dockerfile
     //todo: test it
-    let config = Config::new(vec!["http://pd.tikv:2379", "http://pd.tikv:2380"]);
+    println!("Starting Db");
+    let config = Config::new(vec!["http://127.0.0.1:2379"]);
     let builder = TiKvRawBackendSingleton::new(config).unwrap();
     let backend = builder.get_instance().unwrap();
 
@@ -19,6 +20,7 @@ fn main() {
 
     let server_opts = ServerOpts::default();
     let db_opts = DbOpts::default();
+
 
     let db= MonolithDb::<TiKvStorage, TiKvIndexer>::new(db_opts,
                                     Box::new(storage_builder),

@@ -37,7 +37,7 @@ impl<S, I> MonolithDb<S, I>
             indexer_type: S::get_type_name().to_string(),
             storage_type: I::get_type_name().to_string(),
         };
-        Self::read_or_create_metadata(&ops.base_dir(), &db_metadata);
+        Self::read_or_create_metadata(&ops.base_dir(), &db_metadata)?;
 
         // write custom config
         storage_builder.write_config(&ops.base_dir())?;
