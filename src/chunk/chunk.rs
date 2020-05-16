@@ -6,15 +6,18 @@ use crate::common::IdGenerator;
 use crate::{MonolithErr, Result, DEFAULT_CHUNK_SIZE, Timestamp, CHUNK_METADATA_FILENAME};
 
 use crate::storage::Storage;
-use crate::MonolithErr::{OutOfRangeErr};
+use crate::MonolithErr::OutOfRangeErr;
 
 use crate::indexer::Indexer;
 use std::sync::RwLock;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-use std::io::BufReader;
+use std::io::{BufReader, BufWriter};
 use serde::{Serialize, Deserialize};
+use crate::common::metadata::ChunkMetadata;
+use std::fs::File;
+
 /// ChunkOps contains all options for chunk
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ChunkOpts {
@@ -25,16 +28,33 @@ pub struct ChunkOpts {
 }
 
 impl ChunkOpts {
-    pub fn from_dir(dir: &Path) -> Result<Self> {
+    pub fn read_config_from_dir(dir: &Path) -> Result<Self> {
         let file_res = get_file_from_dir(dir, CHUNK_METADATA_FILENAME)?;
-        return if file_res.is_some(){
+        return if file_res.is_some() {
             let reader = BufReader::new(file_res.unwrap());
             let opts: ChunkOpts = serde_json::from_reader(reader)?;
             Ok(opts)
-        } else{
+        } else {
             error!("Cannot open option file from dir {}", dir.as_os_str().to_str().unwrap_or("<unreadable path>"));
             Err(MonolithErr::NotFoundErr)
+        };
+    }
+
+    /// Write config file into dir
+    pub fn write_config_to_dir(&self, dir: &Path) -> Result<()> {
+        // only write when start time and end time is not null
+        if self.start_time.is_some() && self.end_time.is_some() {
+            let metadata = ChunkMetadata {
+                start_time: self.start_time.unwrap(),
+                end_time: self.end_time.unwrap(),
+            };
+            //create dir if not exist
+            std::fs::create_dir_all(dir)?;
+            let file = File::create(dir.join(PathBuf::from(CHUNK_METADATA_FILENAME)))?;
+            let writer = BufWriter::new(file);
+            serde_json::to_writer(writer, &metadata);
         }
+        Ok(())
     }
 }
 

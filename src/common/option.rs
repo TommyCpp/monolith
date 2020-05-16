@@ -1,4 +1,4 @@
-use crate::{MonolithErr, Result, CHUNK_SIZE, FILE_DIR_ARG, STORAGE_ARG, DEFAULT_PORT, DEFAULT_WRITE_PATH, DEFAULT_READ_PATH, DEFAULT_WORKER_NUM, WORKER_NUM, PORT, WRITE_PATH, READ_PATH};
+use crate::{MonolithErr, Result, CHUNK_SIZE, FILE_DIR_ARG, STORAGE_ARG, DEFAULT_PORT, DEFAULT_WRITE_PATH, DEFAULT_READ_PATH, DEFAULT_WORKER_NUM, WORKER_NUM, PORT, WRITE_PATH, READ_PATH, DEFAULT_CHUNK_SIZE};
 use clap::ArgMatches;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -45,7 +45,7 @@ impl Default for DbOpts {
         DbOpts {
             storage: StorageType::SledBackendStorage,
             base_dir: current_dir().unwrap(),
-            chunk_size: Default::default(),
+            chunk_size: Duration::from_secs(u64::from_str(DEFAULT_CHUNK_SIZE).unwrap()),
         }
     }
 }

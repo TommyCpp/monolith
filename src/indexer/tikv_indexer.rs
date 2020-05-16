@@ -10,6 +10,7 @@ use crate::common::time_series::TimeSeriesId;
 use std::convert::TryInto;
 use crate::common::utils::intersect_time_series_id_vec;
 use std::sync::Arc;
+use std::path::PathBuf;
 
 const LABEL_REVERSE_PREFIX: &str = "LR";
 const LABEL_PREFIX: &str = "L";
@@ -169,7 +170,8 @@ impl TiKvIndexerBuilder {
 }
 
 impl Builder<TiKvIndexer> for TiKvIndexerBuilder {
-    fn build(&self, _: String, chunk_opts: Option<&ChunkOpts>, _: Option<&DbOpts>) -> Result<TiKvIndexer> {
+    fn build(&self, path: String, chunk_opts: Option<&ChunkOpts>, _: Option<&DbOpts>) -> Result<TiKvIndexer> {
+        std::fs::create_dir_all(PathBuf::from(path).join("indexer"))?;
         let client = self.backend_builder.get_instance()?;
         let chunk_identifier = chunk_opts.ok_or(MonolithErr::OptionErr)?.identifier.clone();
         let instance = TiKvIndexer {
@@ -187,7 +189,7 @@ impl Builder<TiKvIndexer> for TiKvIndexerBuilder {
     }
 
     fn read_from_chunk(&self, dir: &Path) -> Result<Option<TiKvIndexer>> {
-        let chunk_opts = ChunkOpts::from_dir(dir)?;
+        let chunk_opts = ChunkOpts::read_config_from_dir(dir)?;
         let client = self.backend_builder.get_instance()?;
         if let Some(val) = client.get(chunk_opts.identifier.clone())? {
             let indexer_identifier = Vec::from(&val[..16]);

@@ -8,6 +8,8 @@ use crate::backend::tikv::{TiKvRawBackend, TiKvRawBackendSingleton};
 use crate::common::option::DbOpts;
 use crate::chunk::{ChunkOpts};
 use crate::storage::sled_storage::KvStorageProcessor;
+use std::fs::File;
+use std::path::PathBuf;
 
 
 /// Storage that uses shared Tikv backend.
@@ -92,7 +94,8 @@ impl TiKvStorageBuilder {
 }
 
 impl Builder<TiKvStorage> for TiKvStorageBuilder {
-    fn build(&self, _: String, chunk_opts: Option<&ChunkOpts>, _: Option<&DbOpts>) -> Result<TiKvStorage> {
+    fn build(&self, path: String, chunk_opts: Option<&ChunkOpts>, _: Option<&DbOpts>) -> Result<TiKvStorage> {
+        std::fs::create_dir_all(PathBuf::from(path).join("storage"))?;
         let client = self.backend_builder.get_instance()?;
         let chunk_identifier = chunk_opts.ok_or(MonolithErr::OptionErr)?.identifier.clone();
         let instance = TiKvStorage {
@@ -110,7 +113,7 @@ impl Builder<TiKvStorage> for TiKvStorageBuilder {
     }
 
     fn read_from_chunk(&self, dir: &Path) -> Result<Option<TiKvStorage>> {
-        let chunk_opts = ChunkOpts::from_dir(dir)?;
+        let chunk_opts = ChunkOpts::read_config_from_dir(dir)?;
         let client = self.backend_builder.get_instance()?;
         if let Some(val) = client.get(chunk_opts.identifier.clone())? {
             let storage_identifier = Vec::from(&val[16..]);

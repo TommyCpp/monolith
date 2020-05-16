@@ -39,7 +39,7 @@ impl<S, I> MonolithDb<S, I>
         };
         Self::read_or_create_metadata(&ops.base_dir(), &db_metadata)?;
 
-        // write custom config
+        // write custom config to db config
         storage_builder.write_config(&ops.base_dir())?;
         storage_builder.write_config(&ops.base_dir())?;
 
@@ -59,8 +59,16 @@ impl<S, I> MonolithDb<S, I>
             .join(
                 encode_chunk_dir(chunk_opt.start_time.unwrap(),
                                  chunk_opt.end_time.unwrap()));
+
+        //write metadata into chunk config
         storage_builder.write_to_chunk(&chunk_dir);
         indexer_builder.write_to_chunk(&chunk_dir);
+        if let Err(err) = chunk_opt.write_config_to_dir(chunk_dir.as_path()) {
+            error!("Cannot create metadata file for chunk");
+            return Err(MonolithErr::InternalErr("Cannot create metadata file for chunk".to_string()));
+        }
+
+
         let chunk_dir_str = chunk_dir.as_path().display().to_string();
         let (storage, indexer) =
             (storage_builder.build(chunk_dir_str.clone(), Some(&chunk_opt), Some(&ops))?,
@@ -113,8 +121,8 @@ impl<S, I> MonolithDb<S, I>
 
     ///Read the existing chunk in dir. If no chunk found, return an empty vec.
     fn read_existing_chunk(dir: &Path,
-                                 storage_builder: &Box<dyn Builder<S> + Sync + Send>,
-                                 indexer_builder: &Box<dyn Builder<I> + Sync + Send>,
+                           storage_builder: &Box<dyn Builder<S> + Sync + Send>,
+                           indexer_builder: &Box<dyn Builder<I> + Sync + Send>,
     ) -> Result<Vec<Arc<Chunk<S, I>>>> {
         let mut res = Vec::new();
         for entry in fs::read_dir(dir)? {
@@ -237,25 +245,21 @@ impl<S, I> MonolithDb<S, I>
             .join(
                 encode_chunk_dir(chunk_opt.start_time.unwrap(), chunk_opt.end_time.unwrap())
             );
+        let chunk_dir_str = chunk_dir.as_path().display().to_string();
+
+        // write metadata into chunk
         self.storage_builder.write_to_chunk(&chunk_dir);
         self.indexer_builder.write_to_chunk(&chunk_dir);
-        let chunk_dir_str = chunk_dir.as_path().display().to_string();
+        if let Err(err) = chunk_opt.write_config_to_dir(chunk_dir.as_path()) {
+            error!("Cannot create metadata file for chunk");
+            return Err(MonolithErr::InternalErr("Cannot create metadata file for chunk".to_string()));
+        }
+
+        // build storage and indexer instance
         let (storage, indexer) =
             (self.storage_builder.build(chunk_dir_str.clone(), Some(&chunk_opt), Some(&self.options))?,
              self.indexer_builder.build(chunk_dir_str.clone(), Some(&chunk_opt), Some(&self.options))?);
-        // write metadata into chunk
-        let metadata = ChunkMetadata {
-            start_time,
-            end_time: chunk_opt.end_time.unwrap(),
-        };
-        let file = File::create(chunk_dir.as_path().join(PathBuf::from(CHUNK_METADATA_FILENAME)));
-        if file.is_err() {
-            error!("Cannot create metadata file for chunk");
-            return Err(MonolithErr::InternalErr("Cannot create metadata file for chunk".to_string()));
-        } else {
-            let writer = BufWriter::new(file.unwrap());
-            serde_json::to_writer(writer, &metadata);
-        }
+
         let chunk = Chunk::<S, I>::new(storage, indexer, &chunk_opt);
         {
             let stale = self.current_chuck.read().unwrap();
@@ -277,7 +281,7 @@ mod tests {
     use tempfile::TempDir;
     use crate::common::metadata::DbMetadata;
     use crate::{MonolithDb, Result, DB_METADATA_FILENAME};
-    
+
     use crate::common::test_utils::{StubStorage, StubIndexer};
     use std::path::PathBuf;
     use std::fs::File;
