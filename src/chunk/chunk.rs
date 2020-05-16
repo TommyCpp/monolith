@@ -13,13 +13,13 @@ use std::sync::RwLock;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::path::{Path, PathBuf};
 
-use std::io::{BufReader, BufWriter};
+use std::io::{BufReader, BufWriter, Write};
 use serde::{Serialize, Deserialize};
-use crate::common::metadata::ChunkMetadata;
 use std::fs::File;
+use std::fs;
 
 /// ChunkOps contains all options for chunk
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct ChunkOpts {
     // as mil sec
     pub start_time: Option<Timestamp>,
@@ -44,15 +44,10 @@ impl ChunkOpts {
     pub fn write_config_to_dir(&self, dir: &Path) -> Result<()> {
         // only write when start time and end time is not null
         if self.start_time.is_some() && self.end_time.is_some() {
-            let metadata = ChunkMetadata {
-                start_time: self.start_time.unwrap(),
-                end_time: self.end_time.unwrap(),
-            };
-            //create dir if not exist
             std::fs::create_dir_all(dir)?;
             let file = File::create(dir.join(PathBuf::from(CHUNK_METADATA_FILENAME)))?;
-            let writer = BufWriter::new(file);
-            serde_json::to_writer(writer, &metadata);
+            let mut writer = BufWriter::new(file);
+            serde_json::to_writer(&mut writer, &self.clone());
         }
         Ok(())
     }
@@ -192,4 +187,39 @@ impl<S, I> Ord for Chunk<S, I>
 
 
 #[cfg(test)]
-mod test {}
+mod test {
+    use tempfile::TempDir;
+    use crate::chunk::ChunkOpts;
+    use crate::{Result, CHUNK_METADATA_FILENAME};
+    use std::path::PathBuf;
+    use crate::common::utils::encode_chunk_dir;
+    use std::fs;
+    use std::io::{BufWriter, Write};
+    use std::fs::File;
+
+    #[test]
+    pub fn test_write_config_to_dir() -> Result<()> {
+        let dir = TempDir::new()?;
+        let opts = ChunkOpts::default();
+        let result = opts.write_config_to_dir(dir.as_ref());
+        assert!(result.is_ok());
+
+        Ok(())
+    }
+
+    #[test]
+    pub fn test_read_config_from_dir() -> Result<()>{
+        let dir = TempDir::new()?;
+        let opts = ChunkOpts::default();
+        // Create file
+        let file = File::create(dir.as_ref().join(PathBuf::from(CHUNK_METADATA_FILENAME)))?;
+        let mut writer = BufWriter::new(file);
+        serde_json::to_writer(&mut writer, &opts)?;
+        writer.flush()?;
+        let result = ChunkOpts::read_config_from_dir(dir.as_ref());
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), opts);
+
+        Ok(())
+    }
+}

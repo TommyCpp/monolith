@@ -14,7 +14,7 @@ use crate::indexer::Indexer;
 use crate::option::DbOpts;
 use crate::storage::Storage;
 use crate::common::time_point::TimePoint;
-use crate::common::metadata::{DbMetadata, ChunkMetadata};
+use crate::common::metadata::{DbMetadata};
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
 
@@ -38,15 +38,14 @@ impl<S, I> MonolithDb<S, I>
             storage_type: I::get_type_name().to_string(),
         };
         Self::read_or_create_metadata(&ops.base_dir(), &db_metadata)?;
+        //read existing data
+        let existing_chunk = Self::read_existing_chunk(&ops.base_dir(), &storage_builder, &indexer_builder)?;
 
         // write custom config to db config
         storage_builder.write_config(&ops.base_dir())?;
         storage_builder.write_config(&ops.base_dir())?;
 
         let chunk_size = ops.chunk_size().as_millis() as Timestamp;
-        //read existing data
-        let existing_chunk = Self::read_existing_chunk(&ops.base_dir(), &storage_builder, &indexer_builder)?;
-
         let current_time = get_current_timestamp();
 
         let mut chunk_opt = ChunkOpts::default();
@@ -132,21 +131,27 @@ impl<S, I> MonolithDb<S, I>
             let dir_name = dir_name.chars().skip(_slash).take(dir_name.len() - _slash).collect();
             match decode_chunk_dir(dir_name) {
                 Ok((start_time, end_time)) => {
+                    // Read Chunk Options from metadata.json
+                    let path = PathBuf::from(path_str.clone());
+                    let mut chunk_opts
+                        = ChunkOpts::read_config_from_dir(&path)?;
+                    let current_time = get_current_timestamp();
+                    chunk_opts.start_time = Some(start_time);
+                    // reset end time is necessary
+                    chunk_opts.end_time =
+                        Some(if end_time > current_time { current_time } else { end_time });
+
                     let storage = storage_builder
                         .read_from_chunk(
-                            &PathBuf::from(path_str.clone())
-                                .join("storage"))?;
+                            &path
+                                .join("storage"), Some(&chunk_opts))?;
                     let indexer = indexer_builder
                         .read_from_chunk(
-                            &PathBuf::from(path_str.clone())
-                                .join("indexer"))?;
-                    let current_time = get_current_timestamp();
-                    let mut chunk_opt = ChunkOpts::default();
-                    chunk_opt.start_time = Some(start_time);
-                    chunk_opt.end_time = Some(if end_time > current_time { current_time } else { end_time });
+                            &path
+                                .join("indexer"), Some(&chunk_opts))?;
 
                     if storage.is_some() && indexer.is_some() {
-                        let chunk = Chunk::new(storage.unwrap(), indexer.unwrap(), &chunk_opt);
+                        let chunk = Chunk::new(storage.unwrap(), indexer.unwrap(), &chunk_opts);
                         chunk.close();
                         (&mut res).push(Arc::new(chunk));
                     }

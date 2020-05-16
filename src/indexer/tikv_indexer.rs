@@ -188,16 +188,18 @@ impl Builder<TiKvIndexer> for TiKvIndexerBuilder {
         Ok(())
     }
 
-    fn read_from_chunk(&self, dir: &Path) -> Result<Option<TiKvIndexer>> {
-        let chunk_opts = ChunkOpts::read_config_from_dir(dir)?;
+    fn read_from_chunk(&self, dir: &Path, chunk_opts: Option<&ChunkOpts>) -> Result<Option<TiKvIndexer>> {
+        if chunk_opts.is_none(){
+            return Ok(None)
+        }
         let client = self.backend_builder.get_instance()?;
-        if let Some(val) = client.get(chunk_opts.identifier.clone())? {
+        if let Some(val) = client.get(chunk_opts.unwrap().identifier.clone())? {
             let indexer_identifier = Vec::from(&val[..16]);
             return Ok(
                 Some(
                     TiKvIndexer {
                         client,
-                        chunk_identifier: chunk_opts.identifier,
+                        chunk_identifier: chunk_opts.unwrap().identifier.clone(),
                         indexer_identifier,
                     }
                 )

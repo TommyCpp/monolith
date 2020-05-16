@@ -154,7 +154,7 @@ impl Builder<SledIndexer> for SledIndexerBuilder {
         Ok(())
     }
 
-    fn read_from_chunk(&self, dir: &Path) -> Result<Option<SledIndexer>> {
+    fn read_from_chunk(&self, dir: &Path, _: Option<&ChunkOpts>) -> Result<Option<SledIndexer>> {
         Ok(
             Some(SledIndexer {
                 storage: sled::Db::start_default(dir)?

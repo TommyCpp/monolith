@@ -65,7 +65,7 @@ pub trait Builder<T> {
     fn write_to_chunk(&self, dir: &Path) -> Result<()>;
 
     /// Read config information or data from chunk dir
-    fn read_from_chunk(&self, dir: &Path) -> Result<Option<T>>;
+    fn read_from_chunk(&self, dir: &Path, chunk_opts: Option<&ChunkOpts>) -> Result<Option<T>>;
 
     /// Write additional config or metadata information in db dir.
     fn write_config(&self, dir: &Path) -> Result<()>;

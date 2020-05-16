@@ -132,17 +132,22 @@ pub fn intersect_time_series_id_vec(mut ts: Vec<Vec<TimeSeriesId>>) -> Result<Ve
 /// Read file from dir, filename must be constant
 ///
 /// Return None if no such file found
-pub fn get_file_from_dir(base_dir: &Path, filename: &'static str) -> Result<Option<File>>{
+pub fn get_file_from_dir(base_dir: &Path, filename: &'static str) -> Result<Option<File>> {
     let file = Option::transpose(
         fs::read_dir(base_dir)?
             .find(|entry|
-                entry.is_ok() && entry.as_ref().unwrap().file_name().into_string().unwrap() == filename)).unwrap();
+                entry.is_ok()
+                    && entry.as_ref()
+                    .unwrap()
+                    .file_name()
+                    .into_string()
+                    .unwrap() == filename)).unwrap();
 
     return if file.is_some() {
         Ok(Some(File::open(file.unwrap().path())?))
     } else {
         Ok(None)
-    }
+    };
 }
 
 #[cfg(test)]

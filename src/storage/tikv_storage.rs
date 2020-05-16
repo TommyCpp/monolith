@@ -112,16 +112,18 @@ impl Builder<TiKvStorage> for TiKvStorageBuilder {
         Ok(())
     }
 
-    fn read_from_chunk(&self, dir: &Path) -> Result<Option<TiKvStorage>> {
-        let chunk_opts = ChunkOpts::read_config_from_dir(dir)?;
+    fn read_from_chunk(&self, dir: &Path, chunk_opts: Option<&ChunkOpts>) -> Result<Option<TiKvStorage>> {
+        if chunk_opts.is_none(){
+            return Ok(None)
+        }
         let client = self.backend_builder.get_instance()?;
-        if let Some(val) = client.get(chunk_opts.identifier.clone())? {
+        if let Some(val) = client.get(chunk_opts.unwrap().identifier.clone())? {
             let storage_identifier = Vec::from(&val[16..]);
             return Ok(
                 Some(
                     TiKvStorage {
                         client,
-                        chunk_identifier: chunk_opts.identifier,
+                        chunk_identifier: chunk_opts.unwrap().identifier.clone(),
                         storage_identifier,
                     }
                 )

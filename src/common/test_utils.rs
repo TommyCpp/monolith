@@ -46,7 +46,7 @@ impl Builder<StubStorage> for StubStorage {
         unimplemented!()
     }
 
-    fn read_from_chunk(&self, _dir: &Path) -> Result<Option<StubStorage>> {
+    fn read_from_chunk(&self, _dir: &Path , _: Option<&ChunkOpts>) -> Result<Option<StubStorage>> {
         unimplemented!()
     }
 
@@ -95,7 +95,7 @@ impl Builder<StubIndexer> for StubIndexer {
         unimplemented!()
     }
 
-    fn read_from_chunk(&self, _dir: &Path) -> Result<Option<StubIndexer>> {
+    fn read_from_chunk(&self, _dir: &Path, _: Option<&ChunkOpts>) -> Result<Option<StubIndexer>> {
         unimplemented!()
     }
 

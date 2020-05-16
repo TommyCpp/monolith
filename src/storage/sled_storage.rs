@@ -136,7 +136,7 @@ impl Builder<SledStorage> for SledStorageBuilder {
         Ok(())
     }
 
-    fn read_from_chunk(&self, dir: &Path) -> Result<Option<SledStorage>> {
+    fn read_from_chunk(&self, dir: &Path, _: Option<&ChunkOpts>) -> Result<Option<SledStorage>> {
         // Sled will create an empty db if there is nothing in dir.
         let config = sled::ConfigBuilder::default()
             .path(dir)
