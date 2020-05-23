@@ -1,4 +1,4 @@
-use crate::{MonolithErr, Result, CHUNK_SIZE, FILE_DIR_ARG, STORAGE_ARG, DEFAULT_PORT, DEFAULT_WRITE_PATH, DEFAULT_READ_PATH, DEFAULT_WORKER_NUM, WORKER_NUM, PORT, WRITE_PATH, READ_PATH, DEFAULT_CHUNK_SIZE};
+use crate::{MonolithErr, Result, CHUNK_SIZE, FILE_DIR_ARG, STORAGE_ARG, DEFAULT_PORT, DEFAULT_WRITE_PATH, DEFAULT_READ_PATH, DEFAULT_WORKER_NUM, WORKER_NUM, PORT, WRITE_PATH, READ_PATH, DEFAULT_CHUNK_SIZE, INDEXER_ARG, SLED_BACKEND};
 use clap::ArgMatches;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -9,7 +9,8 @@ use failure::_core::fmt::Formatter;
 
 #[derive(Clone)]
 pub struct DbOpts {
-    pub storage: StorageType,
+    pub storage: String,
+    pub indexer: String,
     pub base_dir: PathBuf,
     pub chunk_size: Duration,
 }
@@ -19,7 +20,8 @@ impl DbOpts {
         let chunk_size_str = matches.value_of(CHUNK_SIZE).unwrap();
         let chunk_size_in_sec: u64 = String::from(chunk_size_str).parse()?;
         let config = DbOpts {
-            storage: StorageType::from(matches.value_of(STORAGE_ARG).unwrap())?,
+            storage: matches.value_of(STORAGE_ARG).unwrap().to_string(),
+            indexer: matches.value_of(INDEXER_ARG).unwrap().to_string(),
             base_dir: PathBuf::from_str(matches.value_of(FILE_DIR_ARG).unwrap())?,
             chunk_size: Duration::from_secs(chunk_size_in_sec),
         };
@@ -27,23 +29,13 @@ impl DbOpts {
         Ok(config)
     }
 
-    pub fn storage(&self) -> &StorageType {
-        &self.storage
-    }
-
-    pub fn base_dir(&self) -> &PathBuf {
-        &self.base_dir
-    }
-
-    pub fn chunk_size(&self) -> &Duration {
-        &self.chunk_size
-    }
 }
 
 impl Default for DbOpts {
     fn default() -> Self {
         DbOpts {
-            storage: StorageType::SledBackendStorage,
+            storage: SLED_BACKEND.to_string(),
+            indexer: SLED_BACKEND.to_string(),
             base_dir: current_dir().unwrap(),
             chunk_size: Duration::from_secs(u64::from_str(DEFAULT_CHUNK_SIZE).unwrap()),
         }
@@ -93,20 +85,6 @@ impl<'a> Default for ServerOpts<'a> {
             write_path: DEFAULT_WRITE_PATH,
             read_path: DEFAULT_READ_PATH,
             worker_num: DEFAULT_WORKER_NUM,
-        }
-    }
-}
-
-#[derive(Clone)]
-pub enum StorageType {
-    SledBackendStorage,
-}
-
-impl StorageType {
-    pub fn from(name: &str) -> Result<StorageType> {
-        match name {
-            "sled" => Ok(StorageType::SledBackendStorage),
-            _ => Err(MonolithErr::OptionErr),
         }
     }
 }

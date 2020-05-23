@@ -17,19 +17,20 @@ pub use error::*;
 
 pub use db::MonolithDb;
 pub use backend::TiKvRawBackendSingleton;
+pub use backend::TiKvBackendConfigFile;
 
 pub type Timestamp = u64;
 pub type Value = f64;
 
 // cli option name
 pub const STORAGE_ARG: &str = "storage";
+pub const INDEXER_ARG: &str = "indexer";
 pub const FILE_DIR_ARG: &str = "file_dir";
 pub const CHUNK_SIZE: &str = "chunk_size";
 pub const PORT: &str = "port";
 pub const READ_PATH: &str = "read_path";
 pub const WRITE_PATH: &str = "write_path";
 pub const WORKER_NUM: &str = "worker_num";
-
 
 pub const TIME_UNIT: Duration = Duration::from_micros(1);
 
@@ -43,6 +44,9 @@ pub const DEFAULT_WORKER_NUM: usize = 8;
 pub const DB_METADATA_FILENAME: &'static str = "metadata.json";
 pub const CHUNK_METADATA_FILENAME: &'static str = "metadata.json";
 
+// Storage backend
+pub const SLED_BACKEND: &str = "sled";
+pub const TIKV_BACKEND: &str = "tikv";
 
 #[macro_use]
 extern crate log;

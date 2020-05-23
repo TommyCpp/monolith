@@ -1,9 +1,12 @@
 use crate::Result;
 use tikv_client::{RawClient, Config};
 use futures::prelude::*;
+use serde::{Serialize, Deserialize};
 
 use uuid::Uuid;
 use std::sync::Arc;
+use std::path::Path;
+use std::fs::read;
 
 pub trait TiKvRawBackend: Send + Sync {
     fn set(&self, key: Vec<u8>, value: Vec<u8>) -> Result<()>;
@@ -84,11 +87,44 @@ impl TiKvRawBackendSingleton {
             }
         )
     }
+
+    pub fn from_config_file(filepath: &Path) -> Result<TiKvRawBackendSingleton> {
+        TiKvRawBackendSingleton::new(TiKvBackendConfigFile::from_file(filepath)?)
+    }
+
     pub fn get_instance(&self) -> Result<Box<dyn TiKvRawBackend>> {
         Ok(
             Box::new(TiKvRawBackendImpl {
                 client: RawClient::new(self.config.clone())?
             })
         )
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TiKvBackendConfigFile {
+    pd_endpoints: Vec<String> //yaml: pd_endpints
+}
+
+impl TiKvBackendConfigFile{
+    pub fn from_file(filepath: &Path) -> Result<Config>{
+        let content = read(filepath)?;
+        let config_file: TiKvBackendConfigFile = serde_yaml::from_slice(content.as_slice())?;
+        Ok(Config::new(config_file.pd_endpoints))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::Result;
+    use crate::backend::tikv::TiKvBackendConfigFile;
+
+    #[test]
+    fn test_read_yaml_file() -> Result<()> {
+        let config_file = TiKvBackendConfigFile {
+            pd_endpoints: vec!["127.0.0.1".to_string()]
+        };
+        let res = serde_yaml::to_string(&config_file)?;
+        Ok(())
     }
 }

@@ -2,8 +2,8 @@ use clap::{App, Arg};
 
 use monolith::indexer::{SledIndexer, SledIndexerBuilder};
 use monolith::option::{DbOpts, ServerOpts};
-use monolith::storage::{SledStorage, SledStorageBuilder};
-use monolith::{MonolithDb, CHUNK_SIZE, DEFAULT_CHUNK_SIZE, FILE_DIR_ARG, STORAGE_ARG, PORT, DEFAULT_PORT, WRITE_PATH, DEFAULT_WRITE_PATH, READ_PATH, DEFAULT_READ_PATH, WORKER_NUM, DEFAULT_WORKER_NUM};
+use monolith::storage::{SledStorage, SledStorageBuilder, TiKvStorageBuilder};
+use monolith::{MonolithDb, CHUNK_SIZE, DEFAULT_CHUNK_SIZE, FILE_DIR_ARG, STORAGE_ARG, PORT, DEFAULT_PORT, WRITE_PATH, DEFAULT_WRITE_PATH, READ_PATH, DEFAULT_READ_PATH, WORKER_NUM, DEFAULT_WORKER_NUM, INDEXER_ARG, TIKV_BACKEND, SLED_BACKEND};
 use monolith::server::MonolithServer;
 use std::sync::Arc;
 
@@ -32,6 +32,9 @@ fn main() {
                 .short("s")
                 .long(STORAGE_ARG)
                 .default_value("sled"),
+            Arg::with_name(INDEXER_ARG)
+                .long(INDEXER_ARG)
+                .default_value("sled"),
             Arg::with_name(FILE_DIR_ARG)
                 .short("dir")
                 .long(FILE_DIR_ARG)
@@ -50,7 +53,7 @@ fn main() {
                 .default_value(DEFAULT_READ_PATH),
             Arg::with_name(WORKER_NUM)
                 .long(WORKER_NUM)
-                .default_value(default_worker_num.as_str())
+                .default_value(default_worker_num.as_str()),
         ])
         .get_matches();
 

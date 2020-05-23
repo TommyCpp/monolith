@@ -26,6 +26,8 @@ pub enum MonolithErr {
     // Logical error, usually indicate a bug inside system
     #[fail(display = "Error when convert Json with serde")]
     SerdeJsonErr(serde_json::error::Error),
+    #[fail(display = "Error when convert Yaml with serde")]
+    SerdeYamlErr(serde_yaml::Error),
     #[fail(display = "Error from TiKv")]
     TiKvErr(tikv_client::Error),
 }
@@ -87,5 +89,11 @@ impl std::convert::From<serde_json::error::Error> for MonolithErr {
 impl std::convert::From<tikv_client::Error> for MonolithErr {
     fn from(err: tikv_client::Error) -> Self {
         MonolithErr::TiKvErr(err)
+    }
+}
+
+impl std::convert::From<serde_yaml::Error> for MonolithErr{
+    fn from(err: serde_yaml::Error) -> Self {
+        MonolithErr::SerdeYamlErr(err)
     }
 }

@@ -1,11 +1,14 @@
-# monolith
+# monolith-rs
 ![Rust](https://github.com/TommyCpp/monolith/workflows/Rust/badge.svg)
 [![Project Status: WIP – Initial development is in progress, but there has not yet been a stable, usable release suitable for the public.](https://www.repostatus.org/badges/latest/wip.svg)](https://www.repostatus.org/#wip)
 
 
-timeseries database. It's still a **WIP** project(Including this README).
+Timeseries database. It could be used as an storage backend for prometheus to store metric data. 
+
+It's still a **WIP** project(Including this README).
 
 ## Usage
+Start a server as remote write and read endpoint of Prometheus.
 ```shell script
 monolith-server [Options]
     
@@ -21,7 +24,7 @@ monolith-server [Options]
 ## Components
 1. Chunk
 
-`Chunk` is basic component that contains data of a small range of times. Each `Chunk` has it's own dictionary. `Chunk` is mainly consisted by `Indexer` and `Storage`.   
+`Chunk` is basic component that contains data of a small range of times. Each `Chunk` has it's own dictionary. `Chunk` mainly consists `Indexer` and `Storage`.   
 
 2. Storage
 
@@ -36,10 +39,13 @@ monolith-server [Options]
 ### Sled
 Sled is a embedding key-value database. The API of Sled is similar with BTreeMap or any other map. 
 
+### TiKV
+Tikv is a distributed transactional database. TiKV can be used as **shard** backend for both `Indexer` and `Storage`. `Chunk` will attach appropriate tag to distinguished data belong to which component. 
+
 ## TODO List
 - [x] Add metadata file in base dir
 - [ ] Compression on swap chunk
 - [ ] Add unit tests
 - [ ] Add e2e tests with Prometheus
 - [x] Add CI/CD pipeline
-- [ ] Add more storage options
+- [x] Add more storage options

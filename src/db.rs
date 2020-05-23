@@ -37,23 +37,23 @@ impl<S, I> MonolithDb<S, I>
             indexer_type: S::get_type_name().to_string(),
             storage_type: I::get_type_name().to_string(),
         };
-        Self::read_or_create_metadata(&ops.base_dir(), &db_metadata)?;
+        Self::read_or_create_metadata(&ops.base_dir, &db_metadata)?;
         //read existing data
-        let existing_chunk = Self::read_existing_chunk(&ops.base_dir(), &storage_builder, &indexer_builder)?;
+        let existing_chunk = Self::read_existing_chunk(&ops.base_dir, &storage_builder, &indexer_builder)?;
 
         // write custom config to db config
-        storage_builder.write_config(&ops.base_dir())?;
-        storage_builder.write_config(&ops.base_dir())?;
+        storage_builder.write_config(&ops.base_dir)?;
+        storage_builder.write_config(&ops.base_dir)?;
 
-        let chunk_size = ops.chunk_size().as_millis() as Timestamp;
+        let chunk_size = ops.chunk_size.as_millis() as Timestamp;
         let current_time = get_current_timestamp();
 
         let mut chunk_opt = ChunkOpts::default();
         chunk_opt.start_time = Some(current_time);
-        chunk_opt.end_time = Some(current_time + ops.chunk_size().as_millis() as Timestamp);
+        chunk_opt.end_time = Some(current_time + ops.chunk_size.as_millis() as Timestamp);
 
 
-        let chunk_dir = ops.base_dir()
+        let chunk_dir = ops.base_dir
             .as_path()
             .join(
                 encode_chunk_dir(chunk_opt.start_time.unwrap(),
@@ -243,10 +243,10 @@ impl<S, I> MonolithDb<S, I>
         info!("Chunk swap, new chunk with start time {}", start_time);
         let mut chunk_opt = ChunkOpts::default();
         chunk_opt.start_time = Some(start_time);
-        chunk_opt.end_time = Some(start_time + self.options.chunk_size().as_millis() as Timestamp);
+        chunk_opt.end_time = Some(start_time + self.options.chunk_size.as_millis() as Timestamp);
 
 
-        let chunk_dir = self.options.base_dir()
+        let chunk_dir = self.options.base_dir
             .join(
                 encode_chunk_dir(chunk_opt.start_time.unwrap(), chunk_opt.end_time.unwrap())
             );
