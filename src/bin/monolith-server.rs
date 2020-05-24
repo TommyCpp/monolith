@@ -1,17 +1,16 @@
 use clap::{App, Arg};
 
-use monolith::indexer::{SledIndexer, SledIndexerBuilder};
+use monolith::indexer::*;
+use monolith::storage::*;
 use monolith::option::{DbOpts, ServerOpts};
-use monolith::storage::{SledStorage, SledStorageBuilder, TiKvStorageBuilder};
-use monolith::{MonolithDb, CHUNK_SIZE, DEFAULT_CHUNK_SIZE, FILE_DIR_ARG, STORAGE_ARG, PORT, DEFAULT_PORT, WRITE_PATH, DEFAULT_WRITE_PATH, READ_PATH, DEFAULT_READ_PATH, WORKER_NUM, DEFAULT_WORKER_NUM, INDEXER_ARG, TIKV_BACKEND, SLED_BACKEND};
+use monolith::*;
 use monolith::server::MonolithServer;
 use std::sync::Arc;
+use std::process::exit;
 
 
 #[macro_use]
 extern crate log;
-
-type SledMonolithDb = MonolithDb<SledStorage, SledIndexer>;
 
 ///
 /// Binary command line wrapper for application
@@ -54,19 +53,86 @@ fn main() {
             Arg::with_name(WORKER_NUM)
                 .long(WORKER_NUM)
                 .default_value(default_worker_num.as_str()),
+            Arg::with_name(TIKV_CONFIG)
+                .long(TIKV_CONFIG),
         ])
         .get_matches();
 
     let db_opts = DbOpts::get_config(&matches).expect("Cannot read db config");
     let server_opts = ServerOpts::get_config(&matches).expect("Cannot read server config");
 
-    info!("{}", server_opts);
+    info!("Server options: \n {}", server_opts);
 
-    let storage_builder = SledStorageBuilder::new();
-    let indexer_builder = SledIndexerBuilder::new();
+    let tikv_backend_singleton = if db_opts.tikv_config.is_some()
+        && (db_opts.indexer == TIKV_BACKEND || db_opts.storage == TIKV_BACKEND) {
+        // if tikv config is provided and storage or indexer is tikv based
+        // read config file
+        Some(TiKvRawBackendSingleton::from_config_file(
+            db_opts.tikv_config.clone().unwrap().as_path()).unwrap())
+    } else { None };
 
-    let db: Arc<SledMonolithDb> = SledMonolithDb::new(db_opts, Box::new(storage_builder), Box::new(indexer_builder)).unwrap();
+    macro_rules! build_storage {
+        (TiKV) => {
+             TiKvStorageBuilder::new(tikv_backend_singleton.clone().unwrap()).unwrap()
+        };
+        (Sled) => {
+             SledStorageBuilder::new()
+        }
+    }
 
-    let server = MonolithServer::new(server_opts, db);
-    let _ = server.serve();
+    macro_rules! build_indexer {
+        (TiKV) => {
+          TiKvIndexerBuilder::new(tikv_backend_singleton.clone().unwrap()).unwrap()
+        };
+        (Sled) => {
+           SledIndexerBuilder::new()
+        }
+    }
+
+
+    macro_rules! start_server {
+        ($storage:ty, $indexer:ty, $storage_builder: ident, $indexer_builder: ident) => {
+                let db =
+                    MonolithDb::<$storage, $indexer>::new(
+                        db_opts, Box::new($storage_builder), Box::new($indexer_builder))
+                    .unwrap();
+                let server = MonolithServer::new(server_opts, db);
+                server.serve();
+        };
+    }
+
+
+    match db_opts.storage.as_str() {
+        TIKV_BACKEND => {
+            match db_opts.indexer.as_str() {
+                TIKV_BACKEND => {
+                    let storage_builder = build_storage!(TiKV);
+                    let indexer_builder = build_indexer!(TiKV);
+                    start_server!(TiKvStorage, TiKvIndexer, storage_builder, indexer_builder);
+                }
+                SLED_BACKEND => {
+                    let storage_builder = build_storage!(TiKV);
+                    let indexer_builder = build_indexer!(Sled);
+                    start_server!(TiKvStorage, SledIndexer, storage_builder, indexer_builder);
+                }
+                _ => exit(1)
+            }
+        }
+        SLED_BACKEND => {
+            match db_opts.indexer.as_str() {
+                TIKV_BACKEND => {
+                    let storage_builder = build_storage!(Sled);
+                    let indexer_builder = build_indexer!(TiKV);
+                    start_server!(SledStorage, TiKvIndexer, storage_builder, indexer_builder);
+                }
+                SLED_BACKEND => {
+                    let storage_builder = build_storage!(Sled);
+                    let indexer_builder = build_indexer!(Sled);
+                    start_server!(SledStorage, SledIndexer, storage_builder, indexer_builder);
+                }
+                _ => exit(1)
+            }
+        }
+        _ => exit(1)
+    };
 }

@@ -27,6 +27,9 @@ uuid = { version = "0.8", features = ["v4"]}
 serde = { version = "1.0", features = ["derive"] }
 tikv-client = { git = "https://github.com/tikv/client-rust" }
 
+[dev-dependencies]
+assert_cmd = "1.0.1"
+
 [patch.crates-io]
 raft-proto = { git = "https://github.com/tikv/raft-rs", rev = "e624c1d48460940a40d8aa69b5329460d9af87dd" }
 

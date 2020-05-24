@@ -1,4 +1,4 @@
-use crate::{MonolithErr, Result, CHUNK_SIZE, FILE_DIR_ARG, STORAGE_ARG, DEFAULT_PORT, DEFAULT_WRITE_PATH, DEFAULT_READ_PATH, DEFAULT_WORKER_NUM, WORKER_NUM, PORT, WRITE_PATH, READ_PATH, DEFAULT_CHUNK_SIZE, INDEXER_ARG, SLED_BACKEND};
+use crate::{MonolithErr, Result, CHUNK_SIZE, FILE_DIR_ARG, STORAGE_ARG, DEFAULT_PORT, DEFAULT_WRITE_PATH, DEFAULT_READ_PATH, DEFAULT_WORKER_NUM, WORKER_NUM, PORT, WRITE_PATH, READ_PATH, DEFAULT_CHUNK_SIZE, INDEXER_ARG, SLED_BACKEND, TIKV_CONFIG};
 use clap::ArgMatches;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -13,6 +13,7 @@ pub struct DbOpts {
     pub indexer: String,
     pub base_dir: PathBuf,
     pub chunk_size: Duration,
+    pub tikv_config: Option<PathBuf>,
 }
 
 impl DbOpts {
@@ -24,11 +25,11 @@ impl DbOpts {
             indexer: matches.value_of(INDEXER_ARG).unwrap().to_string(),
             base_dir: PathBuf::from_str(matches.value_of(FILE_DIR_ARG).unwrap())?,
             chunk_size: Duration::from_secs(chunk_size_in_sec),
+            tikv_config: matches.value_of(TIKV_CONFIG).map(PathBuf::from),
         };
 
         Ok(config)
     }
-
 }
 
 impl Default for DbOpts {
@@ -38,6 +39,7 @@ impl Default for DbOpts {
             indexer: SLED_BACKEND.to_string(),
             base_dir: current_dir().unwrap(),
             chunk_size: Duration::from_secs(u64::from_str(DEFAULT_CHUNK_SIZE).unwrap()),
+            tikv_config: None,
         }
     }
 }

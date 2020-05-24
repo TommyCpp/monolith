@@ -31,6 +31,7 @@ pub const PORT: &str = "port";
 pub const READ_PATH: &str = "read_path";
 pub const WRITE_PATH: &str = "write_path";
 pub const WORKER_NUM: &str = "worker_num";
+pub const TIKV_CONFIG: &str = "tikv_config"; // tikv config file path
 
 pub const TIME_UNIT: Duration = Duration::from_micros(1);
 
