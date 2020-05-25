@@ -1,7 +1,7 @@
 use crate::common::label::Labels;
 use crate::common::time_point::TimePoint;
 use crate::common::time_series::TimeSeries;
-use crate::common::utils::{is_duration_overlap, get_current_timestamp, get_file_from_dir};
+use crate::common::utils::{is_duration_overlap, get_current_timestamp};
 use crate::common::IdGenerator;
 use crate::{MonolithErr, Result, DEFAULT_CHUNK_SIZE, Timestamp, CHUNK_METADATA_FILENAME};
 
@@ -29,10 +29,9 @@ pub struct ChunkOpts {
 
 impl ChunkOpts {
     pub fn read_config_from_dir(dir: &Path) -> Result<Self> {
-        let file_res = get_file_from_dir(dir, CHUNK_METADATA_FILENAME)?;
-        return if file_res.is_some() {
-            let reader = BufReader::new(file_res.unwrap());
-            let opts: ChunkOpts = serde_json::from_reader(reader)?;
+        let content = fs::read_to_string(dir.join(CHUNK_METADATA_FILENAME));
+        return if content.is_ok() {
+            let opts: ChunkOpts = serde_json::from_str(content.unwrap().as_str())?;
             Ok(opts)
         } else {
             error!("Cannot open option file from dir {}", dir.as_os_str().to_str().unwrap_or("<unreadable path>"));
@@ -208,7 +207,7 @@ mod test {
     }
 
     #[test]
-    pub fn test_read_config_from_dir() -> Result<()>{
+    pub fn test_read_config_from_dir() -> Result<()> {
         let dir = TempDir::new()?;
         let opts = ChunkOpts::default();
         // Create file

@@ -7,6 +7,7 @@ use uuid::Uuid;
 use std::sync::Arc;
 use std::path::Path;
 use std::fs::read;
+use crate::common::test_utils::DummyTiKvBackend;
 
 pub trait TiKvRawBackend: Send + Sync {
     fn set(&self, key: Vec<u8>, value: Vec<u8>) -> Result<()>;
@@ -76,43 +77,82 @@ impl TiKvRawBackend for TiKvRawBackendImpl {
 // Return shared backend
 #[derive(Clone)]
 pub struct TiKvRawBackendSingleton {
-    config: Config
+    config: Config,
+    // if true, then instead of connect to a tikv instance, we use a in memory hashmap
+    dry_run: bool,
 }
 
 impl TiKvRawBackendSingleton {
     pub fn new(config: Config) -> Result<TiKvRawBackendSingleton> {
         Ok(
             TiKvRawBackendSingleton {
-                config
+                config,
+                dry_run: false,
             }
         )
     }
 
     pub fn from_config_file(filepath: &Path) -> Result<TiKvRawBackendSingleton> {
-        TiKvRawBackendSingleton::new(TiKvBackendConfigFile::from_file(filepath)?)
+        let config_file = TiKvBackendConfigFile::from_file(filepath)?;
+        if config_file.dry_run {
+            Ok(
+                TiKvRawBackendSingleton {
+                    config: Config::new(Vec::<String>::new()),
+                    dry_run: true,
+                })
+        } else {
+            TiKvRawBackendSingleton::new(Config::new(config_file.pd_endpoints))
+        }
     }
 
     pub fn get_instance(&self) -> Result<Box<dyn TiKvRawBackend>> {
         Ok(
-            Box::new(TiKvRawBackendImpl {
-                client: RawClient::new(self.config.clone())?
-            })
+            if self.dry_run {
+                Box::new(DummyTiKvBackend::new())
+            } else {
+                Box::new(TiKvRawBackendImpl {
+                    client: RawClient::new(self.config.clone())?
+                })
+            }
         )
+    }
+}
+
+impl Default for TiKvRawBackendSingleton {
+    fn default() -> Self {
+        TiKvRawBackendSingleton {
+            config: Config::new(Vec::<String>::new()),
+            dry_run: true,
+        }
     }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TiKvBackendConfigFile {
-    pd_endpoints: Vec<String> //yaml: pd_endpints
+    #[serde(default)]
+    pd_endpoints: Vec<String>,
+    //yaml: pd_endpoints
+    #[serde(default)]
+    dry_run: bool, //yaml: dry_run
 }
 
-impl TiKvBackendConfigFile{
-    pub fn from_file(filepath: &Path) -> Result<Config>{
+impl TiKvBackendConfigFile {
+    pub fn from_file(filepath: &Path) -> Result<TiKvBackendConfigFile> {
         let content = read(filepath)?;
         let config_file: TiKvBackendConfigFile = serde_yaml::from_slice(content.as_slice())?;
-        Ok(Config::new(config_file.pd_endpoints))
+        Ok(config_file)
     }
 }
+
+impl Default for TiKvBackendConfigFile {
+    fn default() -> Self {
+        TiKvBackendConfigFile {
+            pd_endpoints: vec![],
+            dry_run: true,
+        }
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -122,7 +162,8 @@ mod tests {
     #[test]
     fn test_read_yaml_file() -> Result<()> {
         let config_file = TiKvBackendConfigFile {
-            pd_endpoints: vec!["127.0.0.1".to_string()]
+            pd_endpoints: vec!["127.0.0.1".to_string()],
+            dry_run: false
         };
         let res = serde_yaml::to_string(&config_file)?;
         Ok(())

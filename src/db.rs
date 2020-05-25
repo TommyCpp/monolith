@@ -9,12 +9,12 @@ use crate::{Builder, MonolithErr, Result, Timestamp, DB_METADATA_FILENAME, CHUNK
 use crate::chunk::{Chunk, ChunkOpts};
 use crate::common::label::Labels;
 use crate::common::time_series::LabelPointPairs;
-use crate::common::utils::{decode_chunk_dir, encode_chunk_dir, get_current_timestamp, get_file_from_dir};
+use crate::common::utils::{decode_chunk_dir, encode_chunk_dir, get_current_timestamp};
 use crate::indexer::Indexer;
 use crate::option::DbOpts;
 use crate::storage::Storage;
 use crate::common::time_point::TimePoint;
-use crate::common::metadata::{DbMetadata};
+use crate::common::metadata::DbMetadata;
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
 
@@ -100,12 +100,10 @@ impl<S, I> MonolithDb<S, I>
     /// Check if there is a metadata file in base_dir. If it does, then read file and check if the existing Indexer and Storage
     /// is the same type. If it doesn't, then create one base on db_metadata
     fn read_or_create_metadata(base_dir: &Path, db_metadata: &DbMetadata) -> Result<()> {
-        let file_res = get_file_from_dir(base_dir, DB_METADATA_FILENAME)?;
+        let content = fs::read_to_string(base_dir.join(DB_METADATA_FILENAME));
 
-        if file_res.is_some() {
-            let file = file_res.unwrap();
-            let reader = BufReader::new(file);
-            let metadata: DbMetadata = serde_json::from_reader(reader)?;
+        if content.is_ok() {
+            let metadata: DbMetadata = serde_json::from_str(content.unwrap().as_str())?;
             if metadata.indexer_type != db_metadata.indexer_type || metadata.storage_type != db_metadata.storage_type {
                 return Err(MonolithErr::OptionErr);
             }

@@ -30,10 +30,11 @@ fn main() {
             Arg::with_name(STORAGE_ARG)
                 .short("s")
                 .long(STORAGE_ARG)
-                .default_value("sled"),
+                .default_value(SLED_BACKEND),
             Arg::with_name(INDEXER_ARG)
+                .short("i")
                 .long(INDEXER_ARG)
-                .default_value("sled"),
+                .default_value(SLED_BACKEND),
             Arg::with_name(FILE_DIR_ARG)
                 .short("dir")
                 .long(FILE_DIR_ARG)
@@ -69,7 +70,14 @@ fn main() {
         // read config file
         Some(TiKvRawBackendSingleton::from_config_file(
             db_opts.tikv_config.clone().unwrap().as_path()).unwrap())
-    } else { None };
+    } else {
+        if db_opts.indexer == TIKV_BACKEND || db_opts.storage == TIKV_BACKEND{
+            warn!("No TiKV config file provided, will use dry run mode; if you want to persist your data, please provide a tikv config file");
+            Some(TiKvRawBackendSingleton::default())
+        } else{
+            None
+        }
+    };
 
     macro_rules! build_storage {
         (TiKV) => {
