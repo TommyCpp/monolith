@@ -3,12 +3,14 @@ use std::time::Duration;
 mod common;
 mod error;
 mod backend;
+mod compression;
 
 pub mod chunk;
 pub mod db;
 pub mod server;
 pub mod indexer;
 pub mod storage;
+
 
 /// Generated proto definition
 pub(crate) mod proto;
