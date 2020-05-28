@@ -3,6 +3,9 @@ name = "monolith"
 version = "0.0.1"
 authors = ["zhongyang.wu <zhongyang.wu@outlook.com>"]
 edition = "2018"
+license = "MIT"
+repository = "https://github.com/tommycpp/monolith.git"
+keywords = ["timeseries", "tsdb", "prometheus", "sled"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

@@ -7,42 +7,47 @@ Timeseries database. It could be used as an storage backend for prometheus to st
 
 It's still a **WIP** project(Including this README).
 
-## Usage
+### Usage
 Start a server as remote write and read endpoint of Prometheus.
 ```shell script
 monolith-server [Options]
     
-    -s   --storage    type of storage.
-    -dir --file_dir   dictionary of data.
+    -s   --storage    type of storage. Valid value <sled, tikv>
+    -i   --indexer    type of indexer. Valid value <sled, tikv>
+    -dir --file_dir   dictionary of to store the data from indexer and storage.
          --chunk_size size of one chunk in seconds.
-         --port       port of server.
-         --write_path path of write endpoint. 
-         --read_path  path of read endpoint.
-         --worker_num number of thread to process incoming requests.
+         --port       port of server. Default to be 10090
+         --write_path path of write endpoint. Default to be /write
+         --read_path  path of read endpoint. Default to be /read
+         --worker_num number of thread to process incoming requests. We use multiple 
+         --tikv_config config file if using tikv backend. If not provide, will go into debug mode and use an in-memory key value map to mock tikv.
 ```
 
-## Components
-1. Chunk
+After started monolith-server, you can set remote write endpoint in prometheus to be `http://127.0.0.1:10090/write` if using default port.
 
-`Chunk` is basic component that contains data of a small range of times. Each `Chunk` has it's own dictionary. `Chunk` mainly consists `Indexer` and `Storage`.   
+To connect to tikv, provide below information in yaml file and use that file in `--tikv_config`
 
-2. Storage
+```yaml
+dry_run: false # if true, then instead of connecting to tikv, we will use an in-memory key value map to mock tikv. Default to be true
+pd_endpoint: # pd endpoint of tikv cluster. 
+ - 127.0.0.1 
+```
 
-`Storage` stores `(timestamp, value)` pair. `Storage` doesn't store `label` information. All data will be reference by an generated id.
+If user want to test with tikv locally, it's recommended to use [binary deployment](https://tikv.org/docs/3.0/tasks/deploy/binary/) to avoid docker network issue.
 
-3. Indexer
+### Storage options
+For now, user can choose between two different kinds of backend for both storage or indexer. user can also use different backend for storage and indexer. To do so, just specific different type in command line argument.
 
-`Indexer` stores `label` information and generated id. User should use `Indexer` to find the target time series's id. And use this id to query data from `Storage`
-
-
-## Storage options
-### Sled
+#### Sled
 Sled is a embedding key-value database. The API of Sled is similar with BTreeMap or any other map. 
 
-### TiKV
+#### TiKV
 Tikv is a distributed transactional database. TiKV can be used as **shard** backend for both `Indexer` and `Storage`. `Chunk` will attach appropriate tag to distinguished data belong to which component. 
 
-## TODO List
+### Development
+See [here](https://github.com/TommyCpp/monolith/tree/master/doc/development.md)
+
+### TODO List
 - [x] Add metadata file in base dir
 - [ ] Compression on swap chunk
 - [ ] Add unit tests
