@@ -6,6 +6,7 @@ edition = "2018"
 license = "MIT"
 repository = "https://github.com/tommycpp/monolith.git"
 keywords = ["timeseries", "tsdb", "prometheus", "sled"]
+description = "timeseries database that could used as promtheus remote write endpoint, support both slec or tikv"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

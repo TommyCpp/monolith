@@ -1,10 +1,8 @@
 use crate::Result;
 use tikv_client::{RawClient, Config};
-use futures::prelude::*;
 use serde::{Serialize, Deserialize};
 
 use uuid::Uuid;
-use std::sync::Arc;
 use std::path::Path;
 use std::fs::read;
 use crate::common::test_utils::DummyTiKvBackend;

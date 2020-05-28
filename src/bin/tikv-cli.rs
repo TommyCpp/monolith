@@ -1,3 +1,6 @@
+#![allow(unused_must_use)]
+#![allow(dead_code)]
+
 use monolith::{TiKvRawBackendSingleton, DEFAULT_PORT, DEFAULT_READ_PATH, MonolithDb};
 use tikv_client::Config;
 use monolith::storage::{TiKvStorageBuilder, TiKvStorage};

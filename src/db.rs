@@ -5,7 +5,7 @@ use std::sync::{Arc, RwLock};
 use std::sync::mpsc::channel;
 use std::time::Duration;
 
-use crate::{Builder, MonolithErr, Result, Timestamp, DB_METADATA_FILENAME, CHUNK_METADATA_FILENAME};
+use crate::{Builder, MonolithErr, Result, Timestamp, DB_METADATA_FILENAME};
 use crate::chunk::{Chunk, ChunkOpts};
 use crate::common::label::Labels;
 use crate::common::time_series::LabelPointPairs;
@@ -16,7 +16,7 @@ use crate::storage::Storage;
 use crate::common::time_point::TimePoint;
 use crate::common::metadata::DbMetadata;
 use std::fs::File;
-use std::io::{BufReader, BufWriter};
+use std::io::BufWriter;
 
 /// MonolithDb is thread-safe
 pub struct MonolithDb<S: Storage, I: Indexer>
@@ -62,7 +62,7 @@ impl<S, I> MonolithDb<S, I>
         //write metadata into chunk config
         storage_builder.write_to_chunk(&chunk_dir);
         indexer_builder.write_to_chunk(&chunk_dir);
-        if let Err(err) = chunk_opt.write_config_to_dir(chunk_dir.as_path()) {
+        if let Err(_) = chunk_opt.write_config_to_dir(chunk_dir.as_path()) {
             error!("Cannot create metadata file for chunk");
             return Err(MonolithErr::InternalErr("Cannot create metadata file for chunk".to_string()));
         }
@@ -110,7 +110,7 @@ impl<S, I> MonolithDb<S, I>
         } else {
             let file = File::create(base_dir.join(DB_METADATA_FILENAME))?;
             let writer = BufWriter::new(file);
-            serde_json::to_writer(writer, db_metadata);
+            serde_json::to_writer(writer, db_metadata)?;
         }
 
         Ok(())
@@ -251,9 +251,9 @@ impl<S, I> MonolithDb<S, I>
         let chunk_dir_str = chunk_dir.as_path().display().to_string();
 
         // write metadata into chunk
-        self.storage_builder.write_to_chunk(&chunk_dir);
-        self.indexer_builder.write_to_chunk(&chunk_dir);
-        if let Err(err) = chunk_opt.write_config_to_dir(chunk_dir.as_path()) {
+        self.storage_builder.write_to_chunk(&chunk_dir)?;
+        self.indexer_builder.write_to_chunk(&chunk_dir)?;
+        if let Err(_) = chunk_opt.write_config_to_dir(chunk_dir.as_path()) {
             error!("Cannot create metadata file for chunk");
             return Err(MonolithErr::InternalErr("Cannot create metadata file for chunk".to_string()));
         }

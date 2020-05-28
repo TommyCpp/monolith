@@ -1,9 +1,11 @@
+#![allow(unused_must_use)]
+
 use std::time::Duration;
 
 mod common;
 mod error;
 mod backend;
-mod compression;
+mod compaction;
 
 pub mod chunk;
 pub mod db;

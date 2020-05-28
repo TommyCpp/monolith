@@ -9,12 +9,7 @@ use crate::indexer::sled_indexer::KvIndexerProcessor;
 use crate::common::time_series::TimeSeriesId;
 use std::convert::TryInto;
 use crate::common::utils::intersect_time_series_id_vec;
-use std::sync::Arc;
 use std::path::PathBuf;
-
-const LABEL_REVERSE_PREFIX: &str = "LR";
-const LABEL_PREFIX: &str = "L";
-const ID_PREFIX: &str = "I";
 
 pub struct TiKvIndexer {
     client: Box<dyn TiKvRawBackend>,
@@ -188,7 +183,7 @@ impl Builder<TiKvIndexer> for TiKvIndexerBuilder {
         Ok(())
     }
 
-    fn read_from_chunk(&self, dir: &Path, chunk_opts: Option<&ChunkOpts>) -> Result<Option<TiKvIndexer>> {
+    fn read_from_chunk(&self, _: &Path, chunk_opts: Option<&ChunkOpts>) -> Result<Option<TiKvIndexer>> {
         if chunk_opts.is_none(){
             return Ok(None)
         }

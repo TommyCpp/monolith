@@ -8,7 +8,6 @@ use crate::backend::tikv::{TiKvRawBackend, TiKvRawBackendSingleton};
 use crate::common::option::DbOpts;
 use crate::chunk::{ChunkOpts};
 use crate::storage::sled_storage::KvStorageProcessor;
-use std::fs::File;
 use std::path::PathBuf;
 
 

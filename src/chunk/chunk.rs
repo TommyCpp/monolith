@@ -13,7 +13,7 @@ use std::sync::RwLock;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::path::{Path, PathBuf};
 
-use std::io::{BufReader, BufWriter, Write};
+use std::io::BufWriter;
 use serde::{Serialize, Deserialize};
 use std::fs::File;
 use std::fs;
