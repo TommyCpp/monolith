@@ -7,7 +7,6 @@ use monolith::storage::*;
 use monolith::option::{DbOpts, ServerOpts};
 use monolith::*;
 use monolith::server::MonolithServer;
-use std::sync::Arc;
 use std::process::exit;
 
 

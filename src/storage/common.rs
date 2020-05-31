@@ -21,7 +21,7 @@ pub trait Storage: Sized + HasTypeName{
 
     /// Read time series from storage
     ///
-    /// If no such time series found, then a NotFoundErr will be return/
+    /// If no such time series found, then a NotFoundErr will be return
     fn read_time_series(
         &self,
         time_series_id: TimeSeriesId,
