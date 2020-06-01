@@ -2,13 +2,17 @@
 
 use crate::common::time_point::TimePoint;
 use std::ops::Deref;
+use std::io::{BufReader, Read, Write};
+use std::io;
 
 mod simple;
+mod gorilla;
 
 // Compressor is used to compress the timestamp and values when the chunk goes to closed
 pub enum Compactor {
     // Facebook's tsdb
     // See https://www.vldb.org/pvldb/vol8/p1816-teller.pdf
+    // Implementation Reference https://github.com/prometheus/prometheus/blob/master/tsdb/chunkenc
     Gorilla,
 
     // Simple version of Gorilla
@@ -75,13 +79,13 @@ impl Bstream {
     }
 
     /// How many bit in this bit stream
-    pub fn len(&self) -> usize {
+    pub fn bitlen(&self) -> usize {
         self.data.len() * 8 - self.remaining as usize
     }
 
     /// append one of the bit stream to another
     pub fn append(&mut self, bstream: &Bstream) {
-        let bstream_len = bstream.len();
+        let bstream_len = bstream.bitlen();
         if bstream_len == 0 {
             return;
         }
@@ -123,6 +127,14 @@ impl Bstream {
             self.remaining = bstream.remaining as u8;
         }
     }
+
+    pub fn append_bytes(&mut self, bytes: &[u8], remaining: u8) {
+        assert!(remaining <= 8 && remaining >= 0);
+        self.append(&mut Bstream {
+            data: Vec::from(bytes),
+            remaining,
+        })
+    }
 }
 
 
@@ -148,7 +160,7 @@ mod tests {
             (vec![0b10010010, 0b10000000], 7, vec![0b10000000], 7, vec![0b10010010, 0b11000000], 6),
             (vec![0b10000000], 0, vec![0b00000000], 0, vec![0b10000000, 0b00000000], 0),
             (vec![0b00000000], 4, vec![0b11110000, 0b10000000], 7, vec![0b00001111, 0b00001000], 3),
-            (vec![0b00000000], 4, vec![0b11110000, 0b10000100], 2, vec![0b00001111, 0b00001000,0b01000000], 6)
+            (vec![0b00000000], 4, vec![0b11110000, 0b10000100], 2, vec![0b00001111, 0b00001000, 0b01000000], 6)
         ];
 
         for (d1, r1, d2, r2, expect_data, expect_remaining) in data {
