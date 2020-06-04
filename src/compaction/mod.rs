@@ -4,6 +4,7 @@ use crate::common::time_point::TimePoint;
 use std::ops::Deref;
 use std::io::{BufReader, Read, Write};
 use std::io;
+use crate::Timestamp;
 
 mod simple;
 mod gorilla;
@@ -134,6 +135,11 @@ impl Bstream {
             data: Vec::from(bytes),
             remaining,
         })
+    }
+
+    // append delta of timestamps, only put last `bits` bit into bstream
+    pub fn append_timestamp_delta(&mut self, delta: i64, bits: u8){
+        unimplemented!();
     }
 }
 
