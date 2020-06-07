@@ -137,12 +137,52 @@ impl Bstream {
         })
     }
 
-    // append delta of timestamps, only put last `bits` bit into bstream
-    pub fn append_timestamp_delta(&mut self, delta: i64, bits: u8){
-        unimplemented!();
+    // append delta of timestamps
+    // Here only `bits` bit is meaningful.
+    //
+    // For example, if bits is 7, it means the delta is within [-63, 64] and we only need put 7 bit into bstream
+    // value allowed here is [8, 16, 32, 64]
+    pub fn append_timestamp_delta(&mut self, delta: i64, bits: u8) {
+        match bits {
+            8 => {
+                let d = delta as i8;
+                self.append_bytes(&d.to_be_bytes(), 0);
+            }
+            16 => {
+                let d = delta as i16;
+                self.append_bytes(&d.to_be_bytes(), 0);
+            }
+            32 => {
+                let d = delta as i32;
+                self.append_bytes(&d.to_be_bytes(), 0);
+            }
+            64 => {
+                let d = delta as i64;
+                self.append_bytes(&d.to_be_bytes(), 0);
+            }
+            _ => {}
+        }
+    }
+
+
+    // Write bits into bstream.
+    // Note that here we will write from left and removing the leading value
+    // For example append_bits(0b00001010, 3) will write 010 into bstream.
+    pub fn write_bits(&mut self, bytes: [u8; 8], nbits: u8) {
+        let leading = 64 - nbits;
+        let val = bytes[usize::from(leading) / 8] << leading % 8;
+        self.append_bytes(&[val], leading % 8);
+        self.append_bytes(&bytes[(usize::from(leading) / 8 + 1)..8], 0);
+    }
+
+    pub fn write_one(&mut self) {
+        self.write(true);
+    }
+
+    pub fn write_zero(&mut self) {
+        self.write(false);
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -175,6 +215,20 @@ mod tests {
             bstream1.append(&bstream2);
             assert_eq!(expect_data, bstream1.data);
             assert_eq!(expect_remaining, bstream1.remaining)
+        }
+    }
+
+    #[test]
+    pub fn test_append_u64() {
+        let data: Vec<([u8;8], u8, Vec<u8>)> = vec![
+            (8u64.to_be_bytes(), 4, vec![0b10000000]),
+            (33u64.to_be_bytes(), 6, vec![0b10000100])
+        ];
+
+        for (v, l, res) in data {
+            let mut bstream = Bstream::new();
+            bstream.write_bits(v, l);
+            assert_eq!(bstream.data, res);
         }
     }
 }
