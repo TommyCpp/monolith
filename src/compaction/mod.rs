@@ -9,6 +9,8 @@ use crate::Timestamp;
 mod simple;
 mod gorilla;
 
+pub use gorilla::GorillaCompactor;
+
 // Compressor is used to compress the timestamp and values when the chunk goes to closed
 pub enum Compactor {
     // Facebook's tsdb
@@ -104,22 +106,22 @@ impl Bstream {
                 mask >>= (8 - self.remaining);
                 *(self.data.last_mut().unwrap()) |= mask;
 
-                for i in 1..bstream.data.len() {
-                    let mut first = bstream.data.get(i - 1).unwrap().clone();
-                    let mut second = bstream.data.get(i).unwrap().clone();
+                for i in 0..(bstream.data.len() - 1) {
+                    let mut first = bstream.data.get(i).unwrap().clone();
+                    let mut second = bstream.data.get(i + 1).unwrap().clone();
                     first <<= self.remaining;
                     second >>= (8 - self.remaining);
                     first |= second;
                     self.data.push(first);
                 }
-                if self.remaining <= (8 - bstream.remaining) && bstream.data.len() > 1 {
+                if self.remaining <= (8 - bstream.remaining) {
                     // in this case, the last part in bstream is not empty, we need to add it
                     // if there is only one element in bstream.data, we already added it.
                     self.data.push(
                         bstream.data.last().unwrap().clone() << self.remaining);
                     self.remaining = bstream.remaining + self.remaining;
                 } else {
-                    self.remaining = bstream.remaining - self.remaining;
+                    self.remaining = (bstream.remaining as i8 - self.remaining as i8).abs() as u8;
                 }
             }
         } else {
@@ -219,16 +221,34 @@ mod tests {
     }
 
     #[test]
-    pub fn test_append_u64() {
-        let data: Vec<([u8;8], u8, Vec<u8>)> = vec![
-            (8u64.to_be_bytes(), 4, vec![0b10000000]),
-            (33u64.to_be_bytes(), 6, vec![0b10000100])
+    pub fn test_write_bits() {
+        type InitialState = (Vec<u8>, u8);
+        type Input = ([u8; 8], u8);
+        type Result = (Vec<u8>, u8);
+        let data: Vec<(InitialState, Input, Result)> = vec![
+            ((vec![], 0),
+             (8u64.to_be_bytes(), 4),
+             (vec![0b10000000], 4)
+            ),
+            ((vec![], 0), (33u64.to_be_bytes(), 6), (vec![0b10000100], 2)),
+            ((vec![0x02, 64], 5),
+             (1u64.to_be_bytes(), 8),
+             (vec![0x02, 64, 32], 5)
+            )
         ];
 
-        for (v, l, res) in data {
-            let mut bstream = Bstream::new();
+        for (
+            (data, remaining),
+            (v, l),
+            (res_d, res_r)
+        ) in data {
+            let mut bstream = Bstream {
+                data,
+                remaining,
+            };
             bstream.write_bits(v, l);
-            assert_eq!(bstream.data, res);
+            assert_eq!(bstream.data, res_d);
+            assert_eq!(bstream.remaining, res_r);
         }
     }
 }

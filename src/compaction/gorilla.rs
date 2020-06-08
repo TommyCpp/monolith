@@ -6,7 +6,7 @@ pub fn compact(data: Vec<TimePoint>) -> Vec<u8> {
     unimplemented!()
 }
 
-struct GorillaCompactor {
+pub struct GorillaCompactor {
     bstream: Bstream,
     // last timestamp
     t: Timestamp,
@@ -46,8 +46,8 @@ impl GorillaCompactor {
             self.bstream.append_bytes(&tp.value.to_be_bytes(), 0);
         } else if self.len == 1 {
             // In Gorilla's implementation, the second compressed timestamp should be 14 bits
-            // second comporessed timestamp should be delta between the first timestamp in time stream and the aligned start time
             // Because it's enough to cover the four hour interval and the time window in Gorilla is two.
+            // second comporessed timestamp should be delta between the first timestamp in time stream and the aligned start time
             // Again, in Prometheus, Instead of using 14 bits to store. They use the delta between first and second timestamp as the second compressed timestamp
             // Again, we follow prometheus' idea
             let t_delta = (tp.timestamp - self.t) as i64;
@@ -126,4 +126,63 @@ fn convert_to_u64(v: f64) -> u64 {
 // Find if the timestamp's meaningful in the `nbit` range.
 fn in_bit_range(t: i64, nbits: u8) -> bool {
     return -((1 << (nbits - 1)) - 1) as i64 <= t && t <= 1 << (nbits - 1) as i64;
+}
+
+
+#[cfg(test)]
+mod tests {
+    use crate::compaction::GorillaCompactor;
+    use crate::common::time_point::TimePoint;
+
+    #[test]
+    pub fn test_gorilla_compaction() {
+        type Timestream = Vec<(u64, f64)>;
+        let data: Vec<(Timestream, Vec<u8>, u8)> = vec![
+            (vec![(128, 1.5), (129, 1.5), (130, 1.5), (131, 1.5), (132, 1.5)],
+             vec![0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x80, // first timestamp
+                  0x3f, 0xf8, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, // first value
+                  0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x01, // first delta, which is 1
+                  0x0
+             ],
+             1
+            ),
+            (vec![(100, 1.5), (102, 1.5), (105, 1.5), (106, 1.5)],
+             vec![0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x64, // first timestamp
+                  0x3f, 0xf8, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, // first value
+                  0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x02, // first delta, which is 1
+                  0x40, 0x2b, 0xfc
+                 // How it works
+                 // First append 64 bit timestamp and 64 bit values
+                 // Then append delta between second timestamp and first timestamp, which is 1
+                 // Then append second value, whose xored value is 0, thus we append one bit 0
+                 // Now bstream looks like
+                 // 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x64, [first timestamp]
+                 // 0x3f, 0xf8, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, [first value]
+                 // 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x02, [first delta, which is 1]
+                 // 0b0[second value]
+                 // Then we start the third timestamp, we have delta of delta 3-2 = 1
+                 // So we put 10 and 2 as i8, which change the last byte into
+                 // 0b0[second value]1000000\001[third timestamp]
+                 // Then we append 0 since the third value is not changing.
+                 // 0b0[second value]1000000\001[third timestamp]0[third value]
+                 // Then we process the fourth timestamp, we have delta of delta 1-3 = -2
+                 // Thus we have last few bytes
+                 // 0b0[second value]1000000\001[third timestamp]0[third value]1011\111110[forth timestamp]
+                 // Now we append last 0 as the value is still not changing
+                 // as result
+                 // 0b0[second value]1000000\001[third timestamp]0[third value]1011\111110[forth timestamp]0[last value]0[not used]
+             ],
+             1
+            ),
+        ];
+
+        for (input, output, remaining) in data {
+            let mut compactor = GorillaCompactor::new();
+            for (t, v) in input {
+                compactor.compact(&TimePoint::new(t, v));
+            }
+            assert_eq!(compactor.bstream.data, output);
+            assert_eq!(compactor.bstream.remaining, remaining);
+        }
+    }
 }
