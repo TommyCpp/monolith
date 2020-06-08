@@ -2,13 +2,20 @@
 
 use crate::common::time_point::TimePoint;
 use std::ops::Deref;
+use std::io::{BufReader, Read, Write};
+use std::io;
+use crate::Timestamp;
 
 mod simple;
+mod gorilla;
+
+pub use gorilla::GorillaCompactor;
 
 // Compressor is used to compress the timestamp and values when the chunk goes to closed
 pub enum Compactor {
     // Facebook's tsdb
     // See https://www.vldb.org/pvldb/vol8/p1816-teller.pdf
+    // Implementation Reference https://github.com/prometheus/prometheus/blob/master/tsdb/chunkenc
     Gorilla,
 
     // Simple version of Gorilla
@@ -75,13 +82,13 @@ impl Bstream {
     }
 
     /// How many bit in this bit stream
-    pub fn len(&self) -> usize {
+    pub fn bitlen(&self) -> usize {
         self.data.len() * 8 - self.remaining as usize
     }
 
     /// append one of the bit stream to another
     pub fn append(&mut self, bstream: &Bstream) {
-        let bstream_len = bstream.len();
+        let bstream_len = bstream.bitlen();
         if bstream_len == 0 {
             return;
         }
@@ -99,22 +106,22 @@ impl Bstream {
                 mask >>= (8 - self.remaining);
                 *(self.data.last_mut().unwrap()) |= mask;
 
-                for i in 1..bstream.data.len() {
-                    let mut first = bstream.data.get(i - 1).unwrap().clone();
-                    let mut second = bstream.data.get(i).unwrap().clone();
+                for i in 0..(bstream.data.len() - 1) {
+                    let mut first = bstream.data.get(i).unwrap().clone();
+                    let mut second = bstream.data.get(i + 1).unwrap().clone();
                     first <<= self.remaining;
                     second >>= (8 - self.remaining);
                     first |= second;
                     self.data.push(first);
                 }
-                if self.remaining <= (8 - bstream.remaining) && bstream.data.len() > 1 {
+                if self.remaining <= (8 - bstream.remaining) {
                     // in this case, the last part in bstream is not empty, we need to add it
                     // if there is only one element in bstream.data, we already added it.
                     self.data.push(
                         bstream.data.last().unwrap().clone() << self.remaining);
                     self.remaining = bstream.remaining + self.remaining;
                 } else {
-                    self.remaining = bstream.remaining - self.remaining;
+                    self.remaining = (bstream.remaining as i8 - self.remaining as i8).abs() as u8;
                 }
             }
         } else {
@@ -123,8 +130,61 @@ impl Bstream {
             self.remaining = bstream.remaining as u8;
         }
     }
-}
 
+    pub fn append_bytes(&mut self, bytes: &[u8], remaining: u8) {
+        assert!(remaining <= 8 && remaining >= 0);
+        self.append(&mut Bstream {
+            data: Vec::from(bytes),
+            remaining,
+        })
+    }
+
+    // append delta of timestamps
+    // Here only `bits` bit is meaningful.
+    //
+    // For example, if bits is 7, it means the delta is within [-63, 64] and we only need put 7 bit into bstream
+    // value allowed here is [8, 16, 32, 64]
+    pub fn append_timestamp_delta(&mut self, delta: i64, bits: u8) {
+        match bits {
+            8 => {
+                let d = delta as i8;
+                self.append_bytes(&d.to_be_bytes(), 0);
+            }
+            16 => {
+                let d = delta as i16;
+                self.append_bytes(&d.to_be_bytes(), 0);
+            }
+            32 => {
+                let d = delta as i32;
+                self.append_bytes(&d.to_be_bytes(), 0);
+            }
+            64 => {
+                let d = delta as i64;
+                self.append_bytes(&d.to_be_bytes(), 0);
+            }
+            _ => {}
+        }
+    }
+
+
+    // Write bits into bstream.
+    // Note that here we will write from left and removing the leading value
+    // For example append_bits(0b00001010, 3) will write 010 into bstream.
+    pub fn write_bits(&mut self, bytes: [u8; 8], nbits: u8) {
+        let leading = 64 - nbits;
+        let val = bytes[usize::from(leading) / 8] << leading % 8;
+        self.append_bytes(&[val], leading % 8);
+        self.append_bytes(&bytes[(usize::from(leading) / 8 + 1)..8], 0);
+    }
+
+    pub fn write_one(&mut self) {
+        self.write(true);
+    }
+
+    pub fn write_zero(&mut self) {
+        self.write(false);
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -148,7 +208,7 @@ mod tests {
             (vec![0b10010010, 0b10000000], 7, vec![0b10000000], 7, vec![0b10010010, 0b11000000], 6),
             (vec![0b10000000], 0, vec![0b00000000], 0, vec![0b10000000, 0b00000000], 0),
             (vec![0b00000000], 4, vec![0b11110000, 0b10000000], 7, vec![0b00001111, 0b00001000], 3),
-            (vec![0b00000000], 4, vec![0b11110000, 0b10000100], 2, vec![0b00001111, 0b00001000,0b01000000], 6)
+            (vec![0b00000000], 4, vec![0b11110000, 0b10000100], 2, vec![0b00001111, 0b00001000, 0b01000000], 6)
         ];
 
         for (d1, r1, d2, r2, expect_data, expect_remaining) in data {
@@ -157,6 +217,38 @@ mod tests {
             bstream1.append(&bstream2);
             assert_eq!(expect_data, bstream1.data);
             assert_eq!(expect_remaining, bstream1.remaining)
+        }
+    }
+
+    #[test]
+    pub fn test_write_bits() {
+        type InitialState = (Vec<u8>, u8);
+        type Input = ([u8; 8], u8);
+        type Result = (Vec<u8>, u8);
+        let data: Vec<(InitialState, Input, Result)> = vec![
+            ((vec![], 0),
+             (8u64.to_be_bytes(), 4),
+             (vec![0b10000000], 4)
+            ),
+            ((vec![], 0), (33u64.to_be_bytes(), 6), (vec![0b10000100], 2)),
+            ((vec![0x02, 64], 5),
+             (1u64.to_be_bytes(), 8),
+             (vec![0x02, 64, 32], 5)
+            )
+        ];
+
+        for (
+            (data, remaining),
+            (v, l),
+            (res_d, res_r)
+        ) in data {
+            let mut bstream = Bstream {
+                data,
+                remaining,
+            };
+            bstream.write_bits(v, l);
+            assert_eq!(bstream.data, res_d);
+            assert_eq!(bstream.remaining, res_r);
         }
     }
 }
