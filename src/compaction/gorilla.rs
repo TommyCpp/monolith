@@ -15,7 +15,7 @@ pub struct GorillaCompactor {
     // last leading zero
     leading: u8,
     // last tailing zero
-    trailing: u8,
+    tailing: u8,
     // last delta
     d: i64,
     len: usize,
@@ -28,7 +28,7 @@ impl GorillaCompactor {
             d: 0,
             v: 0.0,
             leading: 0,
-            trailing: 0,
+            tailing: 0,
             t: 0,
             len: 0,
         }
@@ -87,7 +87,7 @@ impl GorillaCompactor {
             // Update value in self
             self.v = *value;
             self.leading = convert_to_u64(self.v.clone()).leading_zeros() as u8;
-            self.trailing = convert_to_u64(self.v.clone()).trailing_zeros() as u8;
+            self.tailing = convert_to_u64(self.v.clone()).trailing_zeros() as u8;
         } else {
             let xord: u64 = convert_to_u64(*value) ^ convert_to_u64(self.v.clone());
             if xord == 0 {
@@ -98,11 +98,11 @@ impl GorillaCompactor {
                 self.bstream.write_one();
                 let leading: u8 = xord.leading_zeros() as u8;
                 let trailing: u8 = xord.trailing_zeros() as u8;
-                if leading >= self.leading && trailing >= self.trailing {
+                if leading >= self.leading && trailing >= self.tailing {
                     self.bstream.write_zero();
-                    self.bstream.write_bits((xord >> self.trailing as u64).to_be_bytes(), 64 - self.leading - self.trailing);
+                    self.bstream.write_bits((xord >> self.tailing as u64).to_be_bytes(), 64 - self.leading - self.tailing);
                 } else {
-                    self.trailing = trailing;
+                    self.tailing = trailing;
                     self.leading = leading;
 
                     self.bstream.write_one();
@@ -115,6 +115,35 @@ impl GorillaCompactor {
                 }
             }
         }
+    }
+}
+
+pub struct GorillaExpander {
+    source: Bstream,
+    // current timestamp
+    t: Timestamp,
+    // current value
+    v: Value,
+    // current leading zero
+    leading: u8,
+    // current tailing zero
+    tailing: u8,
+    // currently delta
+    d: i64,
+    // timepoint index
+    idx: usize,
+}
+
+impl Iterator for GorillaExpander {
+    type Item = Timepoint;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.idx == 0{
+            // if first, we read the first 128 bit and convert them into (timestamps, values)
+        }
+
+        self.idx += 1;
+        None
     }
 }
 
@@ -151,26 +180,26 @@ mod tests {
                   0x3f, 0xf8, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, // first value
                   0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x02, // first delta, which is 1
                   0x40, 0x2b, 0xfc
-                 // How it works
-                 // First append 64 bit timestamp and 64 bit values
-                 // Then append delta between second timestamp and first timestamp, which is 1
-                 // Then append second value, whose xored value is 0, thus we append one bit 0
-                 // Now bstream looks like
-                 // 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x64, [first timestamp]
-                 // 0x3f, 0xf8, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, [first value]
-                 // 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x02, [first delta, which is 1]
-                 // 0b0[second value]
-                 // Then we start the third timestamp, we have delta of delta 3-2 = 1
-                 // So we put 10 and 2 as i8, which change the last byte into
-                 // 0b0[second value]1000000\001[third timestamp]
-                 // Then we append 0 since the third value is not changing.
-                 // 0b0[second value]1000000\001[third timestamp]0[third value]
-                 // Then we process the fourth timestamp, we have delta of delta 1-3 = -2
-                 // Thus we have last few bytes
-                 // 0b0[second value]1000000\001[third timestamp]0[third value]1011\111110[forth timestamp]
-                 // Now we append last 0 as the value is still not changing
-                 // as result
-                 // 0b0[second value]1000000\001[third timestamp]0[third value]1011\111110[forth timestamp]0[last value]0[not used]
+                  // How it works
+                  // First append 64 bit timestamp and 64 bit values
+                  // Then append delta between second timestamp and first timestamp, which is 1
+                  // Then append second value, whose xored value is 0, thus we append one bit 0
+                  // Now bstream looks like
+                  // 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x64, [first timestamp]
+                  // 0x3f, 0xf8, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, [first value]
+                  // 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x02, [first delta, which is 1]
+                  // 0b0[second value]
+                  // Then we start the third timestamp, we have delta of delta 3-2 = 1
+                  // So we put 10 and 2 as i8, which change the last byte into
+                  // 0b0[second value]1000000\001[third timestamp]
+                  // Then we append 0 since the third value is not changing.
+                  // 0b0[second value]1000000\001[third timestamp]0[third value]
+                  // Then we process the fourth timestamp, we have delta of delta 1-3 = -2
+                  // Thus we have last few bytes
+                  // 0b0[second value]1000000\001[third timestamp]0[third value]1011\111110[forth timestamp]
+                  // Now we append last 0 as the value is still not changing
+                  // as result
+                  // 0b0[second value]1000000\001[third timestamp]0[third value]1011\111110[forth timestamp]0[last value]0[not used]
              ],
              1
             ),

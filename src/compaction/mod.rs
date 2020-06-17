@@ -2,7 +2,7 @@
 
 use crate::common::time_point::TimePoint;
 use std::ops::Deref;
-use std::io::{BufReader, Read, Write};
+use std::io::{BufReader, Read, Write, Seek};
 use std::io;
 use crate::Timestamp;
 
@@ -10,6 +10,7 @@ mod simple;
 mod gorilla;
 
 pub use gorilla::GorillaCompactor;
+use futures::io::SeekFrom;
 
 // Compressor is used to compress the timestamp and values when the chunk goes to closed
 pub enum Compactor {
@@ -56,7 +57,7 @@ impl Bstream {
     }
 
     /// Create Bstream from one byte
-    pub fn from_bytes(data: Vec<u8>, remaining: u8) -> Bstream {
+    pub fn from_byte(data: Vec<u8>, remaining: u8) -> Bstream {
         Bstream {
             data,
             remaining,
@@ -184,7 +185,50 @@ impl Bstream {
     pub fn write_zero(&mut self) {
         self.write(false);
     }
+
+    /// Read bytes with byte index `idx`. If target byte is the last byte, return `remaining` as second return value. Otherwise, set second return value to be 0
+    pub fn read_bytes(&self, idx: usize) -> Option<(&u8, usize)> {
+        if idx < 0 || idx > self.data.len() {
+            None
+        } else if idx == self.data.len() - 1 {
+            Some((self.data.last().unwrap(), self.remaining as usize))
+        } else {
+            Some((self.data.get(idx) - 1, 0))
+        }
+    }
 }
+
+struct BstreamSeeker {
+    data: Bstream,
+    cursor: usize,
+}
+
+impl BstreamSeeker {
+    /// Read the next n bits from bstream
+    pub fn read_next_n_bit(&mut self, data: &mut [u8], n: usize) -> usize {
+        if self.cursor > self.data.bitlen() {
+            // if we already reach the end of the stream
+            0
+        } else {
+            // determine how many bits we actually need to put into data
+            let n = if self.cursor + n > self.data.bitlen() {
+                self.data.bitlen() - self.cursor
+            } else {
+                n
+            };
+            // fill data
+            let leading = self.cursor % 8;
+            //todo: get data.
+            n
+        }
+    }
+
+    /// Set the cursor
+    pub fn reset_cursor(&mut self, pos: usize) {
+        self.cursor = pos;
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -212,8 +256,8 @@ mod tests {
         ];
 
         for (d1, r1, d2, r2, expect_data, expect_remaining) in data {
-            let mut bstream1 = Bstream::from_bytes(d1, r1);
-            let mut bstream2 = Bstream::from_bytes(d2, r2);
+            let mut bstream1 = Bstream::from_byte(d1, r1);
+            let mut bstream2 = Bstream::from_byte(d2, r2);
             bstream1.append(&bstream2);
             assert_eq!(expect_data, bstream1.data);
             assert_eq!(expect_remaining, bstream1.remaining)
