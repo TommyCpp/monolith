@@ -135,7 +135,7 @@ pub struct GorillaExpander {
 }
 
 impl Iterator for GorillaExpander {
-    type Item = Timepoint;
+    type Item = TimePoint;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.idx == 0{

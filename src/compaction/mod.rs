@@ -187,13 +187,13 @@ impl Bstream {
     }
 
     /// Read bytes with byte index `idx`. If target byte is the last byte, return `remaining` as second return value. Otherwise, set second return value to be 0
-    pub fn read_bytes(&self, idx: usize) -> Option<(&u8, usize)> {
+    pub fn read_bytes(&self, idx: usize) -> Option<(u8, usize)> {
         if idx < 0 || idx > self.data.len() {
             None
         } else if idx == self.data.len() - 1 {
-            Some((self.data.last().unwrap(), self.remaining as usize))
+            Some((self.data.last().unwrap().clone(), self.remaining as usize))
         } else {
-            Some((self.data.get(idx) - 1, 0))
+            Some((self.data.get(idx).unwrap().clone(), 0))
         }
     }
 }
@@ -217,8 +217,20 @@ impl BstreamSeeker {
                 n
             };
             // fill data
-            let leading = self.cursor % 8;
-            //todo: get data.
+            let leading: u8 = (self.cursor % 8) as u8;
+            let mut cur = 0;
+            while cur * 8 < n {
+                let (mut first, _) = self.data.read_bytes(self.cursor / 8 + cur).unwrap();
+                first &= 0xff >> leading; // get last `8 - leading` bits
+                first <<= leading; // move them to left
+
+                let (mut second, _) = self.data.read_bytes(self.cursor / 8 + cur + 1)
+                    .unwrap_or((0x00u8, self.data.remaining as usize));
+                first |= second >> (8 - leading);
+
+                data[cur] = first;
+                cur += 1;
+            }
             n
         }
     }
@@ -232,7 +244,7 @@ impl BstreamSeeker {
 
 #[cfg(test)]
 mod tests {
-    use crate::compaction::Bstream;
+    use crate::compaction::{Bstream, BstreamSeeker};
 
     #[test]
     pub fn test_write_bstream() {
@@ -293,6 +305,46 @@ mod tests {
             bstream.write_bits(v, l);
             assert_eq!(bstream.data, res_d);
             assert_eq!(bstream.remaining, res_r);
+        }
+    }
+
+    #[test]
+    pub fn test_read_next_n_bits() {
+        type InitialState = (Vec<u8>, u8, u8); // current bytes, remaining, cursor index
+        type Input = u8;
+        type Result = (Vec<u8>, usize);
+
+        let data: Vec<(InitialState, Input, Result)> = vec![
+            (
+                (vec![0b01010101, 0b01111111, 0b11000000], 6, 1),
+                16,
+                (vec![0b10101010, 0b11111111], 16)
+            )
+        ];
+
+        for(
+            (data, remaining, cursor),
+            n_bits,
+            (res_data, res_u)
+        ) in data{
+            let mut seeker = BstreamSeeker{
+                data: Bstream{
+                    data,
+                    remaining
+                },
+                cursor: cursor as usize,
+            };
+
+            let mut v = vec![];
+            for _ in 0..res_u / 8 {
+                v.push(0x00)
+            }
+            if res_u % 8 != 0{
+                v.push(0x00)
+            }
+            let u = seeker.read_next_n_bit(v.as_mut_slice(), n_bits as usize);
+            assert_eq!(u, res_u);
+            assert_eq!(v, res_data);
         }
     }
 }
