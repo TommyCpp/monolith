@@ -36,6 +36,8 @@ impl Compactor {
     }
 }
 
+
+
 /// Stream of bit data, used to read and write bit data.
 ///
 /// Bstream is not thread safe.
@@ -43,7 +45,7 @@ impl Compactor {
 /// We must filling one byte before appending another one to data.
 /// The `remaining` indicates how may bit is available in current byte.
 ///
-struct Bstream {
+pub struct Bstream {
     data: Vec<u8>,
     remaining: u8, // the available bit in last byte
 }
@@ -188,7 +190,7 @@ impl Bstream {
 
     /// Read bytes with byte index `idx`. If target byte is the last byte, return `remaining` as second return value. Otherwise, set second return value to be 0
     pub fn read_bytes(&self, idx: usize) -> Option<(u8, usize)> {
-        if idx < 0 || idx > self.data.len() {
+        if idx < 0 || idx >= self.data.len() {
             None
         } else if idx == self.data.len() - 1 {
             Some((self.data.last().unwrap().clone(), self.remaining as usize))
@@ -204,6 +206,21 @@ struct BstreamSeeker {
 }
 
 impl BstreamSeeker {
+    pub fn new(data: Bstream) -> BstreamSeeker {
+        BstreamSeeker {
+            data,
+            cursor: 0,
+        }
+    }
+
+    pub fn new_with_cursor(data: Bstream, cursor: usize) -> BstreamSeeker {
+        BstreamSeeker {
+            data,
+            cursor,
+        }
+    }
+
+
     /// Read the next n bits from bstream
     pub fn read_next_n_bit(&mut self, data: &mut [u8], n: usize) -> usize {
         if self.cursor > self.data.bitlen() {
@@ -226,7 +243,7 @@ impl BstreamSeeker {
 
                 let (mut second, _) = self.data.read_bytes(self.cursor / 8 + cur + 1)
                     .unwrap_or((0x00u8, self.data.remaining as usize));
-                first |= second >> (8 - leading);
+                first |= second.checked_shr((8 - leading).into()).unwrap_or(0);
 
                 data[cur] = first;
                 cur += 1;
@@ -238,6 +255,11 @@ impl BstreamSeeker {
     /// Set the cursor
     pub fn reset_cursor(&mut self, pos: usize) {
         self.cursor = pos;
+    }
+
+    /// Get current cursor
+    pub fn get_cursor(&self) -> usize{
+        self.cursor
     }
 }
 
@@ -319,18 +341,28 @@ mod tests {
                 (vec![0b01010101, 0b01111111, 0b11000000], 6, 1),
                 16,
                 (vec![0b10101010, 0b11111111], 16)
+            ),
+            (
+                (vec![0b01111111, 0b11111111, 0b10101010], 0, 10),
+                16,
+                (vec![0b11111110, 0b10101000], 14)
+            ),
+            (
+                (vec![0b01101101, 0b10110010, 0b10111110], 1, 10),
+                16,
+                (vec![0b11001010, 0b11111000], 13)
             )
         ];
 
-        for(
+        for (
             (data, remaining, cursor),
             n_bits,
             (res_data, res_u)
-        ) in data{
-            let mut seeker = BstreamSeeker{
-                data: Bstream{
+        ) in data {
+            let mut seeker = BstreamSeeker {
+                data: Bstream {
                     data,
-                    remaining
+                    remaining,
                 },
                 cursor: cursor as usize,
             };
@@ -339,7 +371,7 @@ mod tests {
             for _ in 0..res_u / 8 {
                 v.push(0x00)
             }
-            if res_u % 8 != 0{
+            if res_u % 8 != 0 {
                 v.push(0x00)
             }
             let u = seeker.read_next_n_bit(v.as_mut_slice(), n_bits as usize);

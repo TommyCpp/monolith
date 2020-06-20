@@ -1,6 +1,7 @@
 use crate::common::time_point::TimePoint;
-use crate::compaction::Bstream;
+use crate::compaction::{Bstream, BstreamSeeker};
 use crate::{Timestamp, Value};
+use std::convert::TryInto;
 
 pub fn compact(data: Vec<TimePoint>) -> Vec<u8> {
     unimplemented!()
@@ -99,17 +100,17 @@ impl GorillaCompactor {
                 let leading: u8 = xord.leading_zeros() as u8;
                 let trailing: u8 = xord.trailing_zeros() as u8;
                 if leading >= self.leading && trailing >= self.tailing {
-                    self.bstream.write_zero();
-                    self.bstream.write_bits((xord >> self.tailing as u64).to_be_bytes(), 64 - self.leading - self.tailing);
+                    self.bstream.write_zero(); // write 10
+                    self.bstream.write_bits((xord >> self.tailing as u64).to_be_bytes(), std::mem::size_of::<Value>() as u8 - self.leading - self.tailing);
                 } else {
                     self.tailing = trailing;
                     self.leading = leading;
 
-                    self.bstream.write_one();
+                    self.bstream.write_one(); // write 11
                     // Use the next 5 bits to store len of leading zeros
                     self.bstream.write_bits((leading as u64).to_be_bytes(), 5);
 
-                    let sigbits = 64 - leading - trailing;
+                    let sigbits = std::mem::size_of::<Value>() as u8 - leading - trailing;
                     self.bstream.write_bits((sigbits as u64).to_be_bytes(), 6);
                     self.bstream.write_bits((xord >> trailing as u64).to_be_bytes(), sigbits);
                 }
@@ -118,8 +119,8 @@ impl GorillaCompactor {
     }
 }
 
-pub struct GorillaExpander {
-    source: Bstream,
+pub struct GorillaDecompactor {
+    source: BstreamSeeker,
     // current timestamp
     t: Timestamp,
     // current value
@@ -134,16 +135,204 @@ pub struct GorillaExpander {
     idx: usize,
 }
 
-impl Iterator for GorillaExpander {
+impl GorillaDecompactor {
+    pub fn new(bstream: Bstream) -> GorillaDecompactor {
+        GorillaDecompactor {
+            source: BstreamSeeker::new(bstream),
+            t: 0,
+            v: 0.0,
+            leading: 0,
+            tailing: 0,
+            d: 0,
+            idx: 0,
+        }
+    }
+
+    fn decompact_values(&mut self) -> Option<Value> {
+        let value_size = std::mem::size_of::<Value>();
+
+        // Decompact the values
+        let mut next_bytes = vec![0x00];
+        let mut value = self.v;
+        let rl = self.source.read_next_n_bit(next_bytes.as_mut_slice(), 2);
+        if rl > 2 || rl == 0 {
+            return None;
+        }
+        if rl == 1 || next_bytes == vec![0x00] {
+            // if the xord value equals to 0, reset cursor back 1 bits
+            self.source.reset_cursor(self.source.cursor - 1);
+        } else if next_bytes == vec![0x10] {
+            // if the xord flag equals to 10, then
+            // First get the len of value
+            let len = (value_size as u8 - self.leading - self.tailing) as usize;
+            let mut bytes = vec_with_len(value_size / 8);
+            let l = self.source.read_next_n_bit(bytes.as_mut_slice(), len);
+            if l != len {
+                return None;
+            }
+            let value = convert_to_f64(u64::from_be_bytes(bytes.as_slice().try_into().unwrap()) << self.tailing);
+            self.v = value;
+
+            return Some(value);
+        } else {
+            // if the xord flag equals to 11, then we use get next 5 bits to find leading zeros
+            let mut leading_zeros_bytes = vec![0x00];
+            let l = self.source.read_next_n_bit(leading_zeros_bytes.as_mut_slice(), 5);
+            if l != 5 {
+                return None;
+            }
+            let leading = u8::from_be_bytes((leading_zeros_bytes[0] >> 3).to_be_bytes());
+
+            let mut sigbits_len = vec![0x00];
+            let l = self.source.read_next_n_bit(sigbits_len.as_mut_slice(), 6);
+            if l != 6 {
+                return None;
+            }
+            let sig_len = u8::from_be_bytes((sigbits_len[0] >> 2).to_be_bytes());
+
+            let tailing = value_size as u8 - sig_len - leading;
+
+            let mut sigbit = vec_with_len(value_size / 8);
+            let l = self.source.read_next_n_bit(sigbit.as_mut_slice(), sig_len as usize);
+            if l != sig_len as usize {
+                return None;
+            }
+            // We need to left move `tailing` bits because we right moved when compacted/
+            let xord = convert_to_f64(u64::from_be_bytes(sigbit.as_slice().try_into().unwrap()) << tailing);
+            value = xor_f64(value, xord);
+
+
+            self.tailing = tailing;
+            self.leading = leading;
+            self.v = value;
+        }
+        return Some(value);
+    }
+
+    fn decompact_timestamp(&mut self, range: usize) -> Option<Timestamp> {
+        if !vec![8, 16, 32, 64].contains(&range) {
+            return None;
+        }
+
+        let mut bytes = vec_with_len(range / 8);
+        let l = self.source.read_next_n_bit(bytes.as_mut_slice(), range);
+        if l != range {
+            return None;
+        }
+        match range {
+            8 => {
+                self.d = i8::from_be_bytes(bytes.as_slice().try_into().unwrap()) as i64;
+            }
+            16 => {
+                self.d = i16::from_be_bytes(bytes.as_slice().try_into().unwrap()) as i64;
+            }
+            32 => {
+                self.d = i32::from_be_bytes(bytes.as_slice().try_into().unwrap()) as i64;
+            }
+            64 => {
+                self.d = i64::from_be_bytes(bytes.as_slice().try_into().unwrap());
+            }
+            _ => {
+                // should never been here.
+            }
+        }
+        let timestamp = self.t + self.d as u64;
+        Some(timestamp)
+    }
+}
+
+impl Iterator for GorillaDecompactor {
     type Item = TimePoint;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.idx == 0{
-            // if first, we read the first 128 bit and convert them into (timestamps, values)
-        }
+        let timestamp_size = std::mem::size_of::<Timestamp>();
+        let value_size = std::mem::size_of::<Value>();
 
-        self.idx += 1;
-        None
+        return if self.idx == 0 {
+            // if first, we read the first 128 bit and convert them into (timestamps, values)
+            let mut timepoint = vec_with_len((timestamp_size + value_size) / 8);
+            let l = self.source.read_next_n_bit(timepoint.as_mut_slice(), timestamp_size + value_size);
+            if l != 128 {
+                // if we fail to get the first 128, most likely we have a rouge data stream, abort
+                None
+            } else {
+                let (timestamp_bytes, value_bytes) = timepoint.split_at(timestamp_size);
+                let timestamp = Timestamp::from_be_bytes(timestamp_bytes.try_into().unwrap());
+                let value = Value::from_be_bytes(value_bytes.try_into().unwrap());
+
+                self.t = timestamp;
+                self.v = value;
+                self.idx += 1;
+
+                Some(TimePoint::new(timestamp, value))
+            }
+        } else if self.idx == 1 {
+            // If second, we need to extract the delta
+            let mut delta_v = vec_with_len(timestamp_size);
+            let l = self.source.read_next_n_bit(delta_v.as_mut_slice(), timestamp_size);
+            if l != timestamp_size {
+                return None;
+            }
+
+            let delta = i64::from_be_bytes(delta_v.as_slice().try_into().unwrap());
+            let timestamp = delta + self.t as i64;
+            if let Some(value) = self.decompact_values() {
+                self.idx += 1;
+                Some(TimePoint::new(timestamp as u64, value))
+            } else {
+                None
+            }
+        } else {
+            let mut dod_flag_bytes = vec![0x00]; // bytes of len of delta of delta
+            let l = self.source.read_next_n_bit(dod_flag_bytes.as_mut_slice(), 4);
+            if l == 0 || l > 4 {
+                return None;
+            }
+            let dod_flag_byte = dod_flag_bytes[0];
+            let mut timestamp = 0;
+            if dod_flag_byte ^ 0b00000000 == 0 {
+                // dod == 0
+                timestamp = self.t + self.d as u64;
+
+                self.t = timestamp;
+                self.source.reset_cursor(self.source.get_cursor() - 3);
+            } else if dod_flag_byte ^ 0b1000000 == 0 {
+                // dod is in next 8 bits
+                self.source.reset_cursor(self.source.get_cursor() - 2);
+                if let Some(ts) = self.decompact_timestamp(8) {
+                    timestamp = ts;
+                } else {
+                    return None;
+                }
+            } else if dod_flag_byte ^ 0b11000000 == 0 {
+                // dod is in next 16 bits
+                self.source.reset_cursor(self.source.get_cursor() - 1);
+                if let Some(ts) = self.decompact_timestamp(16) {
+                    timestamp = ts;
+                } else {
+                    return None;
+                }
+            } else if dod_flag_byte ^ 0b11100000 == 0 {
+                // dod is in next 32 bits
+                if let Some(ts) = self.decompact_timestamp(32) {
+                    timestamp = ts;
+                } else {
+                    return None;
+                }
+            } else {
+                if let Some(ts) = self.decompact_timestamp(64) {
+                    timestamp = ts;
+                } else {
+                    return None;
+                }
+            }
+            if let Some(value) = self.decompact_values() {
+                self.idx += 1;
+                Some(TimePoint::new(timestamp, value))
+            } else {
+                None
+            }
+        }
     }
 }
 
@@ -151,6 +340,21 @@ fn convert_to_u64(v: f64) -> u64 {
     u64::from_be_bytes(v.to_be_bytes())
 }
 
+fn convert_to_f64(v: u64) -> f64 {
+    f64::from_be_bytes(v.to_be_bytes())
+}
+
+fn xor_f64(a: f64, b: f64) -> f64 {
+    convert_to_f64(convert_to_u64(a) ^ convert_to_u64(b))
+}
+
+fn vec_with_len(len: usize) -> Vec<u8> {
+    let mut v = vec![];
+    for _ in 0..len {
+        v.push(0x00u8)
+    }
+    v
+}
 
 // Find if the timestamp's meaningful in the `nbit` range.
 fn in_bit_range(t: i64, nbits: u8) -> bool {
@@ -160,8 +364,10 @@ fn in_bit_range(t: i64, nbits: u8) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use crate::compaction::GorillaCompactor;
+    use crate::compaction::{GorillaCompactor, BstreamSeeker, Bstream};
     use crate::common::time_point::TimePoint;
+    use crate::compaction::gorilla::GorillaDecompactor;
+    use futures::SinkExt;
 
     #[test]
     pub fn test_gorilla_compaction() {
@@ -212,6 +418,33 @@ mod tests {
             }
             assert_eq!(compactor.bstream.data, output);
             assert_eq!(compactor.bstream.remaining, remaining);
+        }
+    }
+
+    #[test]
+    #[ignore]
+    //todo: pass this
+    pub fn test_gorilla_decompaction() {
+        type Timestream = Vec<(u64, f64)>;
+        let data: Vec<(Vec<u8>, u8, Timestream)> = vec![
+            (vec![0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x80, // first timestamp
+                  0x3f, 0xf8, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, // first value
+                  0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x01, // first delta, which is 1
+                  0x0
+            ],
+             1,
+             vec![(128, 1.5), (129, 1.5), (130, 1.5), (131, 1.5), (132, 1.5)]
+            )
+        ];
+
+        for (i_data, i_remain, tstream) in data {
+            let decompactor = GorillaDecompactor::new(Bstream {
+                data: i_data,
+                remaining: i_remain,
+            });
+            let res: Timestream = decompactor.into_iter()
+                .map(|tp| (tp.timestamp, tp.value)).collect::<Timestream>();
+            assert_eq!(tstream, res);
         }
     }
 }
