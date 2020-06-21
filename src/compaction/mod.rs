@@ -248,6 +248,7 @@ impl BstreamSeeker {
                 data[cur] = first;
                 cur += 1;
             }
+            self.cursor += n;
             n
         }
     }
