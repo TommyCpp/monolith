@@ -378,10 +378,10 @@ mod tests {
     use crate::compaction::gorilla::GorillaDecompactor;
     use futures::SinkExt;
 
-    #[test]
-    pub fn test_gorilla_compaction() {
-        type Timestream = Vec<(u64, f64)>;
-        let data: Vec<(Timestream, Vec<u8>, u8)> = vec![
+    type Timestream = Vec<(u64, f64)>;
+
+    fn get_test_data() -> Vec<(Timestream, Vec<u8>, u8)> {
+        vec![
             (vec![(128, 1.5), (129, 1.5), (130, 1.5), (131, 1.5), (132, 1.5)],
              vec![0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x80, // first timestamp
                   0x3f, 0xf8, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, // first value
@@ -498,10 +498,21 @@ mod tests {
             (vec![(1500, 1.6), (1687, 1.9), (2500, 6.7), (2501, 6.5)],
              vec![0, 0, 0, 0, 0, 0, 5, 220, 63, 249, 153, 153, 153, 153, 153, 154, 0, 0, 0, 0, 0, 0, 0, 187, 219, 143, 255, 255, 255, 255, 255, 255, 1, 57, 97, 255, 255, 37, 85, 85, 85, 85, 85, 94, 252, 212, 128, 0, 102, 102, 102, 102, 102, 102, 128],
              7
+            ),
+            (vec![(1000, 1.0), (1001, 2.0), (1002, -2f64)],
+             vec![0, 0, 0, 0, 0, 0, 3, 232, 63, 240, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 194, 95, 255, 96, 6],
+                1,
+            ),
+            (vec![(1000, 1.0), (1001, 200.0), (1002, -2f64)],
+             vec![0, 0, 0, 0, 0, 0, 3, 232, 63, 240, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 194, 127, 249, 150, 4, 32, 26, 64],
+             6,
             )
-        ];
+        ]
+    }
 
-        for (input, output, remaining) in data {
+    #[test]
+    pub fn test_gorilla_compaction() {
+        for (input, output, remaining) in get_test_data() {
             let mut compactor = GorillaCompactor::new();
             for (t, v) in input {
                 compactor.compact(&TimePoint::new(t, v));
@@ -514,45 +525,18 @@ mod tests {
     #[test]
     pub fn test_gorilla_decompaction() {
         type Timestream = Vec<(u64, f64)>;
-        let data: Vec<(Vec<u8>, u8, Timestream)> = vec![
-            (vec![0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x80, // first timestamp
-                  0x3f, 0xf8, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, // first value
-                  0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x01, // first delta, which is 1
-                  0x0
-            ],
-             1,
-             vec![(128, 1.5), (129, 1.5), (130, 1.5), (131, 1.5), (132, 1.5)]
-            ),
-            (vec![0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x64, // first timestamp
-                  0x3f, 0xf8, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, // first value
-                  0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x02, // first delta, which is 1
-                  0x40, 0x2b, 0xf8],
-             1,
-             vec![(100, 1.5), (102, 1.5), (105, 1.5), (106, 1.5)]
-            ),
-            (vec![0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x80, // first timestamp
-                  0x3f, 0xf8, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, // first value
-                  0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x01, // first delta, which is 1
-                  0xdf, 0x86, 0x66, 0x66, 0x66, 0x66, 0x66, 0x6a, 0x4c, 0xcc, 0xcc, 0xcc, 0xcc, 0xcd],
-             0,
-             vec![(128, 1.5), (129, 1.6), (130, 1.5625)]),
-            (vec![0, 0, 0, 0, 0, 0, 5, 220, 63, 249, 153, 153, 153, 153, 153, 154, 0, 0, 0, 0, 0, 0, 0, 187, 219, 143, 255, 255, 255, 255, 255, 255, 1, 57, 97, 255, 255, 37, 85, 85, 85, 85, 85, 94, 252, 212, 128, 0, 102, 102, 102, 102, 102, 102, 128],
-             7,
-             vec![(1500, 1.6), (1687, 1.9), (2500, 6.7), (2501, 6.5)]
-            )
-        ];
 
-        for (i_data, i_remain, tstream) in data {
+        for (decompacted_data, i_data, i_remain) in get_test_data() {
             let decompactor = GorillaDecompactor::new(Bstream {
                 data: i_data,
                 remaining: i_remain,
             });
             let res: Timestream = decompactor.into_iter()
                 .map(|tp| (tp.timestamp, tp.value)).collect::<Timestream>();
-            assert_eq!(res.len(), tstream.len());
+            assert_eq!(res.len(), decompacted_data.len());
             res
                 .iter()
-                .zip(tstream.iter())
+                .zip(decompacted_data.iter())
                 .map(|((ts, v), (ts_actual, v_actual))| {
                     assert_eq!(ts, ts_actual);
                     assert!((v.abs() - v_actual.abs()).abs() < 0.0000001);

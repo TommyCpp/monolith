@@ -37,7 +37,6 @@ impl Compactor {
 }
 
 
-
 /// Stream of bit data, used to read and write bit data.
 ///
 /// Bstream is not thread safe.
@@ -190,7 +189,7 @@ impl Bstream {
 
     /// Read bytes with byte index `idx`. If target byte is the last byte, return `remaining` as second return value. Otherwise, set second return value to be 0
     pub fn read_bytes(&self, idx: usize) -> Option<(u8, usize)> {
-        if idx < 0 || idx >= self.data.len() {
+        if idx >= self.data.len() {
             None
         } else if idx == self.data.len() - 1 {
             Some((self.data.last().unwrap().clone(), self.remaining as usize))
@@ -243,11 +242,23 @@ impl BstreamSeeker {
 
                 let (mut second, _) = self.data.read_bytes(self.cursor / 8 + cur + 1)
                     .unwrap_or((0x00u8, self.data.remaining as usize));
-                first |= second.checked_shr((8 - leading).into()).unwrap_or(0);
+                first |= second.checked_shr((8 - leading).into()).unwrap_or(0); // get first `leading` bits
 
                 data[cur] = first;
                 cur += 1;
             }
+
+            // Reset last few bit that should be zero
+            if cur != 0 {
+                let mut flag = 0xffu8;
+                if n % 8 != 0 {
+                    // deal with overflow
+                    flag <<= (8 - n % 8) as u8;
+                }
+                data[cur - 1] = flag & data[cur - 1];
+            }
+
+
             self.cursor += n;
             n
         }
@@ -259,7 +270,7 @@ impl BstreamSeeker {
     }
 
     /// Get current cursor
-    pub fn get_cursor(&self) -> usize{
+    pub fn get_cursor(&self) -> usize {
         self.cursor
     }
 }
@@ -352,13 +363,23 @@ mod tests {
                 (vec![0b01101101, 0b10110010, 0b10111110], 1, 10),
                 16,
                 (vec![0b11001010, 0b11111000], 13)
+            ),
+            (
+                (vec![0b01011111, 0b11111111, 0b01100000], 0, 5),
+                11,
+                (vec![0b11111111, 0b11100000], 11)
+            ),
+            (
+                (vec![0b01100010, 0b01011111], 0, 7),
+                6,
+                (vec![0b00101100], 6)
             )
         ];
 
         for (
             (data, remaining, cursor),
             n_bits,
-            (res_data, res_u)
+            (res_data, res_remaining)
         ) in data {
             let mut seeker = BstreamSeeker {
                 data: Bstream {
@@ -369,15 +390,12 @@ mod tests {
             };
 
             let mut v = vec![];
-            for _ in 0..res_u / 8 {
-                v.push(0x00)
-            }
-            if res_u % 8 != 0 {
+            for _ in 0..res_data.len() {
                 v.push(0x00)
             }
             let u = seeker.read_next_n_bit(v.as_mut_slice(), n_bits as usize);
-            assert_eq!(u, res_u);
             assert_eq!(v, res_data);
+            assert_eq!(u, res_remaining);
         }
     }
 }
