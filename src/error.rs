@@ -30,6 +30,8 @@ pub enum MonolithErr {
     SerdeYamlErr(serde_yaml::Error),
     #[fail(display = "Error from TiKv")]
     TiKvErr(tikv_client::Error),
+    #[fail(display = "Error when compaction or de-compaction")]
+    CompactionErr(crate::compaction::CompactionErr),
 }
 
 pub type Result<T> = std::result::Result<T, MonolithErr>;
@@ -92,7 +94,7 @@ impl std::convert::From<tikv_client::Error> for MonolithErr {
     }
 }
 
-impl std::convert::From<serde_yaml::Error> for MonolithErr{
+impl std::convert::From<serde_yaml::Error> for MonolithErr {
     fn from(err: serde_yaml::Error) -> Self {
         MonolithErr::SerdeYamlErr(err)
     }

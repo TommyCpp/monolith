@@ -107,6 +107,7 @@ impl<S: Storage, I: Indexer> Chunk<S, I> {
             info!("Chunk range {}, {}; but trying to insert {}", self.start_time, self.end_time, timepoint.timestamp);
             return Err(MonolithErr::OutOfRangeErr(self.start_time, self.end_time));
         }
+
         let id = self.indexer.get_series_id_by_labels(labels.clone())?;
         if id.is_none() {
             //insert new series
@@ -134,6 +135,7 @@ impl<S: Storage, I: Indexer> Chunk<S, I> {
             return Err(OutOfRangeErr(self.start_time, self.end_time));
         }
         let candidates = self.indexer.get_series_metadata_contains_labels(labels)?;
+
         let mut res = Vec::new();
         for (id, metadata) in candidates {
             let data = self.storage.read_time_series(id, start_time, end_time)?;

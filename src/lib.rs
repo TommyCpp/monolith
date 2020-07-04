@@ -22,6 +22,8 @@ pub use error::*;
 pub use db::MonolithDb;
 pub use backend::TiKvRawBackendSingleton;
 pub use backend::TiKvBackendConfigFile;
+pub use compaction::Compactor;
+pub use compaction::CompactType;
 
 pub type Timestamp = u64;
 pub type Value = f64;

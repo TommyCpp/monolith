@@ -4,35 +4,140 @@ use crate::common::time_point::TimePoint;
 use std::ops::Deref;
 use std::io::{BufReader, Read, Write, Seek};
 use std::io;
+use std::fs::File;
+
+use crate::{Result, MonolithErr};
 use crate::Timestamp;
 
 mod simple;
 mod gorilla;
 
 pub use gorilla::GorillaCompactor;
-use futures::io::SeekFrom;
-use std::fs::File;
+use crate::compaction::gorilla::GorillaDecompactor;
+use crate::compaction::CompactionErr::CompactionTypeDontMatch;
+
+pub enum CompactType {
+    Gorilla = 1,
+    Simple = 2,
+    None = 3,
+}
 
 // Compressor is used to compress the timestamp and values when the chunk goes to closed
 pub enum Compactor {
     // Facebook's tsdb
     // See https://www.vldb.org/pvldb/vol8/p1816-teller.pdf
     // Implementation Reference https://github.com/prometheus/prometheus/blob/master/tsdb/chunkenc
-    Gorilla,
+    Gorilla(GorillaCompactor),
 
     // Simple version of Gorilla
     // instead of change in bits, we use bytes.
+    // todo: implement it
     Simple,
+
+    // No compaction
+    None(Vec<u8>),
 }
 
 impl Compactor {
-    // Compress a stream of <timestamp, value> pairs
-    pub fn compact(&self, data: Vec<TimePoint>) -> Vec<u8> {
+    pub fn new(name: CompactType) -> Compactor {
+        match name {
+            CompactType::Gorilla => {
+                Compactor::Gorilla(GorillaCompactor::new())
+            }
+            CompactType::None => {
+                Compactor::None(vec![])
+            }
+            CompactType::Simple => {
+                Compactor::Simple
+            }
+        }
+    }
+
+    /// Compact a single time point
+    pub fn compact(&mut self, timepoint: &TimePoint) {
         match self {
-            &Compactor::Simple => {
+            &mut Compactor::Gorilla(ref mut compator) => {
+                compator.compact(timepoint);
+            }
+            &mut Compactor::None(ref mut _v) => {
+                for _b in &timepoint.timestamp.to_be_bytes() {
+                    _v.push(*_b);
+                }
+                for _b in &timepoint.value.to_be_bytes() {
+                    _v.push(*_b);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Compact a stream of <timestamp, value> pairs
+    /// ```
+    /// use monolith::Compactor;
+    /// use monolith::time_point::TimePoint;
+    /// use monolith::CompactType;
+    ///
+    /// fn main() {
+    ///     let tp = TimePoint::new(1, 1.0);
+    ///     let mut compactor = Compactor::new(CompactType::Gorilla);
+    ///     let res = compactor.compact_vec(vec![tp]);
+    /// }
+    /// ```
+    pub fn compact_vec(&mut self, data: Vec<TimePoint>) -> Vec<u8> {
+        match self {
+            &mut Compactor::Simple => {
                 vec![]
             }
-            &Compactor::Gorilla => unimplemented!(),
+            &mut Compactor::Gorilla(ref mut compator) => {
+                for tp in data {
+                    compator.compact(&tp);
+                }
+                let mut vec = compator.as_bytes_vec();
+
+                // Append Gorilla tag
+                vec.push(CompactType::Gorilla as u8);
+                vec
+            }
+            &mut Compactor::None(ref _v) => {
+                let mut vec = _v.clone();
+                vec.push(CompactType::None as u8);
+                vec
+            }
+        }
+    }
+}
+
+pub enum DeCompactor {
+    Gorilla(GorillaDecompactor),
+    None(Vec<u8>)
+}
+
+impl DeCompactor {
+    pub fn from(t: CompactType, mut data: Vec<u8>) -> Result<DeCompactor> {
+        match t {
+            CompactType::Gorilla => {
+                let t = data.pop().unwrap_or(0);
+                if t != CompactType::Gorilla as u8 {
+                    return Err(MonolithErr::CompactionErr(CompactionErr::CompactionTypeDontMatch(CompactType::Gorilla as u8, t)));
+                }
+                let bstream = Bstream::from_bytes(data);
+                let decompactor = GorillaDecompactor::new(bstream);
+                Ok(
+                    DeCompactor::Gorilla(decompactor)
+                )
+            }
+            CompactType::None => {
+                let t = data.pop().unwrap_or(0);
+                if t != CompactType::None as u8{
+                    return Err(
+                        MonolithErr::CompactionErr(CompactionErr::CompactionTypeDontMatch(CompactType::None as u8, t))
+                    );
+                }
+                Ok(
+                    DeCompactor::None(data)
+                )
+            },
+            _ => Err(MonolithErr::InternalErr("Not implemented".into())),
         }
     }
 }
@@ -296,6 +401,12 @@ impl BstreamSeeker {
     pub fn get_cursor(&self) -> usize {
         self.cursor
     }
+}
+
+#[derive(Debug, Fail)]
+pub enum CompactionErr {
+    #[fail(display = "Error when compaction or de-compaction")]
+    CompactionTypeDontMatch(u8, u8)
 }
 
 #[cfg(test)]
