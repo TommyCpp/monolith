@@ -11,6 +11,7 @@ mod gorilla;
 
 pub use gorilla::GorillaCompactor;
 use futures::io::SeekFrom;
+use std::fs::File;
 
 // Compressor is used to compress the timestamp and values when the chunk goes to closed
 pub enum Compactor {
@@ -57,8 +58,19 @@ impl Bstream {
         }
     }
 
-    /// Create Bstream from one byte
-    pub fn from_byte(data: Vec<u8>, remaining: u8) -> Bstream {
+    /// Create Bstream from vector of bytes and remaining
+    pub fn from(data: Vec<u8>, remaining: u8) -> Bstream {
+        Bstream {
+            data,
+            remaining,
+        }
+    }
+
+    /// Create Bstream from data, the remaining will be stored as last byte in u8 vectors.
+    ///
+    /// Note the difference with `Bstream::from`
+    pub fn from_bytes(mut data: Vec<u8>) -> Bstream {
+        let remaining = u8::from_be_bytes([data.pop().unwrap_or(0u8)]);
         Bstream {
             data,
             remaining,
@@ -197,6 +209,17 @@ impl Bstream {
             Some((self.data.get(idx).unwrap().clone(), 0))
         }
     }
+
+    /// Return underlying data with remaining encoded as last byte in byte vector
+    ///
+    /// Note that here we create a new byte vector instead of using data directly.
+    ///
+    /// Thus, changes made to `data` may not reflect in returned reference.
+    pub fn as_bytes_vec(&self) -> Vec<u8> {
+        let mut res = self.data.clone();
+        res.push(self.remaining.to_be_bytes()[0]);
+        res
+    }
 }
 
 struct BstreamSeeker {
@@ -275,10 +298,13 @@ impl BstreamSeeker {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use crate::compaction::{Bstream, BstreamSeeker};
+    use tempfile::{TempPath, TempDir};
+    use std::fs::File;
+    use std::fs;
+    use std::io::{Write, Read};
 
     #[test]
     pub fn test_write_bstream() {
@@ -302,8 +328,8 @@ mod tests {
         ];
 
         for (d1, r1, d2, r2, expect_data, expect_remaining) in data {
-            let mut bstream1 = Bstream::from_byte(d1, r1);
-            let mut bstream2 = Bstream::from_byte(d2, r2);
+            let mut bstream1 = Bstream::from(d1, r1);
+            let mut bstream2 = Bstream::from(d2, r2);
             bstream1.append(&bstream2);
             assert_eq!(expect_data, bstream1.data);
             assert_eq!(expect_remaining, bstream1.remaining)
@@ -397,5 +423,23 @@ mod tests {
             assert_eq!(v, res_data);
             assert_eq!(u, res_remaining);
         }
+    }
+
+    #[test]
+    pub fn test_bstream_serialization() {
+        let temp_dir = TempDir::new().unwrap();
+        let path = temp_dir.path().join("test_file");
+        let mut temp_file = File::create(path.as_path()).unwrap();
+        let bstream = Bstream::from(vec![0x11, 0x22, 0x33, 0x40], 3);
+
+        // write to file
+        temp_file.write(&bstream.as_bytes_vec());
+        temp_file.flush();
+
+        // read from file
+        let data = fs::read(path.as_path()).unwrap();
+        let read_bstream = Bstream::from_bytes(data);
+        assert_eq!(bstream.data, vec![0x11, 0x22, 0x33, 0x40]);
+        assert_eq!(bstream.remaining, 3);
     }
 }
