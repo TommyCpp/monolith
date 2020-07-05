@@ -30,7 +30,7 @@ pub enum MonolithErr {
     SerdeYamlErr(serde_yaml::Error),
     #[fail(display = "Error from TiKv")]
     TiKvErr(tikv_client::Error),
-    #[fail(display = "Error when compaction or de-compaction")]
+    #[fail(display = "Error when compaction or de-compaction, {}", _0)]
     CompactionErr(crate::compaction::CompactionErr),
 }
 

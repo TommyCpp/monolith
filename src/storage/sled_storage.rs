@@ -116,6 +116,7 @@ impl Encoder for KvStorageProcessor {
 impl Decoder for KvStorageProcessor {
     fn decode_time_point(raw: &[u8]) -> Result<TimePoint> {
         if raw.len() != 16 {
+            // todo: use std:mem::sizeof function to get len in case we change timestamp or value type.
             return Err(MonolithErr::InternalErr("Wrong number of bytes in input".to_string()));
         }
         let (timestamp_bytes, value_bytes) = raw.split_at(std::mem::size_of::<Timestamp>());

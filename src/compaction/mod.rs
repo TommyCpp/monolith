@@ -3,10 +3,10 @@
 use crate::common::time_point::TimePoint;
 use std::ops::Deref;
 use std::io::{BufReader, Read, Write, Seek};
-use std::io;
+use std::{io, result};
 use std::fs::File;
 
-use crate::{Result, MonolithErr};
+use crate::{Result, MonolithErr, Value};
 use crate::Timestamp;
 
 mod simple;
@@ -15,6 +15,17 @@ mod gorilla;
 pub use gorilla::GorillaCompactor;
 use crate::compaction::gorilla::GorillaDecompactor;
 use crate::compaction::CompactionErr::CompactionTypeDontMatch;
+use std::iter::FromIterator;
+use crate::proto::TimeSeries;
+use std::convert::TryInto;
+use std::fmt::{Debug, Error};
+use failure::_core::fmt::Formatter;
+
+macro_rules! compaction_error {
+    ($err:expr) => {
+        MonolithErr::CompactionErr($err)
+    };
+}
 
 pub enum CompactType {
     Gorilla = 1,
@@ -73,9 +84,8 @@ impl Compactor {
 
     /// Compact a stream of <timestamp, value> pairs
     /// ```
-    /// use monolith::Compactor;
+    /// use monolith::compaction::{Compactor, CompactType};
     /// use monolith::time_point::TimePoint;
-    /// use monolith::CompactType;
     ///
     /// fn main() {
     ///     let tp = TimePoint::new(1, 1.0);
@@ -86,7 +96,7 @@ impl Compactor {
     pub fn compact_vec(&mut self, data: Vec<TimePoint>) -> Vec<u8> {
         match self {
             &mut Compactor::Simple => {
-                vec![]
+                unimplemented!()
             }
             &mut Compactor::Gorilla(ref mut compator) => {
                 for tp in data {
@@ -105,15 +115,36 @@ impl Compactor {
             }
         }
     }
+
+
+    /// Get bytes vector based on current state of bstream.
+    ///
+    pub fn get_bytes_vec(&self) -> Vec<u8> {
+        match self {
+            &Compactor::Simple => {
+                unimplemented!()
+            }
+            &Compactor::Gorilla(ref compactor) => {
+                let mut vec = compactor.as_bytes_vec();
+                vec.push(CompactType::Gorilla as u8);
+                vec
+            }
+            &Compactor::None(ref _v) => {
+                let mut vec = _v.clone();
+                vec.push(CompactType::None as u8);
+                vec
+            }
+        }
+    }
 }
 
-pub enum DeCompactor {
+pub enum Decompactor {
     Gorilla(GorillaDecompactor),
-    None(Vec<u8>)
+    None(Vec<u8>),
 }
 
-impl DeCompactor {
-    pub fn from(t: CompactType, mut data: Vec<u8>) -> Result<DeCompactor> {
+impl Decompactor {
+    pub fn from(t: CompactType, mut data: Vec<u8>) -> Result<Decompactor> {
         match t {
             CompactType::Gorilla => {
                 let t = data.pop().unwrap_or(0);
@@ -123,21 +154,41 @@ impl DeCompactor {
                 let bstream = Bstream::from_bytes(data);
                 let decompactor = GorillaDecompactor::new(bstream);
                 Ok(
-                    DeCompactor::Gorilla(decompactor)
+                    Decompactor::Gorilla(decompactor)
                 )
             }
             CompactType::None => {
                 let t = data.pop().unwrap_or(0);
-                if t != CompactType::None as u8{
+                if t != CompactType::None as u8 {
                     return Err(
-                        MonolithErr::CompactionErr(CompactionErr::CompactionTypeDontMatch(CompactType::None as u8, t))
+                        compaction_error!(CompactionErr::CompactionTypeDontMatch(CompactType::None as u8, t))
                     );
                 }
                 Ok(
-                    DeCompactor::None(data)
+                    Decompactor::None(data)
                 )
-            },
+            }
             _ => Err(MonolithErr::InternalErr("Not implemented".into())),
+        }
+    }
+
+    pub fn decompact(&mut self) -> Result<Vec<TimePoint>> {
+        match self {
+            &mut Decompactor::Gorilla(ref decompactor) => {
+                Ok(Vec::from_iter(decompactor.clone()))
+            }
+            &mut Decompactor::None(ref _v) => {
+                let timepoint_size =
+                    std::mem::size_of::<Timestamp>() * 8 + std::mem::size_of::<Value>();
+                let mut res = vec![];
+                for _b in _v.chunks(timepoint_size) {
+                    let (timestamp_bytes, value_bytes) = _b.split_at(std::mem::size_of::<Timestamp>());
+                    let timestamp = Timestamp::from_be_bytes(timestamp_bytes.try_into().unwrap());
+                    let value = Value::from_be_bytes(value_bytes.try_into().unwrap());
+                    res.push(TimePoint::new(timestamp, value));
+                }
+                Ok(res)
+            }
         }
     }
 }
@@ -150,7 +201,8 @@ impl DeCompactor {
 /// We must filling one byte before appending another one to data.
 /// The `remaining` indicates how may bit is available in current byte.
 ///
-pub struct Bstream {
+#[derive(Clone)]
+pub(crate) struct Bstream {
     data: Vec<u8>,
     remaining: u8, // the available bit in last byte
 }
@@ -327,7 +379,8 @@ impl Bstream {
     }
 }
 
-struct BstreamSeeker {
+#[derive(Clone)]
+pub(crate) struct BstreamSeeker {
     data: Bstream,
     cursor: usize,
 }
@@ -405,17 +458,20 @@ impl BstreamSeeker {
 
 #[derive(Debug, Fail)]
 pub enum CompactionErr {
-    #[fail(display = "Error when compaction or de-compaction")]
+    #[fail(display = "Error when compaction or de-compaction, was expecting type {}, but getting type {}", _0, _1)]
     CompactionTypeDontMatch(u8, u8)
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::compaction::{Bstream, BstreamSeeker};
+    use crate::compaction::{Bstream, BstreamSeeker, Compactor, Decompactor, CompactType, CompactionErr};
+    use crate::MonolithErr;
     use tempfile::{TempPath, TempDir};
     use std::fs::File;
     use std::fs;
     use std::io::{Write, Read};
+    use crate::Result;
+    use crate::common::time_point::TimePoint;
 
     #[test]
     pub fn test_write_bstream() {
@@ -552,5 +608,38 @@ mod tests {
         let read_bstream = Bstream::from_bytes(data);
         assert_eq!(bstream.data, vec![0x11, 0x22, 0x33, 0x40]);
         assert_eq!(bstream.remaining, 3);
+    }
+
+    #[test]
+    pub fn test_compact_data() -> Result<()> {
+        let mut compactor = Compactor::new(CompactType::Gorilla);
+        compactor.compact(&TimePoint::new(12u64, 12.0));
+        let vec = compactor.get_bytes_vec();
+
+        let mut decompactor = Decompactor::from(CompactType::Gorilla, vec)?;
+        let mut res_vec = decompactor.decompact()?;
+        assert_eq!(res_vec.len(), 1);
+        assert_eq!(*res_vec.get(0).unwrap(), TimePoint::new(12u64, 12.0));
+
+        Ok(())
+    }
+
+    #[test]
+    pub fn test_compact_data_invalid_compact_type() -> Result<()>{
+        let vec = vec![0xf1, 0xf2, 0x00]; // last byte is 0
+        let mut decompactor_res = Decompactor::from(CompactType::None, vec);
+        assert!(decompactor_res.is_err());
+        match decompactor_res {
+            Err(MonolithErr::CompactionErr(CompactionErr::CompactionTypeDontMatch(_expect, _actual))) => {
+                assert_eq!(_expect, 3);
+                assert_eq!(_actual, 0);
+            },
+            _ => {
+                assert!(false); // fail
+            }
+        }
+
+        Ok(())
+
     }
 }

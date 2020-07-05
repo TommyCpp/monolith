@@ -127,6 +127,7 @@ impl GorillaCompactor {
     }
 }
 
+#[derive(Clone)]
 pub struct GorillaDecompactor {
     source: BstreamSeeker,
     // current timestamp
@@ -144,7 +145,7 @@ pub struct GorillaDecompactor {
 }
 
 impl GorillaDecompactor {
-    pub fn new(bstream: Bstream) -> GorillaDecompactor {
+    pub(crate) fn new(bstream: Bstream) -> GorillaDecompactor {
         GorillaDecompactor {
             source: BstreamSeeker::new(bstream),
             t: 0,
