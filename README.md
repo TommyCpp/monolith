@@ -42,7 +42,7 @@ For now, user can choose between two different kinds of backend for both storage
 Sled is a embedding key-value database. The API of Sled is similar with BTreeMap or any other map. 
 
 #### TiKV
-Tikv is a distributed transactional database. TiKV can be used as **shard** backend for both `Indexer` and `Storage`. `Chunk` will attach appropriate tag to distinguished data belong to which component. 
+Tikv is a distributed transactional database. TiKV can be used as **shared** backend for both `Indexer` and `Storage`. `Chunk` will attach appropriate tag to distinguished data belong to which component. 
 
 ### Development
 See [here](https://github.com/TommyCpp/monolith/tree/master/doc/development.md)
