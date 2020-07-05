@@ -17,7 +17,6 @@ clap = "2.33.0"
 sled = "0.22.1"
 tempfile = "3.0.7"
 criterion="0.3.0"
-grpcio = "0.5.0"
 protobuf = "2.8.0"
 tiny_http = "0.6"
 env_logger = "0.7.1"
@@ -29,7 +28,8 @@ serde_yaml = "0.8"
 futures = { version = "0.3.1", features = ["compat", "async-await", "thread-pool"] }
 uuid = { version = "0.8", features = ["v4"]}
 serde = { version = "1.0", features = ["derive"] }
-tikv-client = { git = "https://github.com/tikv/client-rust" }
+tikv-client = { git = "https://github.com/tikv/client-rust.git" }
+
 
 [dev-dependencies]
 assert_cmd = "1.0.1"
