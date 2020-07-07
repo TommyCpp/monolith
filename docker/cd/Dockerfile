@@ -1,6 +1,6 @@
 FROM rust as builder
 
-WORKDIR /opt/tarpaulin
+WORKDIR /opt/monolith
 
 RUN env USER=root cargo init .
 
@@ -11,6 +11,7 @@ RUN tar -C /usr/local -xzf go1.14.4.linux-amd64.tar.gz
 
 # Let's people find our Go binaries
 ENV PATH $PATH:/usr/local/go/bin
+ENV PWD /opt/monolith
 
 RUN go version
 
@@ -26,8 +27,8 @@ COPY Cargo.lock .
 #RUN mkdir .cargo
 #RUN cargo vendor > .cargo/config
 
-COPY src /opt/tarpaulin/src
-COPY benches /opt/tarpaulin/benches
+COPY src /opt/monolith/src
+COPY benches /opt/monolith/benches
 
-RUN cd /opt/tarpaulin/ && \
-    cargo check --verbose
+RUN cd /opt/monolith/ && \
+    cargo build --bins --release
