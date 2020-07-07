@@ -1,0 +1,14 @@
+## Write Ahead Log
+### Objective
+In order to reduce the IO, which is expensive. We should implement a in-memory cache for current opening chunk. And when that chunk get swapped. We can compact it and store it in backend. 
+
+But if the system crushes, we will loss all data in memory. Thus, it's necessary we have a WAL to record every operation we applied to the data store.
+
+### Possible Situation
+Note that currently, the chunk will store index information first, and based on the series id returned by `Indexer`. It will processed and store the time point. We will make sure that storing index is always happens before storing time point. And when and only when the index and time point stored in WAL, we will return result to client and change in memory.
+
+1. Crush before storing index. Nothing saved in memory or WAL.
+2. Crush after storing index in WAL. But not yet applied to memory. No effect. But when restored, we may find a empty time series.
+3. Crush after storing index in WAL and applying to memory. No effect since user will not get any response before `Storage` finishes. Again, we may find an empty time series when restored. 
+4. Crush after storing index, and the time point into WAL, but not yet applied to memory. If crushes, we can recover from WAL
+5. Crush happens after all operation. We can recover from WAL.
