@@ -5,6 +5,7 @@ use std::time::Duration;
 mod common;
 mod error;
 mod backend;
+mod wal;
 
 pub mod compaction;
 pub mod chunk;

@@ -12,3 +12,10 @@ Note that currently, the chunk will store index information first, and based on 
 3. Crush after storing index in WAL and applying to memory. No effect since user will not get any response before `Storage` finishes. Again, we may find an empty time series when restored. 
 4. Crush after storing index, and the time point into WAL, but not yet applied to memory. If crushes, we can recover from WAL
 5. Crush happens after all operation. We can recover from WAL.
+
+### Cache
+In most of implementation, WAL will have some kind of cache. For example, MongoDB flush wal's content every 100ms. So it's possible to lose the data we haven't flushed to disk yet. 
+
+Here, we must make sure that the index is up to date, that's to say **we must flush for every new time series**. But we can allow caching for time point data. 
+
+The reason is if the index get lost somehow, we may end up lose the status of time series id, which is a increasing series of unsigned 64bit integer. And we may issue the same time series id for different time series. However, if we lose some of the time point, it will not impact the whole system and generally we don't need all time point in time series.
