@@ -32,6 +32,8 @@ pub enum MonolithErr {
     TiKvErr(tikv_client::Error),
     #[fail(display = "Error when compaction or de-compaction, {}", _0)]
     CompactionErr(crate::compaction::CompactionErr),
+    #[fail(display= "Write ahead log error, {}", _0)]
+    WalErr(crate::wal::WalErr)
 }
 
 pub type Result<T> = std::result::Result<T, MonolithErr>;
