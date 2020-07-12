@@ -8,7 +8,7 @@ mod writer;
 /// Note that we only use the first three byte in this magic number
 /// User can still use the remaining 5 bytes to add more metadata
 /// Like WAL for different component
-const WAL_MAGIC_NUMBER: u64 = 0x57414C0000000000u64;
+pub(crate) const WAL_MAGIC_NUMBER: u64 = 0x57414C0000000000u64;
 
 // Wal File structure
 // |  component  | length  |
@@ -41,6 +41,7 @@ impl Clone for Entry {
     }
 }
 
+
 impl Default for Entry {
     fn default() -> Self {
         Entry {
@@ -53,10 +54,20 @@ impl Default for Entry {
 }
 
 impl Entry {
+    pub fn new(seq_id: u64, entry_type: EntryType) -> Entry {
+        Entry {
+            seq_id,
+            entry_type: entry_type as u8,
+            content: vec![],
+            crc: crc::crc32::Digest::new(crc::crc32::IEEE),
+        }
+    }
+
     pub fn get_bytes(&self) -> Vec<u8> {
         let _crc = self.crc.sum32();
         let mut _res = Vec::<u8>::from(&self.seq_id.to_be_bytes()[..]);
         _res.push(self.entry_type);
+        _res.extend_from_slice(&(self.content.len() as u16).to_be_bytes()[..]);
         _res.append(self.content.clone().as_mut());
         _res.extend_from_slice(&_crc.to_be_bytes()[..]);
 
@@ -94,6 +105,10 @@ pub enum FlushCache {
     None,
 }
 
+pub enum EntryType {
+    Default = 0, //
+}
+
 
 #[derive(Debug, Fail)]
 pub enum WalErr {
@@ -115,7 +130,7 @@ mod tests {
         entry.push(vec![1, 2, 3, 4]);
         let bytes = entry.get_bytes();
         let sum32 = crc::crc32::checksum_ieee(vec![1u8, 2, 3, 4].as_slice());
-        let mut result = vec![0u8, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4];
+        let mut result = vec![0u8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 1, 2, 3, 4];
         result.extend_from_slice(&sum32.to_be_bytes()[..]);
         assert_eq!(bytes, result)
     }
