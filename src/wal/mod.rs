@@ -1,6 +1,6 @@
-use std::path::PathBuf;
-use std::sync::{Mutex, Arc};
 use crc::Hasher32;
+use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 
 mod segment;
 mod writer;
@@ -17,7 +17,6 @@ pub(crate) const WAL_MAGIC_NUMBER: u64 = 0x57414C0000000000u64;
 // | Entries     | n * u64 |
 // | .......     | ....... |
 // | CRC64       | u64     |
-
 
 /// Entry encoding
 /// -----------------------------------------------------------------
@@ -41,7 +40,6 @@ impl Clone for Entry {
     }
 }
 
-
 impl Default for Entry {
     fn default() -> Self {
         Entry {
@@ -63,6 +61,10 @@ impl Entry {
         }
     }
 
+    pub fn len(&self) -> usize {
+        8 + 1 + self.content.len() + 4 // seq_id + entry_type + content + crc32
+    }
+
     pub fn get_bytes(&self) -> Vec<u8> {
         let _crc = self.crc.sum32();
         let mut _res = Vec::<u8>::from(&self.seq_id.to_be_bytes()[..]);
@@ -81,12 +83,16 @@ impl Entry {
 }
 
 pub struct WalConfig {
-    pub filepath: PathBuf
+    pub filepath: PathBuf,
 }
 
 pub enum FlushPolicy {
     TimeBased(std::time::Duration),
+    // flush based on the num of entries.
     NumBased(usize),
+    // flush based on the num of bytes. Note that there is no guarantee that we will flush at exact
+    // same size.
+    SizeBased(usize),
     // flush whenever insert data.
     Immediate,
 }
@@ -97,9 +103,14 @@ pub enum FlushCache {
         handler: std::thread::JoinHandle<()>,
         cache: Arc<Mutex<Vec<Entry>>>,
     },
-    NumBase {
-        size: usize,
+    NumBased {
+        limit: usize,
         idx: usize,
+        cache: Vec<Entry>,
+    },
+    SizeBased {
+        limit: usize,
+        size: usize, // num of bytes
         cache: Vec<Entry>,
     },
     None,
@@ -108,7 +119,6 @@ pub enum FlushCache {
 pub enum EntryType {
     Default = 0, //
 }
-
 
 #[derive(Debug, Fail)]
 pub enum WalErr {
