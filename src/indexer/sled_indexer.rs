@@ -3,14 +3,14 @@ use sled::Db;
 use crate::common::label::{Label, Labels};
 
 use crate::common::time_series::TimeSeriesId;
-use crate::{MonolithErr, Result, Builder, HasTypeName};
+use crate::{Builder, HasTypeName, MonolithErr, Result};
 use std::ops::Add;
 use std::path::{Path, PathBuf};
 
-use crate::indexer::Indexer;
-use crate::utils::intersect_time_series_id_vec;
 use crate::chunk::ChunkOpts;
 use crate::common::option::DbOpts;
+use crate::indexer::Indexer;
+use crate::utils::intersect_time_series_id_vec;
 
 const LABEL_REVERSE_PREFIX: &str = "LR";
 const LABEL_PREFIX: &str = "L";
@@ -74,7 +74,8 @@ impl Indexer for SledIndexer {
         let ids = self.get_series_id_contains_labels(labels)?;
         let mut res = Vec::new();
         for time_series_id in ids {
-            let labels_str = self.get(&KvIndexerProcessor::encode_time_series_id(time_series_id))?;
+            let labels_str =
+                self.get(&KvIndexerProcessor::encode_time_series_id(time_series_id))?;
             if labels_str.is_some() {
                 let labels = KvIndexerProcessor::decode_labels(labels_str.unwrap(), false)?;
                 res.push((time_series_id, labels))
@@ -125,7 +126,11 @@ impl Indexer for SledIndexer {
         );
 
         // from label to time series ids
-        let keys: Vec<String> = labels.vec().iter().map(KvIndexerProcessor::encode_label).collect();
+        let keys: Vec<String> = labels
+            .vec()
+            .iter()
+            .map(KvIndexerProcessor::encode_label)
+            .collect();
         for key in keys {
             let val = match tree.get(&key)? {
                 None => format!("{}", time_series_id),
@@ -140,13 +145,17 @@ impl Indexer for SledIndexer {
 
         Ok(())
     }
-
 }
 
 pub struct SledIndexerBuilder {}
 
 impl Builder<SledIndexer> for SledIndexerBuilder {
-    fn build(&self, path: String, _: Option<&ChunkOpts>, _: Option<&DbOpts>) -> Result<SledIndexer> {
+    fn build(
+        &self,
+        path: String,
+        _: Option<&ChunkOpts>,
+        _: Option<&DbOpts>,
+    ) -> Result<SledIndexer> {
         SledIndexer::new(PathBuf::from(path).as_path().join("indexer").as_path())
     }
 
@@ -155,11 +164,9 @@ impl Builder<SledIndexer> for SledIndexerBuilder {
     }
 
     fn read_from_chunk(&self, dir: &Path, _: Option<&ChunkOpts>) -> Result<Option<SledIndexer>> {
-        Ok(
-            Some(SledIndexer {
-                storage: sled::Db::start_default(dir)?
-            })
-        )
+        Ok(Some(SledIndexer {
+            storage: sled::Db::start_default(dir)?,
+        }))
     }
 
     fn write_config(&self, _dir: &Path) -> Result<()> {
@@ -177,11 +184,10 @@ impl SledIndexerBuilder {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use crate::common::label::{Label, Labels};
-    use crate::indexer::sled_indexer::{SledIndexer, KvIndexerProcessor};
+    use crate::indexer::sled_indexer::{KvIndexerProcessor, SledIndexer};
     use crate::Result;
     use tempfile::TempDir;
 
@@ -245,7 +251,7 @@ mod tests {
     }
 }
 
-pub(crate) struct KvIndexerProcessor{}
+pub(crate) struct KvIndexerProcessor {}
 
 impl KvIndexerProcessor {
     fn _encode_label(label: &Label) -> String {
@@ -297,7 +303,9 @@ impl KvIndexerProcessor {
             // Per Prometheus doc https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels
             // Label name must match regex [a-zA-Z_][a-zA-Z0-9_]*
             // Thus, we can always use the first = to split label name from label value
-            let equal_idx = pair.find("=").ok_or(MonolithErr::InternalErr("Cannot parse label data".to_string()))?;
+            let equal_idx = pair.find("=").ok_or(MonolithErr::InternalErr(
+                "Cannot parse label data".to_string(),
+            ))?;
             let (key, value_with_equal) = pair.split_at(equal_idx);
             let value = {
                 let mut s = String::from(value_with_equal);

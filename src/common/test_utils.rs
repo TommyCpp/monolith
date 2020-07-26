@@ -1,22 +1,21 @@
-use std::path::{Path};
-use crate::storage::Storage;
 use crate::indexer::Indexer;
+use crate::storage::Storage;
+use std::path::Path;
 
-use crate::{Result, Builder, Timestamp, Value, HasTypeName};
-use crate::label::Labels;
-use crate::common::time_series::TimeSeries;
-use crate::common::time_point::TimePoint;
 use crate::common::label::Label;
+use crate::common::time_point::TimePoint;
+use crate::common::time_series::TimeSeries;
+use crate::label::Labels;
 use crate::time_series::TimeSeriesId;
+use crate::{Builder, HasTypeName, Result, Timestamp, Value};
 
-use rand::Rng;
-use rand::distributions::Alphanumeric;
-use crate::common::option::DbOpts;
-use crate::chunk::ChunkOpts;
-use std::collections::BTreeMap;
 use crate::backend::tikv::TiKvRawBackend;
-use std::sync::{Mutex, Arc};
-
+use crate::chunk::ChunkOpts;
+use crate::common::option::DbOpts;
+use rand::distributions::Alphanumeric;
+use rand::Rng;
+use std::collections::BTreeMap;
+use std::sync::{Arc, Mutex};
 
 ///Stub Storage for testing
 pub struct StubStorage {}
@@ -32,13 +31,23 @@ impl Storage for StubStorage {
         unimplemented!()
     }
 
-    fn read_time_series(&self, _time_series_id: u64, _start_time: u64, _end_time: u64) -> Result<Vec<TimePoint>> {
+    fn read_time_series(
+        &self,
+        _time_series_id: u64,
+        _start_time: u64,
+        _end_time: u64,
+    ) -> Result<Vec<TimePoint>> {
         unimplemented!()
     }
 }
 
 impl Builder<StubStorage> for StubStorage {
-    fn build(&self, _path: String, _: Option<&ChunkOpts>, _: Option<&DbOpts>) -> Result<StubStorage> {
+    fn build(
+        &self,
+        _path: String,
+        _: Option<&ChunkOpts>,
+        _: Option<&DbOpts>,
+    ) -> Result<StubStorage> {
         Ok(StubStorage {})
     }
 
@@ -46,7 +55,7 @@ impl Builder<StubStorage> for StubStorage {
         unimplemented!()
     }
 
-    fn read_from_chunk(&self, _dir: &Path , _: Option<&ChunkOpts>) -> Result<Option<StubStorage>> {
+    fn read_from_chunk(&self, _dir: &Path, _: Option<&ChunkOpts>) -> Result<Option<StubStorage>> {
         unimplemented!()
     }
 
@@ -87,7 +96,12 @@ impl Indexer for StubIndexer {
 }
 
 impl Builder<StubIndexer> for StubIndexer {
-    fn build(&self, _path: String, _: Option<&ChunkOpts>, _: Option<&DbOpts>) -> Result<StubIndexer> {
+    fn build(
+        &self,
+        _path: String,
+        _: Option<&ChunkOpts>,
+        _: Option<&DbOpts>,
+    ) -> Result<StubIndexer> {
         Ok(StubIndexer {})
     }
 
@@ -111,7 +125,7 @@ impl Builder<StubIndexer> for StubIndexer {
 //todo: add internal concurrent test function, use a closure as param for real test logic.
 /// Ingester generate and ingest time series data with volume of user's choice.
 pub struct Ingester {
-    pub data: Vec<TimeSeries>
+    pub data: Vec<TimeSeries>,
 }
 
 impl Ingester {
@@ -126,20 +140,25 @@ impl Ingester {
     /// Same goes for the num_labels, if no value provided, then will randomly pick between 10 to 30 as num_labels
     ///
     /// All time point will have timestamps from start_time increasing by 100.
-    pub fn new(num_series: Option<usize>,
-               num_time_point: Option<usize>,
-               num_labels: Option<usize>,
-               start_time: Timestamp) -> Ingester {
+    pub fn new(
+        num_series: Option<usize>,
+        num_time_point: Option<usize>,
+        num_labels: Option<usize>,
+        start_time: Timestamp,
+    ) -> Ingester {
         Ingester {
-            data: (0..num_series.unwrap_or(rand::thread_rng().gen_range(10 as usize, 1000 as usize)))
+            data: (0..num_series
+                .unwrap_or(rand::thread_rng().gen_range(10 as usize, 1000 as usize)))
                 .map(|_n| Ingester::_generate_data(num_time_point, num_labels, start_time))
-                .collect::<Vec<TimeSeries>>()
+                .collect::<Vec<TimeSeries>>(),
         }
     }
 
-    pub fn from_data(ids: Vec<TimeSeriesId>,
-                     metadata: Vec<Vec<(&str, &str)>>,
-                     data: Vec<Vec<(Timestamp, Value)>>) -> Ingester {
+    pub fn from_data(
+        ids: Vec<TimeSeriesId>,
+        metadata: Vec<Vec<(&str, &str)>>,
+        data: Vec<Vec<(Timestamp, Value)>>,
+    ) -> Ingester {
         assert_eq!(ids.len(), metadata.len());
         assert_eq!(data.len(), metadata.len());
 
@@ -153,16 +172,19 @@ impl Ingester {
             for t in data.get(i).unwrap() {
                 time_points.push(TimePoint::new(t.clone().0, t.clone().1));
             }
-            let time_series = TimeSeries::from_data(*(ids.get(i).unwrap()), Labels::from_vec(meta), time_points);
+            let time_series =
+                TimeSeries::from_data(*(ids.get(i).unwrap()), Labels::from_vec(meta), time_points);
             res.push(time_series);
         }
 
-        Ingester {
-            data: res
-        }
+        Ingester { data: res }
     }
 
-    fn _generate_data(num_time_point: Option<usize>, num_labels: Option<usize>, start_time: Timestamp) -> TimeSeries {
+    fn _generate_data(
+        num_time_point: Option<usize>,
+        num_labels: Option<usize>,
+        start_time: Timestamp,
+    ) -> TimeSeries {
         let tp_size = num_time_point.unwrap_or(rand::thread_rng().gen_range(10, 100));
         let label_size = num_labels.unwrap_or(rand::thread_rng().gen_range(10, 30));
 
@@ -193,19 +215,18 @@ impl Ingester {
             labels.push(Label::new(key, val));
         }
 
-
         TimeSeries::from_data(0, Labels::from_vec(labels), tps)
     }
 }
 
 pub struct DummyTiKvBackend {
-    tree: Arc<Mutex<BTreeMap<Vec<u8>, Vec<u8>>>>
+    tree: Arc<Mutex<BTreeMap<Vec<u8>, Vec<u8>>>>,
 }
 
-impl Clone for DummyTiKvBackend{
+impl Clone for DummyTiKvBackend {
     fn clone(&self) -> Self {
         DummyTiKvBackend {
-            tree: self.tree.clone()
+            tree: self.tree.clone(),
         }
     }
 }
@@ -213,7 +234,7 @@ impl Clone for DummyTiKvBackend{
 impl DummyTiKvBackend {
     pub fn new() -> DummyTiKvBackend {
         DummyTiKvBackend {
-            tree: Arc::new(Mutex::new(BTreeMap::<Vec<u8>, Vec<u8>>::new()))
+            tree: Arc::new(Mutex::new(BTreeMap::<Vec<u8>, Vec<u8>>::new())),
         }
     }
 }

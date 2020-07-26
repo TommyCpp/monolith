@@ -3,12 +3,11 @@
 use clap::{App, Arg};
 
 use monolith::indexer::*;
-use monolith::storage::*;
 use monolith::option::{DbOpts, ServerOpts};
-use monolith::*;
 use monolith::server::MonolithServer;
+use monolith::storage::*;
+use monolith::*;
 use std::process::exit;
-
 
 #[macro_use]
 extern crate log;
@@ -55,8 +54,7 @@ fn main() {
             Arg::with_name(WORKER_NUM)
                 .long(WORKER_NUM)
                 .default_value(default_worker_num.as_str()),
-            Arg::with_name(TIKV_CONFIG)
-                .long(TIKV_CONFIG),
+            Arg::with_name(TIKV_CONFIG).long(TIKV_CONFIG),
         ])
         .get_matches();
 
@@ -66,82 +64,83 @@ fn main() {
     info!("Server options: \n {}", server_opts);
 
     let tikv_backend_singleton = if db_opts.tikv_config.is_some()
-        && (db_opts.indexer == TIKV_BACKEND || db_opts.storage == TIKV_BACKEND) {
+        && (db_opts.indexer == TIKV_BACKEND || db_opts.storage == TIKV_BACKEND)
+    {
         // if tikv config is provided and storage or indexer is tikv based
         // read config file
-        Some(TiKvRawBackendSingleton::from_config_file(
-            db_opts.tikv_config.clone().unwrap().as_path()).unwrap())
+        Some(
+            TiKvRawBackendSingleton::from_config_file(
+                db_opts.tikv_config.clone().unwrap().as_path(),
+            )
+            .unwrap(),
+        )
     } else {
-        if db_opts.indexer == TIKV_BACKEND || db_opts.storage == TIKV_BACKEND{
+        if db_opts.indexer == TIKV_BACKEND || db_opts.storage == TIKV_BACKEND {
             warn!("No TiKV config file provided, will use dry run mode; if you want to persist your data, please provide a tikv config file");
             Some(TiKvRawBackendSingleton::default())
-        } else{
+        } else {
             None
         }
     };
 
     macro_rules! build_storage {
         (TiKV) => {
-             TiKvStorageBuilder::new(tikv_backend_singleton.clone().unwrap()).unwrap()
+            TiKvStorageBuilder::new(tikv_backend_singleton.clone().unwrap()).unwrap()
         };
         (Sled) => {
-             SledStorageBuilder::new()
-        }
+            SledStorageBuilder::new()
+        };
     }
 
     macro_rules! build_indexer {
         (TiKV) => {
-          TiKvIndexerBuilder::new(tikv_backend_singleton.clone().unwrap()).unwrap()
+            TiKvIndexerBuilder::new(tikv_backend_singleton.clone().unwrap()).unwrap()
         };
         (Sled) => {
-           SledIndexerBuilder::new()
-        }
+            SledIndexerBuilder::new()
+        };
     }
-
 
     macro_rules! start_server {
         ($storage:ty, $indexer:ty, $storage_builder: ident, $indexer_builder: ident) => {
-                let db =
-                    MonolithDb::<$storage, $indexer>::new(
-                        db_opts, Box::new($storage_builder), Box::new($indexer_builder))
-                    .unwrap();
-                let server = MonolithServer::new(server_opts, db);
-                server.serve();
+            let db = MonolithDb::<$storage, $indexer>::new(
+                db_opts,
+                Box::new($storage_builder),
+                Box::new($indexer_builder),
+            )
+            .unwrap();
+            let server = MonolithServer::new(server_opts, db);
+            server.serve();
         };
     }
 
-
     match db_opts.storage.as_str() {
-        TIKV_BACKEND => {
-            match db_opts.indexer.as_str() {
-                TIKV_BACKEND => {
-                    let storage_builder = build_storage!(TiKV);
-                    let indexer_builder = build_indexer!(TiKV);
-                    start_server!(TiKvStorage, TiKvIndexer, storage_builder, indexer_builder);
-                }
-                SLED_BACKEND => {
-                    let storage_builder = build_storage!(TiKV);
-                    let indexer_builder = build_indexer!(Sled);
-                    start_server!(TiKvStorage, SledIndexer, storage_builder, indexer_builder);
-                }
-                _ => exit(1)
+        TIKV_BACKEND => match db_opts.indexer.as_str() {
+            TIKV_BACKEND => {
+                let storage_builder = build_storage!(TiKV);
+                let indexer_builder = build_indexer!(TiKV);
+                start_server!(TiKvStorage, TiKvIndexer, storage_builder, indexer_builder);
             }
-        }
-        SLED_BACKEND => {
-            match db_opts.indexer.as_str() {
-                TIKV_BACKEND => {
-                    let storage_builder = build_storage!(Sled);
-                    let indexer_builder = build_indexer!(TiKV);
-                    start_server!(SledStorage, TiKvIndexer, storage_builder, indexer_builder);
-                }
-                SLED_BACKEND => {
-                    let storage_builder = build_storage!(Sled);
-                    let indexer_builder = build_indexer!(Sled);
-                    start_server!(SledStorage, SledIndexer, storage_builder, indexer_builder);
-                }
-                _ => exit(1)
+            SLED_BACKEND => {
+                let storage_builder = build_storage!(TiKV);
+                let indexer_builder = build_indexer!(Sled);
+                start_server!(TiKvStorage, SledIndexer, storage_builder, indexer_builder);
             }
-        }
-        _ => exit(1)
+            _ => exit(1),
+        },
+        SLED_BACKEND => match db_opts.indexer.as_str() {
+            TIKV_BACKEND => {
+                let storage_builder = build_storage!(Sled);
+                let indexer_builder = build_indexer!(TiKV);
+                start_server!(SledStorage, TiKvIndexer, storage_builder, indexer_builder);
+            }
+            SLED_BACKEND => {
+                let storage_builder = build_storage!(Sled);
+                let indexer_builder = build_indexer!(Sled);
+                start_server!(SledStorage, SledIndexer, storage_builder, indexer_builder);
+            }
+            _ => exit(1),
+        },
+        _ => exit(1),
     };
 }

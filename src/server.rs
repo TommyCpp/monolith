@@ -1,25 +1,27 @@
 use crate::MonolithDb;
 
+use crate::common::label::{Label, Labels};
+use crate::common::time_series::TimeSeries;
+use crate::proto::{QueryResult, ReadRequest, ReadResponse, WriteRequest};
 use crate::storage::Storage;
 use crate::{Result, Timestamp};
-use crate::proto::{ReadRequest, ReadResponse, WriteRequest, QueryResult};
-use protobuf::{RepeatedField, Message, CodedInputStream, CodedOutputStream};
-use crate::common::label::{Labels, Label};
-use crate::common::time_series::TimeSeries;
-use tiny_http::{Server, Response, Request};
+use protobuf::{CodedInputStream, CodedOutputStream, Message, RepeatedField};
 use std::io::{Cursor, Read};
+use tiny_http::{Request, Response, Server};
 
 use crate::indexer::Indexer;
-use std::sync::Arc;
 use crate::option::ServerOpts;
+use std::sync::Arc;
 
 /// Http Server that accept Prometheus requests
 ///
 /// Note that the Prometheus remote storage requests using __unframed__ snappy encoding __proto__ object.
 ///
 pub struct MonolithServer<'a, S, I>
-    where S: Sync + Storage + Send + 'static,
-          I: Sync + Indexer + Send + 'static {
+where
+    S: Sync + Storage + Send + 'static,
+    I: Sync + Indexer + Send + 'static,
+{
     db: Arc<MonolithDb<S, I>>,
     port: i32,
     read_path: &'a str,
@@ -28,8 +30,10 @@ pub struct MonolithServer<'a, S, I>
 }
 
 impl<'a, S, I> MonolithServer<'a, S, I>
-    where S: Sync + Storage + Send + 'static,
-          I: Sync + Indexer + Send + 'static {
+where
+    S: Sync + Storage + Send + 'static,
+    I: Sync + Indexer + Send + 'static,
+{
     pub fn new(opts: ServerOpts<'a>, db: Arc<MonolithDb<S, I>>) -> Self {
         MonolithServer {
             db,
@@ -40,7 +44,6 @@ impl<'a, S, I> MonolithServer<'a, S, I>
         }
     }
 
-
     pub fn serve(self) -> Result<()> {
         let addr = format!("127.0.0.1:{}", self.port);
         let server = Server::http(addr).unwrap();
@@ -50,13 +53,10 @@ impl<'a, S, I> MonolithServer<'a, S, I>
             .build()
             .unwrap();
 
-
         for request in server.incoming_requests() {
             let server = self.clone();
             //do we need a context and a time out in case some thread stuck for some reason?
-            workers.install(move || {
-                MonolithServer::_process(server, request)
-            });
+            workers.install(move || MonolithServer::_process(server, request));
         }
 
         Ok(())
@@ -78,7 +78,10 @@ impl<'a, S, I> MonolithServer<'a, S, I>
                 let read = read_req.merge_from(&mut input_stream);
                 if read.is_err() || read_req.compute_size() == 0 {
                     if read.is_err() {
-                        error!("Cannot read content from read request {}", read.err().unwrap());
+                        error!(
+                            "Cannot read content from read request {}",
+                            read.err().unwrap()
+                        );
                     } else {
                         error!("Empty request")
                     }
@@ -130,29 +133,35 @@ impl<'a, S, I> MonolithServer<'a, S, I>
     pub fn query(&self, read_rq: ReadRequest) -> Result<ReadResponse> {
         Ok(ReadResponse {
             results: RepeatedField::from(
-                read_rq.queries.iter()
-                    .map(|q|
-                        self.db.query(
-                            Labels::from_vec(
-                                q.matchers.iter()
-                                    .map(Label::from_label_matcher)
-                                    .collect::<Vec<Label>>()
-                            ),
-                            q.start_timestamp_ms as Timestamp,
-                            q.end_timestamp_ms as Timestamp)
-                            .ok().unwrap_or(Vec::new())
+                read_rq
+                    .queries
+                    .iter()
+                    .map(|q| {
+                        self.db
+                            .query(
+                                Labels::from_vec(
+                                    q.matchers
+                                        .iter()
+                                        .map(Label::from_label_matcher)
+                                        .collect::<Vec<Label>>(),
+                                ),
+                                q.start_timestamp_ms as Timestamp,
+                                q.end_timestamp_ms as Timestamp,
+                            )
+                            .ok()
+                            .unwrap_or(Vec::new())
                             .iter()
                             .map(crate::proto::TimeSeries::from)
                             .collect::<Vec<crate::proto::TimeSeries>>()
-                    )
-                    .map(|v: Vec<crate::proto::TimeSeries>| -> QueryResult{
+                    })
+                    .map(|v: Vec<crate::proto::TimeSeries>| -> QueryResult {
                         QueryResult {
                             timeseries: RepeatedField::from(v),
                             unknown_fields: Default::default(),
                             cached_size: Default::default(),
                         }
                     })
-                    .collect::<Vec<crate::proto::QueryResult>>()
+                    .collect::<Vec<crate::proto::QueryResult>>(),
             ),
             unknown_fields: Default::default(),
             cached_size: Default::default(),
@@ -162,7 +171,8 @@ impl<'a, S, I> MonolithServer<'a, S, I>
     pub fn write(&self, write_rq: WriteRequest) -> Result<()> {
         for time_series in write_rq.timeseries.to_vec() {
             let _ts: TimeSeries = TimeSeries::from(&time_series);
-            self.db.write_time_points(_ts.meta_data().clone(), _ts.time_points().clone())?
+            self.db
+                .write_time_points(_ts.meta_data().clone(), _ts.time_points().clone())?
         }
 
         Ok(())
@@ -170,8 +180,10 @@ impl<'a, S, I> MonolithServer<'a, S, I>
 }
 
 impl<'a, S, I> Clone for MonolithServer<'a, S, I>
-    where S: Sync + Send + Storage + 'static,
-          I: Sync + Send + Indexer + 'static {
+where
+    S: Sync + Send + Storage + 'static,
+    I: Sync + Send + Indexer + 'static,
+{
     fn clone(&self) -> Self {
         MonolithServer {
             db: Arc::clone(&self.db),
@@ -186,7 +198,6 @@ impl<'a, S, I> Clone for MonolithServer<'a, S, I>
 #[cfg(test)]
 mod tests {
     use crate::Result;
-
 
     #[test]
     #[ignore]

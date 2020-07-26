@@ -1,20 +1,19 @@
+use crate::chunk::ChunkOpts;
 use crate::common::ops::OrderIntersect;
-use crate::Result;
+use crate::common::option::DbOpts;
 use crate::common::time_series::TimeSeriesId;
+use crate::Result;
 use std::ops::Index;
+use std::path::Path;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
-use crate::chunk::ChunkOpts;
-use crate::common::option::DbOpts;
-use std::path::Path;
-
 
 pub mod label;
+pub mod metadata;
 pub mod option;
 pub mod time_point;
 pub mod time_series;
 pub mod utils;
-pub mod metadata;
 
 pub mod test_utils;
 
@@ -59,7 +58,12 @@ impl IdGenerator {
 ///
 /// Implementation may add more function to let user pass more configs or options
 pub trait Builder<T> {
-    fn build(&self, path: String, chunk_opts: Option<&ChunkOpts>, db_opts: Option<&DbOpts>) -> Result<T>;
+    fn build(
+        &self,
+        path: String,
+        chunk_opts: Option<&ChunkOpts>,
+        db_opts: Option<&DbOpts>,
+    ) -> Result<T>;
 
     /// Write config or metadata to chunk dir;
     fn write_to_chunk(&self, dir: &Path) -> Result<()>;
@@ -72,13 +76,11 @@ pub trait Builder<T> {
 
     /// Read additional config or metadata information from db dir.
     fn read_config(&self, dir: &Path) -> Result<()>;
-
 }
 
 pub trait HasTypeName {
     fn get_type_name() -> &'static str;
 }
-
 
 #[cfg(test)]
 mod test {

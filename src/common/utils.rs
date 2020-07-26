@@ -1,12 +1,12 @@
-use std::time::{SystemTime, UNIX_EPOCH};
-use crate::time_series::TimeSeriesId;
-use std::ops::Index;
 use crate::ops::OrderIntersect;
+use crate::time_series::TimeSeriesId;
 use crate::{MonolithErr, Result, Timestamp};
-use std::sync::mpsc::{channel, Sender, Receiver, TryRecvError};
-use std::{thread, fs};
-use std::path::Path;
 use std::fs::File;
+use std::ops::Index;
+use std::path::Path;
+use std::sync::mpsc::{channel, Receiver, Sender, TryRecvError};
+use std::time::{SystemTime, UNIX_EPOCH};
+use std::{fs, thread};
 
 pub fn is_duration_overlap(
     start_time_1: Timestamp,
@@ -19,8 +19,7 @@ pub fn is_duration_overlap(
 
 pub fn get_current_timestamp() -> Timestamp {
     let now = SystemTime::now();
-    let since_the_epoch = now.duration_since(UNIX_EPOCH)
-        .expect("Time went backwards");
+    let since_the_epoch = now.duration_since(UNIX_EPOCH).expect("Time went backwards");
     since_the_epoch.as_millis() as Timestamp
 }
 
@@ -40,7 +39,6 @@ pub fn decode_chunk_dir(dir_name: String) -> Result<(Timestamp, Timestamp)> {
 
     Ok((start_time, end_time))
 }
-
 
 /// Given a list of `TimeSeriesId` array, this function return the the `TimeSeriesId` that occur in all array
 ///
@@ -133,15 +131,10 @@ pub fn intersect_time_series_id_vec(mut ts: Vec<Vec<TimeSeriesId>>) -> Result<Ve
 ///
 /// Return None if no such file found
 pub fn get_file_from_dir(base_dir: &Path, filename: &'static str) -> Result<Option<File>> {
-    let file = Option::transpose(
-        fs::read_dir(base_dir)?
-            .find(|entry|
-                entry.is_ok()
-                    && entry.as_ref()
-                    .unwrap()
-                    .file_name()
-                    .into_string()
-                    .unwrap() == filename)).unwrap();
+    let file = Option::transpose(fs::read_dir(base_dir)?.find(|entry| {
+        entry.is_ok() && entry.as_ref().unwrap().file_name().into_string().unwrap() == filename
+    }))
+    .unwrap();
 
     return if file.is_some() {
         Ok(Some(File::open(file.unwrap().path())?))
@@ -152,8 +145,8 @@ pub fn get_file_from_dir(base_dir: &Path, filename: &'static str) -> Result<Opti
 
 #[cfg(test)]
 mod tests {
+    use crate::common::utils::{decode_chunk_dir, encode_chunk_dir, get_current_timestamp};
     use crate::Result;
-    use crate::common::utils::{encode_chunk_dir, decode_chunk_dir, get_current_timestamp};
 
     #[test]
     fn test_encode_chunk_dir() -> Result<()> {

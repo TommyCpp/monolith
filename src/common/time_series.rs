@@ -1,9 +1,8 @@
-use crate::common::label::{Labels, Label};
+use crate::common::label::{Label, Labels};
 
-use crate::common::time_point::{TimePoint};
+use crate::common::time_point::TimePoint;
 use crate::proto::Sample;
 use crate::{Timestamp, Value};
-
 
 pub type TimeSeriesId = u64;
 pub type LabelPointPairs = Vec<(Labels, Vec<TimePoint>)>;
@@ -49,11 +48,15 @@ impl TimeSeries {
     }
 }
 
-
 impl From<&TimeSeries> for crate::proto::TimeSeries {
     fn from(t: &TimeSeries) -> Self {
         crate::proto::TimeSeries {
-            labels: t.meta_data.vec().iter().map(crate::proto::Label::from).collect(),
+            labels: t
+                .meta_data
+                .vec()
+                .iter()
+                .map(crate::proto::Label::from)
+                .collect(),
             samples: t.time_points.iter().map(Sample::from).collect(),
             unknown_fields: Default::default(),
             cached_size: Default::default(),

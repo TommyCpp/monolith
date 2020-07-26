@@ -1,25 +1,25 @@
 #![allow(dead_code)]
 
 use crate::common::time_point::TimePoint;
-use std::ops::Deref;
-use std::io::{BufReader, Read, Write, Seek};
-use std::{io, result};
 use std::fs::File;
+use std::io::{BufReader, Read, Seek, Write};
+use std::ops::Deref;
+use std::{io, result};
 
-use crate::{Result, MonolithErr, Value};
 use crate::Timestamp;
+use crate::{MonolithErr, Result, Value};
 
-mod simple;
 mod gorilla;
+mod simple;
 
-pub use gorilla::GorillaCompactor;
 use crate::compaction::gorilla::GorillaDecompactor;
 use crate::compaction::CompactionErr::CompactionTypeDontMatch;
-use std::iter::FromIterator;
 use crate::proto::TimeSeries;
+use failure::_core::fmt::Formatter;
+pub use gorilla::GorillaCompactor;
 use std::convert::TryInto;
 use std::fmt::{Debug, Error};
-use failure::_core::fmt::Formatter;
+use std::iter::FromIterator;
 
 macro_rules! compaction_error {
     ($err:expr) => {
@@ -52,15 +52,9 @@ pub enum Compactor {
 impl Compactor {
     pub fn new(name: CompactType) -> Compactor {
         match name {
-            CompactType::Gorilla => {
-                Compactor::Gorilla(GorillaCompactor::new())
-            }
-            CompactType::None => {
-                Compactor::None(vec![])
-            }
-            CompactType::Simple => {
-                Compactor::Simple
-            }
+            CompactType::Gorilla => Compactor::Gorilla(GorillaCompactor::new()),
+            CompactType::None => Compactor::None(vec![]),
+            CompactType::Simple => Compactor::Simple,
         }
     }
 
@@ -95,9 +89,7 @@ impl Compactor {
     /// ```
     pub fn compact_vec(&mut self, data: Vec<TimePoint>) -> Vec<u8> {
         match self {
-            &mut Compactor::Simple => {
-                unimplemented!()
-            }
+            &mut Compactor::Simple => unimplemented!(),
             &mut Compactor::Gorilla(ref mut compator) => {
                 for tp in data {
                     compator.compact(&tp);
@@ -116,14 +108,11 @@ impl Compactor {
         }
     }
 
-
     /// Get bytes vector based on current state of bstream.
     ///
     pub fn get_bytes_vec(&self) -> Vec<u8> {
         match self {
-            &Compactor::Simple => {
-                unimplemented!()
-            }
+            &Compactor::Simple => unimplemented!(),
             &Compactor::Gorilla(ref compactor) => {
                 let mut vec = compactor.as_bytes_vec();
                 vec.push(CompactType::Gorilla as u8);
@@ -149,24 +138,23 @@ impl Decompactor {
             CompactType::Gorilla => {
                 let t = data.pop().unwrap_or(0);
                 if t != CompactType::Gorilla as u8 {
-                    return Err(MonolithErr::CompactionErr(CompactionErr::CompactionTypeDontMatch(CompactType::Gorilla as u8, t)));
+                    return Err(MonolithErr::CompactionErr(
+                        CompactionErr::CompactionTypeDontMatch(CompactType::Gorilla as u8, t),
+                    ));
                 }
                 let bstream = Bstream::from_bytes(data);
                 let decompactor = GorillaDecompactor::new(bstream);
-                Ok(
-                    Decompactor::Gorilla(decompactor)
-                )
+                Ok(Decompactor::Gorilla(decompactor))
             }
             CompactType::None => {
                 let t = data.pop().unwrap_or(0);
                 if t != CompactType::None as u8 {
-                    return Err(
-                        compaction_error!(CompactionErr::CompactionTypeDontMatch(CompactType::None as u8, t))
-                    );
+                    return Err(compaction_error!(CompactionErr::CompactionTypeDontMatch(
+                        CompactType::None as u8,
+                        t
+                    )));
                 }
-                Ok(
-                    Decompactor::None(data)
-                )
+                Ok(Decompactor::None(data))
             }
             _ => Err(MonolithErr::InternalErr("Not implemented".into())),
         }
@@ -174,15 +162,14 @@ impl Decompactor {
 
     pub fn decompact(&mut self) -> Result<Vec<TimePoint>> {
         match self {
-            &mut Decompactor::Gorilla(ref decompactor) => {
-                Ok(Vec::from_iter(decompactor.clone()))
-            }
+            &mut Decompactor::Gorilla(ref decompactor) => Ok(Vec::from_iter(decompactor.clone())),
             &mut Decompactor::None(ref _v) => {
                 let timepoint_size =
                     std::mem::size_of::<Timestamp>() * 8 + std::mem::size_of::<Value>();
                 let mut res = vec![];
                 for _b in _v.chunks(timepoint_size) {
-                    let (timestamp_bytes, value_bytes) = _b.split_at(std::mem::size_of::<Timestamp>());
+                    let (timestamp_bytes, value_bytes) =
+                        _b.split_at(std::mem::size_of::<Timestamp>());
                     let timestamp = Timestamp::from_be_bytes(timestamp_bytes.try_into().unwrap());
                     let value = Value::from_be_bytes(value_bytes.try_into().unwrap());
                     res.push(TimePoint::new(timestamp, value));
@@ -192,7 +179,6 @@ impl Decompactor {
         }
     }
 }
-
 
 /// Stream of bit data, used to read and write bit data.
 ///
@@ -217,10 +203,7 @@ impl Bstream {
 
     /// Create Bstream from vector of bytes and remaining
     pub fn from(data: Vec<u8>, remaining: u8) -> Bstream {
-        Bstream {
-            data,
-            remaining,
-        }
+        Bstream { data, remaining }
     }
 
     /// Create Bstream from data, the remaining will be stored as last byte in u8 vectors.
@@ -228,10 +211,7 @@ impl Bstream {
     /// Note the difference with `Bstream::from`
     pub fn from_bytes(mut data: Vec<u8>) -> Bstream {
         let remaining = u8::from_be_bytes([data.pop().unwrap_or(0u8)]);
-        Bstream {
-            data,
-            remaining,
-        }
+        Bstream { data, remaining }
     }
 
     /// Write a single bit to the end of bit stream
@@ -268,8 +248,8 @@ impl Bstream {
         if self.remaining != 0 {
             if bstream_len <= self.remaining as usize {
                 // if we have enough space left in current
-                *(self.data.last_mut().unwrap())
-                    |= bstream.data.get(0).unwrap().clone() >> (8 - self.remaining);
+                *(self.data.last_mut().unwrap()) |=
+                    bstream.data.get(0).unwrap().clone() >> (8 - self.remaining);
                 self.remaining -= bstream_len as u8;
             } else {
                 // Get the first part of the bits of bstream, which will be appended into current one.
@@ -288,8 +268,8 @@ impl Bstream {
                 if self.remaining <= (8 - bstream.remaining) {
                     // in this case, the last part in bstream is not empty, we need to add it
                     // if there is only one element in bstream.data, we already added it.
-                    self.data.push(
-                        bstream.data.last().unwrap().clone() << self.remaining);
+                    self.data
+                        .push(bstream.data.last().unwrap().clone() << self.remaining);
                     self.remaining = bstream.remaining + self.remaining;
                 } else {
                     self.remaining = (bstream.remaining as i8 - self.remaining as i8).abs() as u8;
@@ -336,7 +316,6 @@ impl Bstream {
             _ => {}
         }
     }
-
 
     // Write bits into bstream.
     // Note that here we will write from left and removing the leading value
@@ -387,19 +366,12 @@ pub(crate) struct BstreamSeeker {
 
 impl BstreamSeeker {
     pub fn new(data: Bstream) -> BstreamSeeker {
-        BstreamSeeker {
-            data,
-            cursor: 0,
-        }
+        BstreamSeeker { data, cursor: 0 }
     }
 
     pub fn new_with_cursor(data: Bstream, cursor: usize) -> BstreamSeeker {
-        BstreamSeeker {
-            data,
-            cursor,
-        }
+        BstreamSeeker { data, cursor }
     }
-
 
     /// Read the next n bits from bstream
     pub fn read_next_n_bit(&mut self, data: &mut [u8], n: usize) -> usize {
@@ -421,7 +393,9 @@ impl BstreamSeeker {
                 first &= 0xff >> leading; // get last `8 - leading` bits
                 first <<= leading; // move them to left
 
-                let (mut second, _) = self.data.read_bytes(self.cursor / 8 + cur + 1)
+                let (mut second, _) = self
+                    .data
+                    .read_bytes(self.cursor / 8 + cur + 1)
                     .unwrap_or((0x00u8, self.data.remaining as usize));
                 first |= second.checked_shr((8 - leading).into()).unwrap_or(0); // get first `leading` bits
 
@@ -438,7 +412,6 @@ impl BstreamSeeker {
                 }
                 data[cur - 1] = flag & data[cur - 1];
             }
-
 
             self.cursor += n;
             n
@@ -458,20 +431,25 @@ impl BstreamSeeker {
 
 #[derive(Debug, Fail)]
 pub enum CompactionErr {
-    #[fail(display = "Error when compaction or de-compaction, was expecting type {}, but getting type {}", _0, _1)]
-    CompactionTypeDontMatch(u8, u8)
+    #[fail(
+        display = "Error when compaction or de-compaction, was expecting type {}, but getting type {}",
+        _0, _1
+    )]
+    CompactionTypeDontMatch(u8, u8),
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::compaction::{Bstream, BstreamSeeker, Compactor, Decompactor, CompactType, CompactionErr};
-    use crate::MonolithErr;
-    use tempfile::{TempPath, TempDir};
-    use std::fs::File;
-    use std::fs;
-    use std::io::{Write, Read};
-    use crate::Result;
     use crate::common::time_point::TimePoint;
+    use crate::compaction::{
+        Bstream, BstreamSeeker, CompactType, CompactionErr, Compactor, Decompactor,
+    };
+    use crate::MonolithErr;
+    use crate::Result;
+    use std::fs;
+    use std::fs::File;
+    use std::io::{Read, Write};
+    use tempfile::{TempDir, TempPath};
 
     #[test]
     pub fn test_write_bstream() {
@@ -488,10 +466,38 @@ mod tests {
     #[test]
     pub fn test_append_bstream() {
         let data: Vec<(Vec<u8>, u8, Vec<u8>, u8, Vec<u8>, u8)> = vec![
-            (vec![0b10010010, 0b10000000], 7, vec![0b10000000], 7, vec![0b10010010, 0b11000000], 6),
-            (vec![0b10000000], 0, vec![0b00000000], 0, vec![0b10000000, 0b00000000], 0),
-            (vec![0b00000000], 4, vec![0b11110000, 0b10000000], 7, vec![0b00001111, 0b00001000], 3),
-            (vec![0b00000000], 4, vec![0b11110000, 0b10000100], 2, vec![0b00001111, 0b00001000, 0b01000000], 6)
+            (
+                vec![0b10010010, 0b10000000],
+                7,
+                vec![0b10000000],
+                7,
+                vec![0b10010010, 0b11000000],
+                6,
+            ),
+            (
+                vec![0b10000000],
+                0,
+                vec![0b00000000],
+                0,
+                vec![0b10000000, 0b00000000],
+                0,
+            ),
+            (
+                vec![0b00000000],
+                4,
+                vec![0b11110000, 0b10000000],
+                7,
+                vec![0b00001111, 0b00001000],
+                3,
+            ),
+            (
+                vec![0b00000000],
+                4,
+                vec![0b11110000, 0b10000100],
+                2,
+                vec![0b00001111, 0b00001000, 0b01000000],
+                6,
+            ),
         ];
 
         for (d1, r1, d2, r2, expect_data, expect_remaining) in data {
@@ -509,26 +515,17 @@ mod tests {
         type Input = ([u8; 8], u8);
         type Result = (Vec<u8>, u8);
         let data: Vec<(InitialState, Input, Result)> = vec![
-            ((vec![], 0),
-             (8u64.to_be_bytes(), 4),
-             (vec![0b10000000], 4)
-            ),
+            ((vec![], 0), (8u64.to_be_bytes(), 4), (vec![0b10000000], 4)),
             ((vec![], 0), (33u64.to_be_bytes(), 6), (vec![0b10000100], 2)),
-            ((vec![0x02, 64], 5),
-             (1u64.to_be_bytes(), 8),
-             (vec![0x02, 64, 32], 5)
-            )
+            (
+                (vec![0x02, 64], 5),
+                (1u64.to_be_bytes(), 8),
+                (vec![0x02, 64, 32], 5),
+            ),
         ];
 
-        for (
-            (data, remaining),
-            (v, l),
-            (res_d, res_r)
-        ) in data {
-            let mut bstream = Bstream {
-                data,
-                remaining,
-            };
+        for ((data, remaining), (v, l), (res_d, res_r)) in data {
+            let mut bstream = Bstream { data, remaining };
             bstream.write_bits(v, l);
             assert_eq!(bstream.data, res_d);
             assert_eq!(bstream.remaining, res_r);
@@ -545,40 +542,33 @@ mod tests {
             (
                 (vec![0b01010101, 0b01111111, 0b11000000], 6, 1),
                 16,
-                (vec![0b10101010, 0b11111111], 16)
+                (vec![0b10101010, 0b11111111], 16),
             ),
             (
                 (vec![0b01111111, 0b11111111, 0b10101010], 0, 10),
                 16,
-                (vec![0b11111110, 0b10101000], 14)
+                (vec![0b11111110, 0b10101000], 14),
             ),
             (
                 (vec![0b01101101, 0b10110010, 0b10111110], 1, 10),
                 16,
-                (vec![0b11001010, 0b11111000], 13)
+                (vec![0b11001010, 0b11111000], 13),
             ),
             (
                 (vec![0b01011111, 0b11111111, 0b01100000], 0, 5),
                 11,
-                (vec![0b11111111, 0b11100000], 11)
+                (vec![0b11111111, 0b11100000], 11),
             ),
             (
                 (vec![0b01100010, 0b01011111], 0, 7),
                 6,
-                (vec![0b00101100], 6)
-            )
+                (vec![0b00101100], 6),
+            ),
         ];
 
-        for (
-            (data, remaining, cursor),
-            n_bits,
-            (res_data, res_remaining)
-        ) in data {
+        for ((data, remaining, cursor), n_bits, (res_data, res_remaining)) in data {
             let mut seeker = BstreamSeeker {
-                data: Bstream {
-                    data,
-                    remaining,
-                },
+                data: Bstream { data, remaining },
                 cursor: cursor as usize,
             };
 
@@ -625,21 +615,23 @@ mod tests {
     }
 
     #[test]
-    pub fn test_compact_data_invalid_compact_type() -> Result<()>{
+    pub fn test_compact_data_invalid_compact_type() -> Result<()> {
         let vec = vec![0xf1, 0xf2, 0x00]; // last byte is 0
         let mut decompactor_res = Decompactor::from(CompactType::None, vec);
         assert!(decompactor_res.is_err());
         match decompactor_res {
-            Err(MonolithErr::CompactionErr(CompactionErr::CompactionTypeDontMatch(_expect, _actual))) => {
+            Err(MonolithErr::CompactionErr(CompactionErr::CompactionTypeDontMatch(
+                _expect,
+                _actual,
+            ))) => {
                 assert_eq!(_expect, 3);
                 assert_eq!(_actual, 0);
-            },
+            }
             _ => {
                 assert!(false); // fail
             }
         }
 
         Ok(())
-
     }
 }

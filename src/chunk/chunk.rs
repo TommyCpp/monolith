@@ -1,22 +1,22 @@
 use crate::common::label::Labels;
 use crate::common::time_point::TimePoint;
 use crate::common::time_series::TimeSeries;
-use crate::common::utils::{is_duration_overlap, get_current_timestamp};
+use crate::common::utils::{get_current_timestamp, is_duration_overlap};
 use crate::common::IdGenerator;
-use crate::{MonolithErr, Result, DEFAULT_CHUNK_SIZE, Timestamp, CHUNK_METADATA_FILENAME};
+use crate::{MonolithErr, Result, Timestamp, CHUNK_METADATA_FILENAME, DEFAULT_CHUNK_SIZE};
 
 use crate::storage::Storage;
 use crate::MonolithErr::OutOfRangeErr;
 
 use crate::indexer::Indexer;
-use std::sync::RwLock;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::RwLock;
 
-use std::io::BufWriter;
-use serde::{Serialize, Deserialize};
-use std::fs::File;
+use serde::{Deserialize, Serialize};
 use std::fs;
+use std::fs::File;
+use std::io::BufWriter;
 
 /// ChunkOps contains all options for chunk
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
@@ -34,7 +34,10 @@ impl ChunkOpts {
             let opts: ChunkOpts = serde_json::from_str(content.unwrap().as_str())?;
             Ok(opts)
         } else {
-            error!("Cannot open option file from dir {}", dir.as_os_str().to_str().unwrap_or("<unreadable path>"));
+            error!(
+                "Cannot open option file from dir {}",
+                dir.as_os_str().to_str().unwrap_or("<unreadable path>")
+            );
             Err(MonolithErr::NotFoundErr)
         };
     }
@@ -78,22 +81,25 @@ pub struct Chunk<S: Storage, I: Indexer> {
 
 impl<S: Storage, I: Indexer> Chunk<S, I> {
     pub fn new(storage: S, indexer: I, ops: &ChunkOpts) -> Self {
-        let start_time = ops
-            .start_time
-            .unwrap_or(get_current_timestamp());
+        let start_time = ops.start_time.unwrap_or(get_current_timestamp());
         Chunk {
             storage,
             indexer,
             start_time,
             mutex: RwLock::new(()),
-            end_time: ops.end_time.unwrap_or(start_time + DEFAULT_CHUNK_SIZE.parse::<Timestamp>().unwrap()),
+            end_time: ops
+                .end_time
+                .unwrap_or(start_time + DEFAULT_CHUNK_SIZE.parse::<Timestamp>().unwrap()),
             closed: AtomicBool::new(false),
             id_generator: IdGenerator::new(1),
         }
     }
 
     pub fn close(&self) {
-        let _m = self.mutex.write().expect("Poisoned mutex in chunk when try to close chunk");
+        let _m = self
+            .mutex
+            .write()
+            .expect("Poisoned mutex in chunk when try to close chunk");
         self.closed.store(true, Ordering::SeqCst)
     }
 
@@ -102,9 +108,15 @@ impl<S: Storage, I: Indexer> Chunk<S, I> {
     }
 
     pub fn insert(&self, labels: Labels, timepoint: TimePoint) -> Result<()> {
-        let _m = self.mutex.write().expect("Poisoned mutex when try to insert into chunk");
+        let _m = self
+            .mutex
+            .write()
+            .expect("Poisoned mutex when try to insert into chunk");
         if !self.is_in_range(&timepoint.timestamp) {
-            info!("Chunk range {}, {}; but trying to insert {}", self.start_time, self.end_time, timepoint.timestamp);
+            info!(
+                "Chunk range {}, {}; but trying to insert {}",
+                self.start_time, self.end_time, timepoint.timestamp
+            );
             return Err(MonolithErr::OutOfRangeErr(self.start_time, self.end_time));
         }
 
@@ -130,7 +142,9 @@ impl<S: Storage, I: Indexer> Chunk<S, I> {
         start_time: Timestamp,
         end_time: Timestamp,
     ) -> Result<Vec<TimeSeries>> {
-        self.mutex.read().expect("Poisoned mutex when try to read from chunk");
+        self.mutex
+            .read()
+            .expect("Poisoned mutex when try to read from chunk");
         if !is_duration_overlap(self.start_time, self.end_time, start_time, end_time) {
             return Err(OutOfRangeErr(self.start_time, self.end_time));
         }
@@ -162,7 +176,10 @@ impl<S: Storage, I: Indexer> Chunk<S, I> {
 }
 
 impl<S, I> PartialEq for Chunk<S, I>
-    where S: Storage, I: Indexer {
+where
+    S: Storage,
+    I: Indexer,
+{
     fn eq(&self, other: &Self) -> bool {
         self.start_time == other.start_time && self.end_time == other.end_time
     }
@@ -170,33 +187,42 @@ impl<S, I> PartialEq for Chunk<S, I>
 
 //todo: more precise equal strategy
 impl<S, I> Eq for Chunk<S, I>
-    where S: Storage, I: Indexer {}
+where
+    S: Storage,
+    I: Indexer,
+{
+}
 
 impl<S, I> PartialOrd for Chunk<S, I>
-    where S: Storage, I: Indexer {
+where
+    S: Storage,
+    I: Indexer,
+{
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.start_time.cmp(&other.start_time))
     }
 }
 
 impl<S, I> Ord for Chunk<S, I>
-    where S: Storage, I: Indexer {
+where
+    S: Storage,
+    I: Indexer,
+{
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.partial_cmp(other).unwrap()
     }
 }
 
-
 #[cfg(test)]
 mod test {
-    use tempfile::TempDir;
     use crate::chunk::ChunkOpts;
-    use crate::{Result, CHUNK_METADATA_FILENAME};
-    use std::path::PathBuf;
     use crate::common::utils::encode_chunk_dir;
+    use crate::{Result, CHUNK_METADATA_FILENAME};
     use std::fs;
-    use std::io::{BufWriter, Write};
     use std::fs::File;
+    use std::io::{BufWriter, Write};
+    use std::path::PathBuf;
+    use tempfile::TempDir;
 
     #[test]
     pub fn test_write_config_to_dir() -> Result<()> {

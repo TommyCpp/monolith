@@ -1,14 +1,14 @@
-use monolith::indexer::{SledIndexer, Indexer};
+use monolith::chunk::{Chunk, ChunkOpts};
+use monolith::indexer::{Indexer, SledIndexer};
 use monolith::label::{Label, Labels};
 use monolith::storage::{SledStorage, Storage};
+use monolith::test_utils::Ingester;
 use monolith::time_point::TimePoint;
 use monolith::time_series::TimeSeriesId;
 use monolith::Result;
-use tempfile::TempDir;
-use monolith::chunk::{ChunkOpts, Chunk};
-use monolith::test_utils::Ingester;
-use std::thread;
 use std::sync::Arc;
+use std::thread;
+use tempfile::TempDir;
 
 use std::collections::BTreeSet;
 use std::iter::FromIterator;
@@ -30,7 +30,8 @@ fn test_query() -> Result<()> {
             vec![(120, 12.9), (160, 13.5), (161, 15.4), (167, -43.3)],
             vec![(11, 12.9), (16, 13.5)],
         ],
-    ).data;
+    )
+    .data;
     for s in series {
         for time_point in s.time_points() {
             storage.write_time_point(s.id(), time_point.timestamp, time_point.value);
@@ -41,7 +42,11 @@ fn test_query() -> Result<()> {
     ops.start_time = Some(0u64);
     ops.end_time = Some(1000u64);
     let chunk = Chunk::new(storage.clone(), indexer.clone(), &ops);
-    let res1 = chunk.query(Labels::from_vec(vec![Label::from_key_value("test1", "1")]), 0, 100)?;
+    let res1 = chunk.query(
+        Labels::from_vec(vec![Label::from_key_value("test1", "1")]),
+        0,
+        100,
+    )?;
     assert_eq!(res1.len(), 2);
     assert_eq!(
         res1.iter()
@@ -52,7 +57,10 @@ fn test_query() -> Result<()> {
     );
 
     let res2 = chunk.query(
-        Labels::from_vec(vec![Label::from_key_value("test2", "2"), Label::from_key_value("test1", "1")]),
+        Labels::from_vec(vec![
+            Label::from_key_value("test2", "2"),
+            Label::from_key_value("test1", "1"),
+        ]),
         0,
         1000,
     )?;
@@ -79,7 +87,8 @@ fn test_insert() -> Result<()> {
             vec![(120, 12.9), (160, 13.5), (161, 15.4), (167, -43.3)],
             vec![(11, 12.9), (16, 13.5)],
         ],
-    ).data;
+    )
+    .data;
     let mut ops = ChunkOpts::default();
     ops.start_time = Some(0u64);
     ops.end_time = Some(1000u64);

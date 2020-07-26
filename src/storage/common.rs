@@ -1,12 +1,11 @@
-use crate::common::time_series::TimeSeriesId;
-use crate::{Timestamp, Value, Result, HasTypeName};
 use crate::common::time_point::TimePoint;
-
+use crate::common::time_series::TimeSeriesId;
+use crate::{HasTypeName, Result, Timestamp, Value};
 
 ///
 /// Storage is in charge of storing time series data
 /// Note that the label should be store in Indexer instead of Storage
-pub trait Storage: Sized + HasTypeName{
+pub trait Storage: Sized + HasTypeName {
     /// write time point into series
     ///
     /// If a series is already present in storage, the time point will be appended.

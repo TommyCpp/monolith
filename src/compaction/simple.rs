@@ -5,7 +5,6 @@ pub fn compact(data: Vec<TimePoint>) -> Vec<u8> {
     unimplemented!()
 }
 
-
 // Use delta of delta similar with Gorilla
 // But instead of use 10,110,1110,1111 to mark four different situation.
 // We use one byte to mark the four situation into 0,1,2,3

@@ -1,6 +1,6 @@
-use failure::_core::cmp::Ordering;
 use crate::proto::Sample;
 use crate::{Timestamp, Value};
+use failure::_core::cmp::Ordering;
 
 const F64_MARGIN: f64 = 0.000000001;
 
@@ -44,16 +44,16 @@ impl From<&TimePoint> for crate::proto::Sample {
             timestamp: t.timestamp as i64,
             value: t.value,
             unknown_fields: Default::default(),
-            cached_size: Default::default()
+            cached_size: Default::default(),
         }
     }
 }
 
-impl From<&crate::proto::Sample> for TimePoint{
+impl From<&crate::proto::Sample> for TimePoint {
     fn from(s: &Sample) -> Self {
-        TimePoint{
+        TimePoint {
             timestamp: s.timestamp as Timestamp,
-            value: s.value
+            value: s.value,
         }
     }
 }

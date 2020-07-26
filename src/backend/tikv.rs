@@ -1,11 +1,11 @@
 use crate::Result;
-use tikv_client::{RawClient, Config};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+use tikv_client::{Config, RawClient};
 
-use uuid::Uuid;
-use std::path::Path;
-use std::fs::read;
 use crate::common::test_utils::DummyTiKvBackend;
+use std::fs::read;
+use std::path::Path;
+use uuid::Uuid;
 
 pub trait TiKvRawBackend: Send + Sync {
     fn set(&self, key: Vec<u8>, value: Vec<u8>) -> Result<()>;
@@ -13,14 +13,12 @@ pub trait TiKvRawBackend: Send + Sync {
 
     /// Store chunk and storage/indexer mapping information
     fn init_component(&self, chunk_identifier: Vec<u8>, is_indexer: bool) -> Result<Vec<u8>> {
-        let value = self.get(chunk_identifier.clone())?.unwrap_or(
-            {
-                let mut id = Uuid::nil().as_bytes().to_vec();
-                let mut nil = Uuid::nil().as_bytes().to_vec();
-                id.append(&mut nil);
-                id
-            }
-        );
+        let value = self.get(chunk_identifier.clone())?.unwrap_or({
+            let mut id = Uuid::nil().as_bytes().to_vec();
+            let mut nil = Uuid::nil().as_bytes().to_vec();
+            id.append(&mut nil);
+            id
+        });
         if is_indexer {
             let mut indexer_id = Uuid::new_v4().as_bytes().to_vec();
             indexer_id.append(value[..16].to_vec().as_mut());
@@ -54,23 +52,16 @@ impl TiKvRawBackendImpl {}
 
 impl TiKvRawBackend for TiKvRawBackendImpl {
     fn set(&self, key: Vec<u8>, value: Vec<u8>) -> Result<()> {
-        let res: tikv_client::Result<()> = futures::executor::block_on(
-            self.client
-                .put(key, value)
-        );
+        let res: tikv_client::Result<()> = futures::executor::block_on(self.client.put(key, value));
         Ok(res?)
     }
 
-
     fn get(&self, key: Vec<u8>) -> Result<Option<Vec<u8>>> {
-        let res: tikv_client::Result<Option<tikv_client::Value>> = futures::executor::block_on(
-            self.client
-                .get(key)
-        );
+        let res: tikv_client::Result<Option<tikv_client::Value>> =
+            futures::executor::block_on(self.client.get(key));
         Ok(res?.map(|v| v.into()))
     }
 }
-
 
 // Return shared backend
 #[derive(Clone)]
@@ -82,37 +73,32 @@ pub struct TiKvRawBackendSingleton {
 
 impl TiKvRawBackendSingleton {
     pub fn new(config: Config) -> Result<TiKvRawBackendSingleton> {
-        Ok(
-            TiKvRawBackendSingleton {
-                config,
-                dry_run: false,
-            }
-        )
+        Ok(TiKvRawBackendSingleton {
+            config,
+            dry_run: false,
+        })
     }
 
     pub fn from_config_file(filepath: &Path) -> Result<TiKvRawBackendSingleton> {
         let config_file = TiKvBackendConfigFile::from_file(filepath)?;
         if config_file.dry_run {
-            Ok(
-                TiKvRawBackendSingleton {
-                    config: Config::new(Vec::<String>::new()),
-                    dry_run: true,
-                })
+            Ok(TiKvRawBackendSingleton {
+                config: Config::new(Vec::<String>::new()),
+                dry_run: true,
+            })
         } else {
             TiKvRawBackendSingleton::new(Config::new(config_file.pd_endpoints))
         }
     }
 
     pub fn get_instance(&self) -> Result<Box<dyn TiKvRawBackend>> {
-        Ok(
-            if self.dry_run {
-                Box::new(DummyTiKvBackend::new())
-            } else {
-                Box::new(TiKvRawBackendImpl {
-                    client: RawClient::new(self.config.clone())?
-                })
-            }
-        )
+        Ok(if self.dry_run {
+            Box::new(DummyTiKvBackend::new())
+        } else {
+            Box::new(TiKvRawBackendImpl {
+                client: RawClient::new(self.config.clone())?,
+            })
+        })
     }
 }
 
@@ -151,17 +137,16 @@ impl Default for TiKvBackendConfigFile {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use crate::Result;
     use crate::backend::tikv::TiKvBackendConfigFile;
+    use crate::Result;
 
     #[test]
     fn test_read_yaml_file() -> Result<()> {
         let config_file = TiKvBackendConfigFile {
             pd_endpoints: vec!["127.0.0.1".to_string()],
-            dry_run: false
+            dry_run: false,
         };
         let res = serde_yaml::to_string(&config_file)?;
         Ok(())

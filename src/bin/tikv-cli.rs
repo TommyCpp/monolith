@@ -1,13 +1,13 @@
 #![allow(unused_must_use)]
 #![allow(dead_code)]
 
-use monolith::{TiKvRawBackendSingleton, DEFAULT_PORT, DEFAULT_READ_PATH, MonolithDb};
-use tikv_client::Config;
-use monolith::storage::{TiKvStorageBuilder, TiKvStorage};
 use monolith::indexer::{TiKvIndexer, TiKvIndexerBuilder};
-use monolith::option::{ServerOpts, DbOpts};
+use monolith::option::{DbOpts, ServerOpts};
 use monolith::server::MonolithServer;
+use monolith::storage::{TiKvStorage, TiKvStorageBuilder};
+use monolith::{MonolithDb, TiKvRawBackendSingleton, DEFAULT_PORT, DEFAULT_READ_PATH};
 use std::sync::Arc;
+use tikv_client::Config;
 
 /// Simple command line tool to connect to Tikv
 fn main() {
@@ -24,10 +24,12 @@ fn main() {
     let server_opts = ServerOpts::default();
     let db_opts = DbOpts::default();
 
-
-    let db= MonolithDb::<TiKvStorage, TiKvIndexer>::new(db_opts,
-                                    Box::new(storage_builder),
-                                    Box::new(indexer_builder)).unwrap();
+    let db = MonolithDb::<TiKvStorage, TiKvIndexer>::new(
+        db_opts,
+        Box::new(storage_builder),
+        Box::new(indexer_builder),
+    )
+    .unwrap();
     let server = MonolithServer::new(server_opts, db);
     let _ = server.serve();
 }

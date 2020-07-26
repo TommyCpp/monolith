@@ -1,14 +1,14 @@
-use crate::{Builder, Result, TiKvRawBackendSingleton, HasTypeName, MonolithErr};
-use std::path::Path;
-use crate::chunk::ChunkOpts;
-use crate::common::option::DbOpts;
-use crate::indexer::Indexer;
-use crate::common::label::Labels;
 use crate::backend::tikv::TiKvRawBackend;
-use crate::indexer::sled_indexer::KvIndexerProcessor;
+use crate::chunk::ChunkOpts;
+use crate::common::label::Labels;
+use crate::common::option::DbOpts;
 use crate::common::time_series::TimeSeriesId;
-use std::convert::TryInto;
 use crate::common::utils::intersect_time_series_id_vec;
+use crate::indexer::sled_indexer::KvIndexerProcessor;
+use crate::indexer::Indexer;
+use crate::{Builder, HasTypeName, MonolithErr, Result, TiKvRawBackendSingleton};
+use std::convert::TryInto;
+use std::path::Path;
 use std::path::PathBuf;
 
 pub struct TiKvIndexer {
@@ -26,52 +26,60 @@ impl TiKvIndexer {
 }
 
 impl Indexer for TiKvIndexer {
-    fn get_series_metadata_contains_labels(&self, labels: Labels) -> Result<Vec<(TimeSeriesId, Labels)>> {
+    fn get_series_metadata_contains_labels(
+        &self,
+        labels: Labels,
+    ) -> Result<Vec<(TimeSeriesId, Labels)>> {
         let ids = self.get_series_id_contains_labels(labels.clone())?;
 
         //todo: refactor this.
-        Ok(
-            ids.iter()
-                // Convert into keys
-                .map(|id|
-                    (*id, self.add_indexer_id(
-                        KvIndexerProcessor::encode_time_series_id(*id).into_bytes().as_mut())))
-                // Get raw value from db store
-                .map(|(id, key)|
-                    (id, self.client.get(key)))
-                // Choose the valid one
-                .filter(|(_id, res)|
-                    res.is_ok())
-                // Unwrap the valid one
-                .map(|(id, res)|
-                    (id, res.unwrap()))
-                // Choose the one with value
-                .filter(|(_id, option)| option.is_some())
-                // Unwrap value
-                .map(|(id, option)|
-                    (id, option.unwrap()))
-                // Convert Vec<u8> into String
-                .map(|(id, raw)|
-                    (id, String::from_utf8_lossy(raw.as_slice()).to_string()))
-                // Convert String into labels
-                .map(|(id, raw)|
-                    (id, KvIndexerProcessor::decode_labels(raw, false)))
-                // Choose valid one
-                .filter(|(_id, res)| res.is_ok())
-                // Unwrap valid one
-                .map(|(id, res)|
-                    (id, res.unwrap()))
-                .collect()
-        )
+        Ok(ids
+            .iter()
+            // Convert into keys
+            .map(|id| {
+                (
+                    *id,
+                    self.add_indexer_id(
+                        KvIndexerProcessor::encode_time_series_id(*id)
+                            .into_bytes()
+                            .as_mut(),
+                    ),
+                )
+            })
+            // Get raw value from db store
+            .map(|(id, key)| (id, self.client.get(key)))
+            // Choose the valid one
+            .filter(|(_id, res)| res.is_ok())
+            // Unwrap the valid one
+            .map(|(id, res)| (id, res.unwrap()))
+            // Choose the one with value
+            .filter(|(_id, option)| option.is_some())
+            // Unwrap value
+            .map(|(id, option)| (id, option.unwrap()))
+            // Convert Vec<u8> into String
+            .map(|(id, raw)| (id, String::from_utf8_lossy(raw.as_slice()).to_string()))
+            // Convert String into labels
+            .map(|(id, raw)| (id, KvIndexerProcessor::decode_labels(raw, false)))
+            // Choose valid one
+            .filter(|(_id, res)| res.is_ok())
+            // Unwrap valid one
+            .map(|(id, res)| (id, res.unwrap()))
+            .collect())
     }
 
     fn get_series_id_contains_labels(&self, labels: Labels) -> Result<Vec<TimeSeriesId>> {
         // Get raw value from tikv
-        let query_res = labels.vec().into_iter()
-            .map(|label|
-                self.add_indexer_id(KvIndexerProcessor::encode_label(label).into_bytes().as_mut()))
-            .map(|key|
-                self.client.get(key)) //todo: error handling
+        let query_res = labels
+            .vec()
+            .into_iter()
+            .map(|label| {
+                self.add_indexer_id(
+                    KvIndexerProcessor::encode_label(label)
+                        .into_bytes()
+                        .as_mut(),
+                )
+            })
+            .map(|key| self.client.get(key)) //todo: error handling
             .filter(|res| res.is_ok())
             .map(|res| res.unwrap())
             .filter(|res| res.is_some())
@@ -80,11 +88,13 @@ impl Indexer for TiKvIndexer {
         // convert into time series id
         let mut time_series_ids: Vec<Vec<TimeSeriesId>> = vec![];
         for val in query_res {
-            let ids = val.chunks(std::mem::size_of::<TimeSeriesId>())
+            let ids = val
+                .chunks(std::mem::size_of::<TimeSeriesId>())
                 .map(|raw| {
                     //todo: error handling for try into
                     TimeSeriesId::from_be_bytes(raw.try_into().unwrap())
-                }).collect::<Vec<TimeSeriesId>>();
+                })
+                .collect::<Vec<TimeSeriesId>>();
             time_series_ids.push(ids);
         }
         Ok(intersect_time_series_id_vec(time_series_ids)?)
@@ -92,53 +102,64 @@ impl Indexer for TiKvIndexer {
 
     fn get_series_id_by_labels(&self, labels: Labels) -> Result<Option<TimeSeriesId>> {
         let key = KvIndexerProcessor::encode_labels(&labels, true);
-        Ok(
-            self.client
-                .get(self.add_indexer_id(key.into_bytes().as_mut()))?
-                .and_then(
-                    |v| Some(TimeSeriesId::from_be_bytes(v.as_slice().try_into().unwrap())))
-        )
+        Ok(self
+            .client
+            .get(self.add_indexer_id(key.into_bytes().as_mut()))?
+            .and_then(|v| {
+                Some(TimeSeriesId::from_be_bytes(
+                    v.as_slice().try_into().unwrap(),
+                ))
+            }))
     }
 
     fn create_index(&self, labels: Labels, time_series_id: TimeSeriesId) -> Result<()> {
-        let _indexer_id_str: String = String::from_utf8_lossy(self.indexer_identifier.clone().as_slice()).into();
+        let _indexer_id_str: String =
+            String::from_utf8_lossy(self.indexer_identifier.clone().as_slice()).into();
 
         {
             //Create Time series id to label map
             let key = KvIndexerProcessor::encode_time_series_id(time_series_id);
-            self.client.set(self.add_indexer_id(key.into_bytes().as_mut()),
-                            KvIndexerProcessor::encode_labels(&labels, false).into_bytes());
+            self.client.set(
+                self.add_indexer_id(key.into_bytes().as_mut()),
+                KvIndexerProcessor::encode_labels(&labels, false).into_bytes(),
+            );
         }
 
         {
             //Create map between full label set to time series id
             let key = KvIndexerProcessor::encode_labels(&labels, true);
-            self.client.set(self.add_indexer_id(key.into_bytes().as_mut()),
-                            Vec::from(&time_series_id.to_be_bytes()[..]));
+            self.client.set(
+                self.add_indexer_id(key.into_bytes().as_mut()),
+                Vec::from(&time_series_id.to_be_bytes()[..]),
+            );
         }
 
         {
             // Create Reverse Search
-            labels.vec().iter()
-                .map(|label|
-                    self.add_indexer_id(KvIndexerProcessor::encode_label(label).into_bytes().as_mut()))
+            labels
+                .vec()
+                .iter()
+                .map(|label| {
+                    self.add_indexer_id(
+                        KvIndexerProcessor::encode_label(label)
+                            .into_bytes()
+                            .as_mut(),
+                    )
+                })
                 .map(|key| (key.clone(), self.client.get(key.to_vec())))
                 .filter(|(_key, res)| res.is_ok())
-                .map(|(key, res)| {
-                    match res.unwrap() {
-                        Some(mut val) => {
-                            val.append(Vec::from(&time_series_id.to_be_bytes()[..]).as_mut());
-                            self.client.set(key.clone(), val);
-                        }
-                        None => {
-                            self.client.set(key.clone(),
-                                            Vec::from(&time_series_id.to_be_bytes()[..]));
-                        }
+                .map(|(key, res)| match res.unwrap() {
+                    Some(mut val) => {
+                        val.append(Vec::from(&time_series_id.to_be_bytes()[..]).as_mut());
+                        self.client.set(key.clone(), val);
+                    }
+                    None => {
+                        self.client
+                            .set(key.clone(), Vec::from(&time_series_id.to_be_bytes()[..]));
                     }
                 })
                 .collect::<Vec<()>>();
         }
-
 
         Ok(())
     }
@@ -151,21 +172,22 @@ impl HasTypeName for TiKvIndexer {
 }
 
 pub struct TiKvIndexerBuilder {
-    backend_builder: TiKvRawBackendSingleton
+    backend_builder: TiKvRawBackendSingleton,
 }
 
 impl TiKvIndexerBuilder {
     pub fn new(backend_builder: TiKvRawBackendSingleton) -> Result<TiKvIndexerBuilder> {
-        Ok(
-            TiKvIndexerBuilder {
-                backend_builder,
-            }
-        )
+        Ok(TiKvIndexerBuilder { backend_builder })
     }
 }
 
 impl Builder<TiKvIndexer> for TiKvIndexerBuilder {
-    fn build(&self, path: String, chunk_opts: Option<&ChunkOpts>, _: Option<&DbOpts>) -> Result<TiKvIndexer> {
+    fn build(
+        &self,
+        path: String,
+        chunk_opts: Option<&ChunkOpts>,
+        _: Option<&DbOpts>,
+    ) -> Result<TiKvIndexer> {
         std::fs::create_dir_all(PathBuf::from(path).join("indexer"))?;
         let client = self.backend_builder.get_instance()?;
         let chunk_identifier = chunk_opts.ok_or(MonolithErr::OptionErr)?.identifier.clone();
@@ -174,31 +196,29 @@ impl Builder<TiKvIndexer> for TiKvIndexerBuilder {
             client,
             chunk_identifier,
         };
-        Ok(
-            instance
-        )
+        Ok(instance)
     }
 
     fn write_to_chunk(&self, _dir: &Path) -> Result<()> {
         Ok(())
     }
 
-    fn read_from_chunk(&self, _: &Path, chunk_opts: Option<&ChunkOpts>) -> Result<Option<TiKvIndexer>> {
-        if chunk_opts.is_none(){
-            return Ok(None)
+    fn read_from_chunk(
+        &self,
+        _: &Path,
+        chunk_opts: Option<&ChunkOpts>,
+    ) -> Result<Option<TiKvIndexer>> {
+        if chunk_opts.is_none() {
+            return Ok(None);
         }
         let client = self.backend_builder.get_instance()?;
         if let Some(val) = client.get(chunk_opts.unwrap().identifier.clone())? {
             let indexer_identifier = Vec::from(&val[..16]);
-            return Ok(
-                Some(
-                    TiKvIndexer {
-                        client,
-                        chunk_identifier: chunk_opts.unwrap().identifier.clone(),
-                        indexer_identifier,
-                    }
-                )
-            );
+            return Ok(Some(TiKvIndexer {
+                client,
+                chunk_identifier: chunk_opts.unwrap().identifier.clone(),
+                indexer_identifier,
+            }));
         }
 
         Ok(None)
@@ -215,15 +235,13 @@ impl Builder<TiKvIndexer> for TiKvIndexerBuilder {
 
 #[cfg(test)]
 mod tests {
-    
-    use crate::Result;
-    use crate::common::test_utils::DummyTiKvBackend;
-    use crate::indexer::{TiKvIndexer, Indexer};
-    use crate::label::{Labels, Label};
+
     use crate::backend::tikv::TiKvRawBackend;
+    use crate::common::test_utils::DummyTiKvBackend;
     use crate::indexer::sled_indexer::KvIndexerProcessor;
-    
-    
+    use crate::indexer::{Indexer, TiKvIndexer};
+    use crate::label::{Label, Labels};
+    use crate::Result;
 
     /// Get test data for this unit test
     fn get_data(id: i32) -> Labels {
@@ -232,14 +250,16 @@ mod tests {
             Labels::from_vec(
                 vec![("key1", "value1"), ("key2", "value2"), ("key3", "value3")]
                     .into_iter()
-                    .map(|(key, value)| Label::from_key_value(key, value)).collect())
+                    .map(|(key, value)| Label::from_key_value(key, value))
+                    .collect(),
+            )
         } else {
             //second set of data
             Labels::from_vec(
                 vec![("key1", "value1"), ("key2", "value1"), ("key3", "value3")]
                     .into_iter()
                     .map(|(key, value)| Label::from_key_value(key, value))
-                    .collect()
+                    .collect(),
             )
         }
     }
@@ -262,22 +282,35 @@ mod tests {
         indexer_id.append(key1.as_mut());
         let result1 = dummy_backend.get(indexer_id)?;
         assert!(result1.is_some());
-        assert_eq!(KvIndexerProcessor::encode_labels(&labels, false).into_bytes(), result1.unwrap());
+        assert_eq!(
+            KvIndexerProcessor::encode_labels(&labels, false).into_bytes(),
+            result1.unwrap()
+        );
 
         indexer_id = indexer.indexer_identifier.to_vec();
         let mut key2 = KvIndexerProcessor::encode_labels(&labels, true).into_bytes();
         indexer_id.append(key2.as_mut());
         let result2 = dummy_backend.get(indexer_id)?;
         assert!(result2.is_some());
-        assert_eq!(Vec::from(&time_series_id.to_be_bytes()[..]), result2.unwrap());
+        assert_eq!(
+            Vec::from(&time_series_id.to_be_bytes()[..]),
+            result2.unwrap()
+        );
 
         indexer_id = indexer.indexer_identifier.to_vec();
         for label in labels.vec() {
             let mut key = indexer_id.clone();
-            key.append(KvIndexerProcessor::encode_label(&label).into_bytes().as_mut());
+            key.append(
+                KvIndexerProcessor::encode_label(&label)
+                    .into_bytes()
+                    .as_mut(),
+            );
             let result = dummy_backend.get(key)?;
             assert!(result.is_some());
-            assert_eq!(Vec::from(&time_series_id.to_be_bytes()[..]), result.unwrap());
+            assert_eq!(
+                Vec::from(&time_series_id.to_be_bytes()[..]),
+                result.unwrap()
+            );
         }
         Ok(())
     }
@@ -325,7 +358,6 @@ mod tests {
         assert_eq!(res2.len(), 1);
         assert_eq!(res2, vec![1]);
 
-
         Ok(())
     }
 
@@ -347,18 +379,13 @@ mod tests {
 
         let res1 = indexer.get_series_metadata_contains_labels(Labels::from_vec(vec![label1]))?;
         assert_eq!(res1.len(), 2);
-        assert!(res1.iter().position(|(id, _labels)| {
-            *id == 1
-        }).is_some());
-        assert!(res1.iter().position(|(id, _labels)| {
-            *id == 2
-        }).is_some());
+        assert!(res1.iter().position(|(id, _labels)| { *id == 1 }).is_some());
+        assert!(res1.iter().position(|(id, _labels)| { *id == 2 }).is_some());
 
         let res2 = indexer.get_series_metadata_contains_labels(Labels::from_vec(vec![label2]))?;
         assert_eq!(res2.len(), 1);
         let (id, _labels) = res2[0].clone();
         assert_eq!(id, 1);
-
 
         Ok(())
     }

@@ -2,26 +2,25 @@
 
 use std::time::Duration;
 
+mod backend;
 mod common;
 mod error;
-mod backend;
 
-pub mod compaction;
 pub mod chunk;
+pub mod compaction;
 pub mod db;
-pub mod server;
 pub mod indexer;
+pub mod server;
 pub mod storage;
-
 
 /// Generated proto definition
 pub(crate) mod proto;
 pub use common::*;
 pub use error::*;
 
-pub use db::MonolithDb;
-pub use backend::TiKvRawBackendSingleton;
 pub use backend::TiKvBackendConfigFile;
+pub use backend::TiKvRawBackendSingleton;
+pub use db::MonolithDb;
 
 pub type Timestamp = u64;
 pub type Value = f64;

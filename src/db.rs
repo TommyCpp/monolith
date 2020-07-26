@@ -1,27 +1,29 @@
-use std::{fs, thread};
 use std::collections::HashMap;
-use std::path::{PathBuf, Path};
-use std::sync::{Arc, RwLock};
+use std::path::{Path, PathBuf};
 use std::sync::mpsc::channel;
+use std::sync::{Arc, RwLock};
 use std::time::Duration;
+use std::{fs, thread};
 
-use crate::{Builder, MonolithErr, Result, Timestamp, DB_METADATA_FILENAME};
 use crate::chunk::{Chunk, ChunkOpts};
 use crate::common::label::Labels;
+use crate::common::metadata::DbMetadata;
+use crate::common::time_point::TimePoint;
 use crate::common::time_series::LabelPointPairs;
 use crate::common::utils::{decode_chunk_dir, encode_chunk_dir, get_current_timestamp};
 use crate::indexer::Indexer;
 use crate::option::DbOpts;
 use crate::storage::Storage;
-use crate::common::time_point::TimePoint;
-use crate::common::metadata::DbMetadata;
+use crate::{Builder, MonolithErr, Result, Timestamp, DB_METADATA_FILENAME};
 use std::fs::File;
 use std::io::BufWriter;
 
 /// MonolithDb is thread-safe
 pub struct MonolithDb<S: Storage, I: Indexer>
-    where S: Storage + Send + Sync,
-          I: Indexer + Send + Sync {
+where
+    S: Storage + Send + Sync,
+    I: Indexer + Send + Sync,
+{
     current_chuck: RwLock<Arc<Chunk<S, I>>>,
     secondary_chunks: RwLock<Vec<Arc<Chunk<S, I>>>>,
     options: DbOpts,
@@ -30,16 +32,23 @@ pub struct MonolithDb<S: Storage, I: Indexer>
 }
 
 impl<S, I> MonolithDb<S, I>
-    where S: Storage + Send + Sync + 'static,
-          I: Indexer + Send + Sync + 'static {
-    pub fn new(ops: DbOpts, storage_builder: Box<dyn Builder<S> + Sync + Send>, indexer_builder: Box<dyn Builder<I> + Sync + Send>) -> Result<Arc<Self>> {
+where
+    S: Storage + Send + Sync + 'static,
+    I: Indexer + Send + Sync + 'static,
+{
+    pub fn new(
+        ops: DbOpts,
+        storage_builder: Box<dyn Builder<S> + Sync + Send>,
+        indexer_builder: Box<dyn Builder<I> + Sync + Send>,
+    ) -> Result<Arc<Self>> {
         let db_metadata = DbMetadata {
             indexer_type: S::get_type_name().to_string(),
             storage_type: I::get_type_name().to_string(),
         };
         Self::read_or_create_metadata(&ops.base_dir, &db_metadata)?;
         //read existing data
-        let existing_chunk = Self::read_existing_chunk(&ops.base_dir, &storage_builder, &indexer_builder)?;
+        let existing_chunk =
+            Self::read_existing_chunk(&ops.base_dir, &storage_builder, &indexer_builder)?;
 
         // write custom config to db config
         storage_builder.write_config(&ops.base_dir)?;
@@ -52,26 +61,26 @@ impl<S, I> MonolithDb<S, I>
         chunk_opt.start_time = Some(current_time);
         chunk_opt.end_time = Some(current_time + ops.chunk_size.as_millis() as Timestamp);
 
-
-        let chunk_dir = ops.base_dir
-            .as_path()
-            .join(
-                encode_chunk_dir(chunk_opt.start_time.unwrap(),
-                                 chunk_opt.end_time.unwrap()));
+        let chunk_dir = ops.base_dir.as_path().join(encode_chunk_dir(
+            chunk_opt.start_time.unwrap(),
+            chunk_opt.end_time.unwrap(),
+        ));
 
         //write metadata into chunk config
         storage_builder.write_to_chunk(&chunk_dir);
         indexer_builder.write_to_chunk(&chunk_dir);
         if let Err(_) = chunk_opt.write_config_to_dir(chunk_dir.as_path()) {
             error!("Cannot create metadata file for chunk");
-            return Err(MonolithErr::InternalErr("Cannot create metadata file for chunk".to_string()));
+            return Err(MonolithErr::InternalErr(
+                "Cannot create metadata file for chunk".to_string(),
+            ));
         }
 
-
         let chunk_dir_str = chunk_dir.as_path().display().to_string();
-        let (storage, indexer) =
-            (storage_builder.build(chunk_dir_str.clone(), Some(&chunk_opt), Some(&ops))?,
-             indexer_builder.build(chunk_dir_str.clone(), Some(&chunk_opt), Some(&ops))?);
+        let (storage, indexer) = (
+            storage_builder.build(chunk_dir_str.clone(), Some(&chunk_opt), Some(&ops))?,
+            indexer_builder.build(chunk_dir_str.clone(), Some(&chunk_opt), Some(&ops))?,
+        );
         let chunk = Chunk::<S, I>::new(storage, indexer, &chunk_opt);
         let (swap_tx, swap_rx) = channel::<Timestamp>();
         let db = Arc::new(MonolithDb {
@@ -81,18 +90,14 @@ impl<S, I> MonolithDb<S, I>
             storage_builder,
             indexer_builder,
         });
-        thread::spawn(move || {
-            loop {
-                thread::sleep(Duration::from_millis(chunk_size));
-                swap_tx.send(get_current_timestamp());
-            }
+        thread::spawn(move || loop {
+            thread::sleep(Duration::from_millis(chunk_size));
+            swap_tx.send(get_current_timestamp());
         });
         let _db = db.clone();
-        thread::spawn(move || {
-            loop {
-                let start_time = swap_rx.recv().unwrap() + 1;
-                _db.clone().swap(start_time);
-            }
+        thread::spawn(move || loop {
+            let start_time = swap_rx.recv().unwrap() + 1;
+            _db.clone().swap(start_time);
         });
         Ok(db.clone())
     }
@@ -104,7 +109,9 @@ impl<S, I> MonolithDb<S, I>
 
         if content.is_ok() {
             let metadata: DbMetadata = serde_json::from_str(content.unwrap().as_str())?;
-            if metadata.indexer_type != db_metadata.indexer_type || metadata.storage_type != db_metadata.storage_type {
+            if metadata.indexer_type != db_metadata.indexer_type
+                || metadata.storage_type != db_metadata.storage_type
+            {
                 return Err(MonolithErr::OptionErr);
             }
         } else {
@@ -117,36 +124,39 @@ impl<S, I> MonolithDb<S, I>
     }
 
     ///Read the existing chunk in dir. If no chunk found, return an empty vec.
-    fn read_existing_chunk(dir: &Path,
-                           storage_builder: &Box<dyn Builder<S> + Sync + Send>,
-                           indexer_builder: &Box<dyn Builder<I> + Sync + Send>,
+    fn read_existing_chunk(
+        dir: &Path,
+        storage_builder: &Box<dyn Builder<S> + Sync + Send>,
+        indexer_builder: &Box<dyn Builder<I> + Sync + Send>,
     ) -> Result<Vec<Arc<Chunk<S, I>>>> {
         let mut res = Vec::new();
         for entry in fs::read_dir(dir)? {
             let path_str = entry?.path().into_os_string().into_string().unwrap();
             let _slash = path_str.rfind(std::path::MAIN_SEPARATOR).unwrap() + 1;
             let dir_name = path_str.clone();
-            let dir_name = dir_name.chars().skip(_slash).take(dir_name.len() - _slash).collect();
+            let dir_name = dir_name
+                .chars()
+                .skip(_slash)
+                .take(dir_name.len() - _slash)
+                .collect();
             match decode_chunk_dir(dir_name) {
                 Ok((start_time, end_time)) => {
                     // Read Chunk Options from metadata.json
                     let path = PathBuf::from(path_str.clone());
-                    let mut chunk_opts
-                        = ChunkOpts::read_config_from_dir(&path)?;
+                    let mut chunk_opts = ChunkOpts::read_config_from_dir(&path)?;
                     let current_time = get_current_timestamp();
                     chunk_opts.start_time = Some(start_time);
                     // reset end time is necessary
-                    chunk_opts.end_time =
-                        Some(if end_time > current_time { current_time } else { end_time });
+                    chunk_opts.end_time = Some(if end_time > current_time {
+                        current_time
+                    } else {
+                        end_time
+                    });
 
                     let storage = storage_builder
-                        .read_from_chunk(
-                            &path
-                                .join("storage"), Some(&chunk_opts))?;
+                        .read_from_chunk(&path.join("storage"), Some(&chunk_opts))?;
                     let indexer = indexer_builder
-                        .read_from_chunk(
-                            &path
-                                .join("indexer"), Some(&chunk_opts))?;
+                        .read_from_chunk(&path.join("indexer"), Some(&chunk_opts))?;
 
                     if storage.is_some() && indexer.is_some() {
                         let chunk = Chunk::new(storage.unwrap(), indexer.unwrap(), &chunk_opts);
@@ -166,14 +176,19 @@ impl<S, I> MonolithDb<S, I>
     pub fn write_time_points(&self, labels: Labels, timepoints: Vec<TimePoint>) -> Result<()> {
         let _c = &self.current_chuck.read().unwrap();
         let (start_time, end_time) = _c.start_end_time();
-        let res = timepoints.into_iter()
-            .filter(|tp| tp.timestamp >= start_time && tp.timestamp <= end_time && tp.timestamp != 0)
-            .map(|tp| {
-                _c.insert(labels.clone(), tp)
-            }).filter(|res| res.is_err()).collect::<Vec<_>>();
+        let res = timepoints
+            .into_iter()
+            .filter(|tp| {
+                tp.timestamp >= start_time && tp.timestamp <= end_time && tp.timestamp != 0
+            })
+            .map(|tp| _c.insert(labels.clone(), tp))
+            .filter(|res| res.is_err())
+            .collect::<Vec<_>>();
         if !res.is_empty() {
             error!("{} time point failed to insert", res.len());
-            return Err(MonolithErr::InternalErr("multiple time point cannot insert".to_string()));
+            return Err(MonolithErr::InternalErr(
+                "multiple time point cannot insert".to_string(),
+            ));
         }
         Ok(())
     }
@@ -199,9 +214,13 @@ impl<S, I> MonolithDb<S, I>
             let _res = _c.query(labels.clone(), start_time, end_time);
             if _res.is_ok() {
                 for ref t in _res.unwrap() {
-                    res_ref.insert(t.meta_data().clone(), t.time_points().clone().into_iter().rev().collect());
-                };
-            } else {}
+                    res_ref.insert(
+                        t.meta_data().clone(),
+                        t.time_points().clone().into_iter().rev().collect(),
+                    );
+                }
+            } else {
+            }
         };
         {
             //chuck previous chunk, normally users query more on recent data, so we go backwards
@@ -211,7 +230,12 @@ impl<S, I> MonolithDb<S, I>
                     let _res = _c.query(labels.clone(), start_time, end_time);
                     if _res.is_ok() {
                         for ref t in _res.unwrap() {
-                            let mut current_val = t.time_points().clone().into_iter().rev().collect::<Vec<TimePoint>>();
+                            let mut current_val = t
+                                .time_points()
+                                .clone()
+                                .into_iter()
+                                .rev()
+                                .collect::<Vec<TimePoint>>();
                             match res_ref.get_mut(t.meta_data()) {
                                 Some(val) => {
                                     val.append(&mut current_val);
@@ -220,19 +244,24 @@ impl<S, I> MonolithDb<S, I>
                                     res_ref.insert(t.meta_data().clone(), current_val);
                                 }
                             };
-                        };
-                    } else {}
+                        }
+                    } else {
+                    }
                 };
             }
         }
         //reverse time again before return
-        let res_vec: Vec<(Labels, Vec<TimePoint>)> = res.keys()
+        let res_vec: Vec<(Labels, Vec<TimePoint>)> = res
+            .keys()
             .map(|k| res.get_key_value(k))
             .filter(|o| o.is_some())
             .map(|o| o.unwrap())
-            .map(|(labels, points)|
-                (labels.clone(), points.iter().cloned().rev().collect::<Vec<TimePoint>>())
-            )
+            .map(|(labels, points)| {
+                (
+                    labels.clone(),
+                    points.iter().cloned().rev().collect::<Vec<TimePoint>>(),
+                )
+            })
             .collect();
         Ok(res_vec)
     }
@@ -243,11 +272,10 @@ impl<S, I> MonolithDb<S, I>
         chunk_opt.start_time = Some(start_time);
         chunk_opt.end_time = Some(start_time + self.options.chunk_size.as_millis() as Timestamp);
 
-
-        let chunk_dir = self.options.base_dir
-            .join(
-                encode_chunk_dir(chunk_opt.start_time.unwrap(), chunk_opt.end_time.unwrap())
-            );
+        let chunk_dir = self.options.base_dir.join(encode_chunk_dir(
+            chunk_opt.start_time.unwrap(),
+            chunk_opt.end_time.unwrap(),
+        ));
         let chunk_dir_str = chunk_dir.as_path().display().to_string();
 
         // write metadata into chunk
@@ -255,13 +283,24 @@ impl<S, I> MonolithDb<S, I>
         self.indexer_builder.write_to_chunk(&chunk_dir)?;
         if let Err(_) = chunk_opt.write_config_to_dir(chunk_dir.as_path()) {
             error!("Cannot create metadata file for chunk");
-            return Err(MonolithErr::InternalErr("Cannot create metadata file for chunk".to_string()));
+            return Err(MonolithErr::InternalErr(
+                "Cannot create metadata file for chunk".to_string(),
+            ));
         }
 
         // build storage and indexer instance
-        let (storage, indexer) =
-            (self.storage_builder.build(chunk_dir_str.clone(), Some(&chunk_opt), Some(&self.options))?,
-             self.indexer_builder.build(chunk_dir_str.clone(), Some(&chunk_opt), Some(&self.options))?);
+        let (storage, indexer) = (
+            self.storage_builder.build(
+                chunk_dir_str.clone(),
+                Some(&chunk_opt),
+                Some(&self.options),
+            )?,
+            self.indexer_builder.build(
+                chunk_dir_str.clone(),
+                Some(&chunk_opt),
+                Some(&self.options),
+            )?,
+        );
 
         let chunk = Chunk::<S, I>::new(storage, indexer, &chunk_opt);
         {
@@ -281,14 +320,14 @@ impl<S, I> MonolithDb<S, I>
 
 #[cfg(test)]
 mod tests {
-    use tempfile::TempDir;
     use crate::common::metadata::DbMetadata;
     use crate::{MonolithDb, Result, DB_METADATA_FILENAME};
+    use tempfile::TempDir;
 
-    use crate::common::test_utils::{StubStorage, StubIndexer};
-    use std::path::PathBuf;
+    use crate::common::test_utils::{StubIndexer, StubStorage};
     use std::fs::File;
     use std::io::BufWriter;
+    use std::path::PathBuf;
 
     #[test]
     fn test_read_metadata() -> Result<()> {
@@ -298,7 +337,10 @@ mod tests {
             storage_type: "TestStorage".to_string(),
         };
 
-        let mut res = MonolithDb::<StubStorage, StubIndexer>::read_or_create_metadata(tempdir.as_ref(), &metadata);
+        let mut res = MonolithDb::<StubStorage, StubIndexer>::read_or_create_metadata(
+            tempdir.as_ref(),
+            &metadata,
+        );
         assert!(res.is_ok());
         assert!(File::open(tempdir.path().join(PathBuf::from(DB_METADATA_FILENAME))).is_ok());
 
@@ -310,12 +352,17 @@ mod tests {
             indexer_type: "StubIndexer".to_string(),
             storage_type: "StubStorage".to_string(),
         };
-        res = MonolithDb::<StubStorage, StubIndexer>::read_or_create_metadata(tempdir.as_ref(), &new_metadata);
+        res = MonolithDb::<StubStorage, StubIndexer>::read_or_create_metadata(
+            tempdir.as_ref(),
+            &new_metadata,
+        );
         assert!(res.is_err());
 
-        res = MonolithDb::<StubStorage, StubIndexer>::read_or_create_metadata(tempdir.as_ref(), &metadata);
+        res = MonolithDb::<StubStorage, StubIndexer>::read_or_create_metadata(
+            tempdir.as_ref(),
+            &metadata,
+        );
         assert!(res.is_ok());
-
 
         Ok(())
     }

@@ -1,3 +1,3 @@
 pub mod tikv;
-pub use tikv::TiKvRawBackendSingleton;
 pub use tikv::TiKvBackendConfigFile;
+pub use tikv::TiKvRawBackendSingleton;

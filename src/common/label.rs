@@ -1,8 +1,7 @@
+use crate::proto::LabelMatcher;
 use failure::_core::cmp::Ordering;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
-use crate::proto::LabelMatcher;
-
 
 #[derive(Hash, Clone)]
 pub struct Label {

@@ -1,5 +1,5 @@
-use monolith::time_point::TimePoint;
 use criterion::{criterion_group, BenchmarkId, Criterion, Throughput};
+use monolith::time_point::TimePoint;
 
 fn vec_u8_serialization(time_point: TimePoint) -> Vec<u8> {
     let timestamp_byte = time_point.timestamp.to_be_bytes();
@@ -9,7 +9,7 @@ fn vec_u8_serialization(time_point: TimePoint) -> Vec<u8> {
     res
 }
 
-fn array_u8_serialization(time_point: TimePoint) -> [u8; 16]{
+fn array_u8_serialization(time_point: TimePoint) -> [u8; 16] {
     let timestamp_byte = time_point.timestamp.to_be_bytes();
     let value_byte = time_point.value.to_be_bytes();
     let mut res = [0x00 as u8; 16];
@@ -22,11 +22,11 @@ fn string_serialization(time_point: TimePoint) -> String {
     format!("{},{}", time_point.timestamp, time_point.value)
 }
 
-fn serialization_criterion_benchmark(c: &mut Criterion){
+fn serialization_criterion_benchmark(c: &mut Criterion) {
     let time_point = TimePoint::new(120000, 339978668.77);
 
     c.bench_function("vec u8 serialization", |b| {
-        b.iter(||{
+        b.iter(|| {
             vec_u8_serialization(time_point.clone());
         })
     });

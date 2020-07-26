@@ -1,12 +1,12 @@
 use failure::_core::convert::Infallible;
 use failure::_core::num::{ParseFloatError, ParseIntError};
 
+use crate::chunk::Chunk;
+use crate::indexer::Indexer;
+use crate::storage::Storage;
+use serde_json::Error;
 use std::string::FromUtf8Error;
 use std::sync::Arc;
-use crate::storage::Storage;
-use crate::indexer::Indexer;
-use crate::chunk::Chunk;
-use serde_json::Error;
 
 #[derive(Debug, Fail)]
 pub enum MonolithErr {

@@ -1,11 +1,15 @@
-use crate::{MonolithErr, Result, CHUNK_SIZE, FILE_DIR_ARG, STORAGE_ARG, DEFAULT_PORT, DEFAULT_WRITE_PATH, DEFAULT_READ_PATH, DEFAULT_WORKER_NUM, WORKER_NUM, PORT, WRITE_PATH, READ_PATH, DEFAULT_CHUNK_SIZE, INDEXER_ARG, SLED_BACKEND, TIKV_CONFIG};
+use crate::{
+    MonolithErr, Result, CHUNK_SIZE, DEFAULT_CHUNK_SIZE, DEFAULT_PORT, DEFAULT_READ_PATH,
+    DEFAULT_WORKER_NUM, DEFAULT_WRITE_PATH, FILE_DIR_ARG, INDEXER_ARG, PORT, READ_PATH,
+    SLED_BACKEND, STORAGE_ARG, TIKV_CONFIG, WORKER_NUM, WRITE_PATH,
+};
 use clap::ArgMatches;
+use failure::_core::fmt::Formatter;
+use std::env::current_dir;
+use std::fmt;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::Duration;
-use std::env::current_dir;
-use std::fmt;
-use failure::_core::fmt::Formatter;
 
 #[derive(Clone)]
 pub struct DbOpts {
@@ -59,24 +63,26 @@ impl<'a> ServerOpts<'a> {
         if port > 65535 || port < 1024 {
             return Err(MonolithErr::OptionErr);
         };
-        Ok(
-            ServerOpts {
-                port,
-                worker_num,
-                write_path: matchers.value_of(WRITE_PATH).unwrap(),
-                read_path: matchers.value_of(READ_PATH).unwrap(),
-            }
-        )
+        Ok(ServerOpts {
+            port,
+            worker_num,
+            write_path: matchers.value_of(WRITE_PATH).unwrap(),
+            read_path: matchers.value_of(READ_PATH).unwrap(),
+        })
     }
 }
 
 impl<'a> fmt::Display for ServerOpts<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "Server options: \n \
+        write!(
+            f,
+            "Server options: \n \
         port: {} \n \
         write_path: {} \n \
         read_path: {} \n \
-        num of worker: {} \n ", self.port, self.write_path, self.read_path, self.worker_num)
+        num of worker: {} \n ",
+            self.port, self.write_path, self.read_path, self.worker_num
+        )
     }
 }
 

@@ -1,9 +1,7 @@
 use monolith::storage::{SledStorage, Storage};
+use monolith::test_utils::Ingester;
 use monolith::{Result, Timestamp, Value};
 use tempfile::TempDir;
-use monolith::test_utils::Ingester;
-
-
 
 #[test]
 fn test_set_time_point() -> Result<()> {
@@ -16,7 +14,10 @@ fn test_set_time_point() -> Result<()> {
     match db.get("TS1")? {
         Some(val) => {
             let val_vec = AsRef::<[u8]>::as_ref(&val).to_vec();
-            assert_eq!(val_vec.len(), std::mem::size_of::<Timestamp>() + std::mem::size_of::<Value>());
+            assert_eq!(
+                val_vec.len(),
+                std::mem::size_of::<Timestamp>() + std::mem::size_of::<Value>()
+            );
         }
         None => assert_eq!(1, 0), //fail
     }

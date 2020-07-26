@@ -1,19 +1,19 @@
 use crate::common::label::Labels;
 
 use crate::common::time_series::TimeSeriesId;
-use crate::{Result, HasTypeName};
-
-
+use crate::{HasTypeName, Result};
 
 ///
 /// Indexer is in charge of query appropriate time series based on the labels.
 ///
-pub trait Indexer: Sized + HasTypeName{
+pub trait Indexer: Sized + HasTypeName {
     /// Get all time series and their meta data which contains __all__ labels
     ///
     /// Note that the result time series may contains other labels
-    fn get_series_metadata_contains_labels(&self, labels: Labels)
-                                           -> Result<Vec<(TimeSeriesId, Labels)>>;
+    fn get_series_metadata_contains_labels(
+        &self,
+        labels: Labels,
+    ) -> Result<Vec<(TimeSeriesId, Labels)>>;
 
     /// Get all time series that contains __all__ label in labels
     ///
