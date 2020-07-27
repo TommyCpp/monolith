@@ -10,14 +10,6 @@ mod wal;
 /// Like WAL for different component
 pub(crate) const WAL_MAGIC_NUMBER: u64 = 0x57414C0000000000u64;
 
-// Wal File structure
-// |  component  | length  |
-// |-------------|---------|
-// | Magic Number| u64     |
-// | Entries     | n * u64 |
-// | .......     | ....... |
-// | CRC64       | u64     |
-
 /// Entry encoding
 /// -----------------------------------------------------------------
 /// | seq_num(u64) | type(u8) | len(u16) | data(bytes) | CRC32(u32) |
@@ -109,7 +101,8 @@ pub enum SyncCache {
     },
     SizeBased {
         limit: usize,
-        size: usize, // num of bytes
+        size: usize,
+        // num of bytes
         cache: Vec<Entry>,
     },
     None,
@@ -121,11 +114,14 @@ pub enum EntryType {
 
 #[derive(Debug, Fail)]
 pub enum WalErr {
-    #[fail(display = "wal: {}", _0)]
+    #[fail(display = "{}", _0)]
     InternalError(String),
 
-    #[fail(display = "wal: io error, {}", _0)]
+    #[fail(display = "io error, {}", _0)]
     FileIoErr(std::io::Error),
+
+    #[fail(display = "cannot found entry")]
+    NotFoundErr,
 }
 
 #[cfg(test)]

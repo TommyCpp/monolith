@@ -1,6 +1,6 @@
 use crate::wal::SyncPolicy;
 use crate::{
-    wal::{segment::Segment, Entry, EntryType},
+    wal::{segment::SegmentWriter, Entry, EntryType},
     Result,
 };
 use std::fs::File;
@@ -9,31 +9,41 @@ use std::path::Path;
 use std::sync::atomic::AtomicU64;
 use std::sync::{Arc, Mutex, RwLock};
 
-type LockedSegment = Arc<RwLock<Segment>>;
+type LockedSegment = Arc<RwLock<SegmentWriter>>;
 
 pub struct WalConfig {
     sync_policy: SyncPolicy,
+    // must be larger than 1.
     initial_seq: u64,
 }
 
-/// Wal manages a dict of segment wal files.
+impl Default for WalConfig {
+    fn default() -> Self {
+        WalConfig {
+            sync_policy: SyncPolicy::Immediate,
+            initial_seq: 1,
+        }
+    }
+}
+
+/// Wal manages a dictionary of segment wal files.
 ///
+/// Wal is concurrent-safe
+///
+/// Wal will
+/// 1. Manage and assign sequence id.
+/// 2. Rotate segment when its size is too large.
+/// 3. Clean up segment file once user know the change has been written.
 pub struct Wal<'a> {
     dir: &'a Path,
-    flush_policy: SyncPolicy,
+    sync_policy: SyncPolicy, // sync policy of segment.
 
     // generate the file name to maintain file order.
     next_seq: AtomicU64,
     // active segment
     active_seg: LockedSegment,
     // read only ordered in creating time. From earliest to latest
-    segments: Vec<Arc<Segment>>,
-}
-
-impl<'a> Default for Wal<'a> {
-    fn default() -> Self {
-        unimplemented!()
-    }
+    segments: Vec<Arc<SegmentWriter>>,
 }
 
 impl<'a> Wal<'a> {

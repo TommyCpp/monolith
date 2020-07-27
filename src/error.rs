@@ -4,6 +4,7 @@ use failure::_core::num::{ParseFloatError, ParseIntError};
 use crate::chunk::Chunk;
 use crate::indexer::Indexer;
 use crate::storage::Storage;
+use crate::wal;
 use serde_json::Error;
 use std::string::FromUtf8Error;
 use std::sync::Arc;
@@ -32,7 +33,7 @@ pub enum MonolithErr {
     TiKvErr(tikv_client::Error),
     #[fail(display = "Error when compaction or de-compaction, {}", _0)]
     CompactionErr(crate::compaction::CompactionErr),
-    #[fail(display = "Write ahead log error, {}", _0)]
+    #[fail(display = "[wal] {}", _0)]
     WalErr(crate::wal::WalErr),
 }
 
@@ -99,5 +100,11 @@ impl std::convert::From<tikv_client::Error> for MonolithErr {
 impl std::convert::From<serde_yaml::Error> for MonolithErr {
     fn from(err: serde_yaml::Error) -> Self {
         MonolithErr::SerdeYamlErr(err)
+    }
+}
+
+impl std::convert::From<wal::WalErr> for MonolithErr {
+    fn from(err: wal::WalErr) -> Self {
+        MonolithErr::WalErr(err)
     }
 }
