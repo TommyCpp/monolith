@@ -17,11 +17,11 @@ const LABEL_PREFIX: &str = "L";
 const ID_PREFIX: &str = "I";
 
 ///
-/// Sled based indexer, use to search timeseries id based on metadata.
+/// Sled based indexer, used to search timeseries id based on metadata.
 ///
 /// SledIndexer will establish three kinds of mapping
 /// 1. Reverse index mapping, from single label to list of ids, e.g LR<label_key>=<label_value> -> 1,2,3,4,5...
-/// 2. index mapping, meta data for a single time series, from id to a list of labels, e.g I1 -> L<label_key>=<label_value>,<label_key>=<label_value>...
+/// 2. index mapping, metadata for a single time series, from ids to a list of labels, e.g I1 -> L<label_key>=<label_value>,<label_key>=<label_value>...
 /// 3. labels set mapping, similar to second one but in reverse, e.g L<label_key>=<label_value>,<label_key>=<label_value>... -> 1
 #[derive(Clone)]
 pub struct SledIndexer {

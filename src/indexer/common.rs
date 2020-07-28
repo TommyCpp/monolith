@@ -7,7 +7,7 @@ use crate::{HasTypeName, Result};
 /// Indexer is in charge of query appropriate time series based on the labels.
 ///
 pub trait Indexer: Sized + HasTypeName {
-    /// Get all time series and their meta data which contains __all__ labels
+    /// Get all time series, and their metadata which contains __all__ labels
     ///
     /// Note that the result time series may contains other labels
     fn get_series_metadata_contains_labels(
@@ -26,7 +26,7 @@ pub trait Indexer: Sized + HasTypeName {
     ///
     /// time_series_id must be single increasing.
     /// __Will not re-sort__ the time_series_id in values
-    /// Will create three kind of mapping:
+    /// Will create three kinds of mapping:
     /// 1. mapping from each label to time series id, used to search by label
     /// 2. mapping form label set to time series id, used to find target series id by complete label set
     /// 3. mapping from time series id to label set, used to get all meta data from time series id.

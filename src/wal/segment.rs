@@ -24,7 +24,7 @@ const AVG_NUM_BYTES_IN_ENTRY: usize = 32;
 ///! | Last seqid  | u64     |
 ///! | CRC64       | u64     |
 
-/// SegmentWriter is writer for segment file
+/// SegmentWriter is the writer for segment file
 ///
 /// SegmentWriter is **NOT** concurrent-safe.
 pub struct SegmentWriter {
@@ -38,7 +38,7 @@ pub struct SegmentWriter {
 }
 
 impl SegmentWriter {
-    /// Create an segment file, open with append-only
+    /// Create a segment file, open with append-only
     ///
     /// If there is no file yet. Create one and write the overhead.
     /// If there is one, update `first_idx` and `last_idx`, also verify the crc and reset the cursor
@@ -382,7 +382,14 @@ mod tests {
 
         segment.close();
 
-        assert_eq!(fs::read_to_string(&file_path)?.len(), 8 + 15 + 8); // flushed one entry(15 bytes) and crc 64
+        // flushed one entry(15 bytes) and
+        // first index
+        // last index
+        // crc64
+        let mut buf = Vec::new();
+        let mut file = File::open(&file_path)?;
+        file.read_to_end(buf.as_mut());
+        assert_eq!(buf.len(), 8 + 15 + 8 + 8 + 8);
 
         Ok(())
     }

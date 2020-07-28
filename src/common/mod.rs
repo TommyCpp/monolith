@@ -54,7 +54,7 @@ impl IdGenerator {
     }
 }
 
-/// Build a Indexer or Storage object.
+/// Build an Indexer or Storage object.
 ///
 /// Implementation may add more function to let user pass more configs or options
 pub trait Builder<T> {
@@ -74,7 +74,7 @@ pub trait Builder<T> {
     /// Write additional config or metadata information in db dir.
     fn write_config(&self, dir: &Path) -> Result<()>;
 
-    /// Read additional config or metadata information from db dir.
+    /// Read additional configs or metadata information from db dir.
     fn read_config(&self, dir: &Path) -> Result<()>;
 }
 

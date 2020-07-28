@@ -185,7 +185,7 @@ impl Decompactor {
 /// Bstream is not thread safe.
 ///
 /// We must filling one byte before appending another one to data.
-/// The `remaining` indicates how may bit is available in current byte.
+/// The `remaining` indicates how may bit is available in the current byte.
 ///
 #[derive(Clone)]
 pub(crate) struct Bstream {
@@ -201,7 +201,7 @@ impl Bstream {
         }
     }
 
-    /// Create Bstream from vector of bytes and remaining
+    /// Create Bstream from the vector of bytes and remaining
     pub fn from(data: Vec<u8>, remaining: u8) -> Bstream {
         Bstream { data, remaining }
     }
@@ -232,7 +232,7 @@ impl Bstream {
         }
     }
 
-    /// How many bit in this bit stream
+    /// How many bits in this bit stream
     pub fn bitlen(&self) -> usize {
         self.data.len() * 8 - self.remaining as usize
     }
