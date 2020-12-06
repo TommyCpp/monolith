@@ -1,22 +1,16 @@
-use crc::Hasher32;
-use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
+use crc::Hasher32;
+use std::thread::JoinHandle;
+use std::fs::File;
+
 mod segment;
-mod writer;
+mod wal;
 
 /// Note that we only use the first three byte in this magic number
 /// User can still use the remaining 5 bytes to add more metadata
 /// Like WAL for different component
 pub(crate) const WAL_MAGIC_NUMBER: u64 = 0x57414C0000000000u64;
-
-// Wal File structure
-// |  component  | length  |
-// |-------------|---------|
-// | Magic Number| u64     |
-// | Entries     | n * u64 |
-// | .......     | ....... |
-// | CRC64       | u64     |
 
 /// Entry encoding
 /// -----------------------------------------------------------------
@@ -52,17 +46,19 @@ impl Default for Entry {
 }
 
 impl Entry {
-    pub fn new(seq_id: u64, entry_type: EntryType) -> Entry {
+    pub fn new(seq_id: u64, entry_type: EntryType, content: Vec<u8>) -> Entry {
         Entry {
             seq_id,
             entry_type: entry_type as u8,
-            content: vec![],
+            content,
             crc: crc::crc32::Digest::new(crc::crc32::IEEE),
         }
     }
 
+    /// Return number of bytes in entry
+    /// Including seq_id, entry_type, content length, content, crc32
     pub fn len(&self) -> usize {
-        8 + 1 + self.content.len() + 4 // seq_id + entry_type + content + crc32
+        8 + 1 + 2 + self.content.len() + 4
     }
 
     pub fn get_bytes(&self) -> Vec<u8> {
@@ -82,11 +78,8 @@ impl Entry {
     }
 }
 
-pub struct WalConfig {
-    pub filepath: PathBuf,
-}
-
-pub enum FlushPolicy {
+#[derive(Clone, Copy)]
+pub enum SyncPolicy {
     TimeBased(std::time::Duration),
     // flush based on the num of entries.
     NumBased(usize),
@@ -97,11 +90,11 @@ pub enum FlushPolicy {
     Immediate,
 }
 
-/// FlushCache tells segment how to cache bytes
-pub enum FlushCache {
+/// FlushCache tells segments how to cache bytes
+pub enum SyncCache {
     TimeBased {
-        handler: std::thread::JoinHandle<()>,
-        cache: Arc<Mutex<Vec<Entry>>>,
+        message_handle: std::sync::mpsc::Sender<TimeSyncMessage>,
+        ticker: JoinHandle<()>,
     },
     NumBased {
         limit: usize,
@@ -110,29 +103,41 @@ pub enum FlushCache {
     },
     SizeBased {
         limit: usize,
-        size: usize, // num of bytes
+        size: usize,
+        // num of bytes
         cache: Vec<Entry>,
     },
     None,
 }
 
+// Messages used in time based sync
+pub enum TimeSyncMessage {
+    Insert(Entry),
+    Shutdown,
+    Flush,
+}
+
 pub enum EntryType {
-    Default = 0, //
+    Default = 0,
 }
 
 #[derive(Debug, Fail)]
 pub enum WalErr {
-    #[fail(display = "Internal error {}", _0)]
+    #[fail(display = "{}", _0)]
     InternalError(String),
 
-    #[fail(display = "{}", _0)]
+    #[fail(display = "io error, {}", _0)]
     FileIoErr(std::io::Error),
+
+    #[fail(display = "cannot found entry")]
+    NotFoundErr,
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::wal::Entry;
     use crc::Hasher32;
+
+    use crate::wal::Entry;
 
     #[test]
     pub fn test_entry_get_bytes() {

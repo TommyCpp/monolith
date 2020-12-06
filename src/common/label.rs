@@ -9,7 +9,6 @@ pub struct Label {
     value: String,
 }
 
-///
 /// Label will be sort with alphabet order but note that two label will only be equal if and only if
 /// they have the same key and same value
 impl Label {
