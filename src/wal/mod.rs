@@ -1,6 +1,8 @@
-use crc::Hasher32;
-use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
+
+use crc::Hasher32;
+use std::thread::JoinHandle;
+use std::fs::File;
 
 mod segment;
 mod wal;
@@ -88,11 +90,11 @@ pub enum SyncPolicy {
     Immediate,
 }
 
-/// FlushCache tells segment how to cache bytes
+/// FlushCache tells segments how to cache bytes
 pub enum SyncCache {
     TimeBased {
-        handler: std::thread::JoinHandle<()>,
-        cache: Arc<Mutex<Vec<Entry>>>,
+        message_handle: std::sync::mpsc::Sender<TimeSyncMessage>,
+        ticker: JoinHandle<()>,
     },
     NumBased {
         limit: usize,
@@ -106,6 +108,13 @@ pub enum SyncCache {
         cache: Vec<Entry>,
     },
     None,
+}
+
+// Messages used in time based sync
+pub enum TimeSyncMessage {
+    Insert(Entry),
+    Shutdown,
+    Flush,
 }
 
 pub enum EntryType {
@@ -126,8 +135,9 @@ pub enum WalErr {
 
 #[cfg(test)]
 mod tests {
-    use crate::wal::Entry;
     use crc::Hasher32;
+
+    use crate::wal::Entry;
 
     #[test]
     pub fn test_entry_get_bytes() {

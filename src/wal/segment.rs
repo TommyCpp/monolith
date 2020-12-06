@@ -1,5 +1,5 @@
 use crate::wal::WalErr::FileIoErr;
-use crate::wal::{Entry, SyncCache, SyncPolicy, WalErr, WAL_MAGIC_NUMBER};
+use crate::wal::{Entry, SyncCache, SyncPolicy, WalErr, WAL_MAGIC_NUMBER, TimeSyncMessage};
 use crate::{MonolithErr, Result};
 use futures::io::Error;
 use std::convert::TryInto;
@@ -9,6 +9,7 @@ use std::io::{ErrorKind, Read, Seek, SeekFrom, Write};
 use std::path::Path;
 use std::sync::atomic::AtomicU64;
 use std::sync::{Arc, Mutex};
+use std::thread::{spawn, sleep};
 
 type FileMutex = Arc<Mutex<File>>;
 
@@ -32,9 +33,9 @@ pub struct SegmentWriter {
     last_idx: u64,
 
     file: File,
-    cache: SyncCache,
-
     crc: crc::crc64::Digest,
+
+    cache: SyncCache,
 }
 
 impl SegmentWriter {
@@ -89,19 +90,64 @@ impl SegmentWriter {
             file.sync_all();
             Ok((0, 0, crc_val, file))
         }
-        .map_err(|err| WalErr::FileIoErr(err))?;
+            .map_err(|err| WalErr::FileIoErr(err))?;
 
+        let mut crc = crc::crc64::Digest::new_with_initial(crc::crc64::ECMA, crc_initial);
         Ok(SegmentWriter {
             first_idx,
             last_idx,
-            file,
             cache: match sync_policy {
                 SyncPolicy::Immediate => SyncCache::None,
                 SyncPolicy::TimeBased(dur) => {
-                    let cache = Arc::new(Mutex::new(vec![]));
+                    let (main_sender, receiver) = std::sync::mpsc::channel::<TimeSyncMessage>();
+                    let ticker_sender = main_sender.clone();
+                    let (mut file, mut crc) = (file.try_clone().unwrap(), crc::crc64::Digest::new_with_initial(crc::crc64::ECMA, crc_initial));
+                    let (first_idx, last_idx) = (first_idx.clone(), last_idx.clone());
+                    let _handler = spawn(move || {
+                        let mut cache = vec![];
+                        loop {
+                            match receiver.recv() {
+                                Ok(msg) => {
+                                    match msg {
+                                        TimeSyncMessage::Insert(entry) => {
+                                            cache.push(entry);
+                                        }
+                                        TimeSyncMessage::Shutdown => {
+                                            let bytes: Vec<u8> = cache.iter().flat_map(|entry| entry.get_bytes()).collect();
+                                            crc.write(bytes.as_slice());
+                                            file.write(bytes.as_slice());
+
+                                            // append first and last sequence id
+                                            let _ = file.write(&first_idx.to_be_bytes()[..]);
+                                            let _ = file.write(&last_idx.to_be_bytes()[..]);
+
+                                            // append crc
+                                            let crc = crc.finish();
+                                            let _ = file.write(&crc.to_be_bytes()); // append crc result
+                                            return;
+                                        }
+                                        TimeSyncMessage::Flush => {
+                                            let bytes: Vec<u8> = cache.iter().flat_map(|entry| entry.get_bytes()).collect();
+                                            crc.write(bytes.as_slice());
+                                            file.write(bytes.as_slice());
+                                            cache = vec![];
+                                        }
+                                    }
+                                }
+                                Err(_err) => {
+                                    //todo: error handling
+                                }
+                            }
+                        }
+                    });
                     SyncCache::TimeBased {
-                        handler: std::thread::spawn(|| {}), //todo: figure out how to do time based flush
-                        cache,
+                        ticker: spawn(move || {
+                            loop {
+                                sleep(dur);
+                                let _ = ticker_sender.send(TimeSyncMessage::Flush);
+                            }
+                        }),
+                        message_handle: main_sender,
                     }
                 }
                 SyncPolicy::NumBased(limit) => SyncCache::NumBased {
@@ -115,7 +161,8 @@ impl SegmentWriter {
                     cache: Vec::with_capacity(limit * AVG_NUM_BYTES_IN_ENTRY),
                 },
             },
-            crc: crc::crc64::Digest::new_with_initial(crc::crc64::ECMA, crc_initial),
+            file,
+            crc,
         })
     }
 
@@ -175,8 +222,8 @@ impl SegmentWriter {
                     self.sync();
                 }
             }
-            &mut SyncCache::TimeBased { ref mut cache, .. } => {
-                cache.lock().unwrap().push(entry);
+            &mut SyncCache::TimeBased { ref message_handle, .. } => {
+                let _ = message_handle.send(TimeSyncMessage::Insert(entry));
             }
             &mut SyncCache::SizeBased {
                 ref mut cache,
@@ -224,8 +271,8 @@ impl Write for SegmentWriter {
                 *cache = vec![Entry::default(); *size];
                 _cache
             }
-            &mut SyncCache::TimeBased { .. } => {
-                // fixme and above
+            &mut SyncCache::TimeBased { ref message_handle, .. } => {
+                let _ = message_handle.send(TimeSyncMessage::Flush);
                 vec![]
             }
             &mut SyncCache::SizeBased {
@@ -252,7 +299,11 @@ impl Write for SegmentWriter {
 
 impl Drop for SegmentWriter {
     fn drop(&mut self) {
-        self.close();
+        if let SyncCache::TimeBased { ref message_handle, .. } = self.cache {
+            message_handle.send(TimeSyncMessage::Shutdown);
+        } else {
+            self.close();
+        }
     }
 }
 
@@ -274,8 +325,8 @@ trait ReadExt<T> {
 }
 
 impl<T> ReadExt<T> for T
-where
-    T: Read,
+    where
+        T: Read,
 {
     fn read_be_u64(&mut self) -> std::result::Result<u64, std::io::Error> {
         let mut buffer = vec![0; 8];
