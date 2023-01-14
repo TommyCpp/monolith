@@ -1,3 +1,4 @@
+use std::default::Default;
 use crate::Result;
 use serde::{Deserialize, Serialize};
 use tikv_client::{Config, RawClient};
@@ -69,6 +70,7 @@ pub struct TiKvRawBackendSingleton {
     config: Config,
     // if true, then instead of connect to a tikv instance, we use a in memory hashmap
     dry_run: bool,
+    pd_endpoints: Vec<String>,
 }
 
 impl TiKvRawBackendSingleton {
@@ -76,37 +78,46 @@ impl TiKvRawBackendSingleton {
         Ok(TiKvRawBackendSingleton {
             config,
             dry_run: false,
+            pd_endpoints: vec![],
         })
     }
 
     pub fn from_config_file(filepath: &Path) -> Result<TiKvRawBackendSingleton> {
         let config_file = TiKvBackendConfigFile::from_file(filepath)?;
-        if config_file.dry_run {
-            Ok(TiKvRawBackendSingleton {
-                config: Config::new(Vec::<String>::new()),
+        Ok(if config_file.dry_run {
+            TiKvRawBackendSingleton {
+                config: Config::default(),
                 dry_run: true,
-            })
+                pd_endpoints: vec![],
+            }
         } else {
-            TiKvRawBackendSingleton::new(Config::new(config_file.pd_endpoints))
-        }
+            TiKvRawBackendSingleton {
+                config: Config::default(),
+                dry_run: false,
+                pd_endpoints: config_file.pd_endpoints,
+            }
+        })
     }
 
     pub fn get_instance(&self) -> Result<Box<dyn TiKvRawBackend>> {
-        Ok(if self.dry_run {
-            Box::new(DummyTiKvBackend::new())
-        } else {
-            Box::new(TiKvRawBackendImpl {
-                client: RawClient::new(self.config.clone())?,
-            })
-        })
+        // Ok(if self.dry_run {
+        //     Box::new(DummyTiKvBackend::new())
+        // } else {
+        //     Box::new(TiKvRawBackendImpl {
+        //         client: RawClient::new(self.pd_endpoints.clone()),
+        //     })
+        // })
+        // todo: re-enable it once we go async
+        Ok(Box::new(DummyTiKvBackend::new()))
     }
 }
 
 impl Default for TiKvRawBackendSingleton {
     fn default() -> Self {
         TiKvRawBackendSingleton {
-            config: Config::new(Vec::<String>::new()),
+            config: Config::default(),
             dry_run: true,
+            pd_endpoints: vec![],
         }
     }
 }

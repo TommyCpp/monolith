@@ -6,7 +6,7 @@ edition = "2018"
 license = "MIT"
 repository = "https://github.com/tommycpp/monolith.git"
 keywords = ["timeseries", "tsdb", "prometheus", "sled"]
-description = "timeseries database that could used as promtheus remote write endpoint, support both slec or tikv"
+description = "timeseries database that could used as promtheus remote write endpoint, support both sled or tikv"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -29,14 +29,11 @@ serde_yaml = "0.8"
 futures = { version = "0.3.1", features = ["compat", "async-await", "thread-pool"] }
 uuid = { version = "0.8", features = ["v4"]}
 serde = { version = "1.0", features = ["derive"] }
-tikv-client = { git = "https://github.com/tikv/client-rust.git" }
+tikv-client = "0.1.0"
 
 
 [dev-dependencies]
 assert_cmd = "1.0.1"
-
-[patch.crates-io]
-raft-proto = { git = "https://github.com/tikv/raft-rs", rev = "e624c1d48460940a40d8aa69b5329460d9af87dd" }
 
 [[bench]]
 name = "benchmark"

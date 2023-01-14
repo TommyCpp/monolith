@@ -148,7 +148,7 @@ impl Ingester {
     ) -> Ingester {
         Ingester {
             data: (0..num_series
-                .unwrap_or(rand::thread_rng().gen_range(10 as usize, 1000 as usize)))
+                .unwrap_or(rand::thread_rng().gen_range(10, 1000)))
                 .map(|_n| Ingester::_generate_data(num_time_point, num_labels, start_time))
                 .collect::<Vec<TimeSeries>>(),
         }
