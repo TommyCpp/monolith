@@ -4,9 +4,8 @@ use crate::{
     SLED_BACKEND, STORAGE_ARG, TIKV_CONFIG, WORKER_NUM, WRITE_PATH,
 };
 use clap::ArgMatches;
-use failure::_core::fmt::Formatter;
 use std::env::current_dir;
-use std::fmt;
+use std::fmt::{self, Formatter};
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::Duration;
@@ -22,14 +21,14 @@ pub struct DbOpts {
 
 impl DbOpts {
     pub fn get_config(matches: &ArgMatches) -> Result<DbOpts> {
-        let chunk_size_str = matches.value_of(CHUNK_SIZE).unwrap();
-        let chunk_size_in_sec: u64 = String::from(chunk_size_str).parse()?;
+        let chunk_size_str = matches.get_one::<String>(CHUNK_SIZE).unwrap();
+        let chunk_size_in_sec: u64 = chunk_size_str.parse()?;
         let config = DbOpts {
-            storage: matches.value_of(STORAGE_ARG).unwrap().to_string(),
-            indexer: matches.value_of(INDEXER_ARG).unwrap().to_string(),
-            base_dir: PathBuf::from_str(matches.value_of(FILE_DIR_ARG).unwrap())?,
+            storage: matches.get_one::<String>(STORAGE_ARG).unwrap().to_string(),
+            indexer: matches.get_one::<String>(INDEXER_ARG).unwrap().to_string(),
+            base_dir: PathBuf::from_str(matches.get_one::<String>(FILE_DIR_ARG).unwrap())?,
             chunk_size: Duration::from_secs(chunk_size_in_sec),
-            tikv_config: matches.value_of(TIKV_CONFIG).map(PathBuf::from),
+            tikv_config: matches.get_one::<String>(TIKV_CONFIG).map(PathBuf::from),
         };
 
         Ok(config)
@@ -48,31 +47,31 @@ impl Default for DbOpts {
     }
 }
 
-pub struct ServerOpts<'a> {
+pub struct ServerOpts {
     pub port: i32,
-    pub write_path: &'a str,
-    pub read_path: &'a str,
+    pub write_path: String,
+    pub read_path: String,
     pub worker_num: usize,
 }
 
-impl<'a> ServerOpts<'a> {
-    pub fn get_config(matchers: &'a ArgMatches) -> Result<ServerOpts<'a>> {
-        //unwrap matcher.value_of because all options has default value.
-        let worker_num = matchers.value_of(WORKER_NUM).unwrap().parse::<usize>()?;
-        let port = matchers.value_of(PORT).unwrap().parse::<i32>()?;
+impl ServerOpts {
+    pub fn get_config(matchers: &ArgMatches) -> Result<ServerOpts> {
+        //unwrap matcher.get_one because all options has default value.
+        let worker_num = matchers.get_one::<String>(WORKER_NUM).unwrap().parse::<usize>()?;
+        let port = matchers.get_one::<String>(PORT).unwrap().parse::<i32>()?;
         if port > 65535 || port < 1024 {
             return Err(MonolithErr::OptionErr);
         };
         Ok(ServerOpts {
             port,
             worker_num,
-            write_path: matchers.value_of(WRITE_PATH).unwrap(),
-            read_path: matchers.value_of(READ_PATH).unwrap(),
+            write_path: matchers.get_one::<String>(WRITE_PATH).unwrap().to_string(),
+            read_path: matchers.get_one::<String>(READ_PATH).unwrap().to_string(),
         })
     }
 }
 
-impl<'a> fmt::Display for ServerOpts<'a> {
+impl fmt::Display for ServerOpts {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -86,12 +85,12 @@ impl<'a> fmt::Display for ServerOpts<'a> {
     }
 }
 
-impl<'a> Default for ServerOpts<'a> {
-    fn default() -> ServerOpts<'a> {
+impl Default for ServerOpts {
+    fn default() -> ServerOpts {
         ServerOpts {
             port: DEFAULT_PORT,
-            write_path: DEFAULT_WRITE_PATH,
-            read_path: DEFAULT_READ_PATH,
+            write_path: DEFAULT_WRITE_PATH.to_string(),
+            read_path: DEFAULT_READ_PATH.to_string(),
             worker_num: DEFAULT_WORKER_NUM,
         }
     }

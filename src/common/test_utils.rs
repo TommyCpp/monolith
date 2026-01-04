@@ -148,7 +148,7 @@ impl Ingester {
     ) -> Ingester {
         Ingester {
             data: (0..num_series
-                .unwrap_or(rand::thread_rng().gen_range(10 as usize, 1000 as usize)))
+                .unwrap_or(rand::thread_rng().gen_range(10usize..1000usize)))
                 .map(|_n| Ingester::_generate_data(num_time_point, num_labels, start_time))
                 .collect::<Vec<TimeSeries>>(),
         }
@@ -185,32 +185,34 @@ impl Ingester {
         num_labels: Option<usize>,
         start_time: Timestamp,
     ) -> TimeSeries {
-        let tp_size = num_time_point.unwrap_or(rand::thread_rng().gen_range(10, 100));
-        let label_size = num_labels.unwrap_or(rand::thread_rng().gen_range(10, 30));
+        let tp_size = num_time_point.unwrap_or(rand::thread_rng().gen_range(10..100));
+        let label_size = num_labels.unwrap_or(rand::thread_rng().gen_range(10..30));
 
         //generate time point
         let mut tps = vec![TimePoint {
             timestamp: start_time,
-            value: rand::thread_rng().gen_range(15.0, 199.0),
+            value: rand::thread_rng().gen_range(15.0..199.0),
         }];
         for _ in 1..tp_size {
             let last = tps.last().unwrap().timestamp;
             tps.push(TimePoint {
                 timestamp: last + 100 as Timestamp,
-                value: rand::thread_rng().gen_range(15.0, 199.0),
+                value: rand::thread_rng().gen_range(15.0..199.0),
             });
         }
 
         //generate labels
         let mut labels = vec![];
         for _ in 0..label_size {
-            let key = rand::thread_rng()
+            let key: String = rand::thread_rng()
                 .sample_iter(&Alphanumeric)
                 .take(30)
+                .map(char::from)
                 .collect();
-            let val = rand::thread_rng()
+            let val: String = rand::thread_rng()
                 .sample_iter(&Alphanumeric)
                 .take(30)
+                .map(char::from)
                 .collect();
             labels.push(Label::new(key, val));
         }

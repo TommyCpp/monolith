@@ -15,10 +15,9 @@ mod simple;
 use crate::compaction::gorilla::GorillaDecompactor;
 use crate::compaction::CompactionErr::CompactionTypeDontMatch;
 use crate::proto::TimeSeries;
-use failure::_core::fmt::Formatter;
 pub use gorilla::GorillaCompactor;
 use std::convert::TryInto;
-use std::fmt::{Debug, Error};
+use std::fmt::{Debug, Error, Formatter};
 use std::iter::FromIterator;
 
 macro_rules! compaction_error {
@@ -429,12 +428,9 @@ impl BstreamSeeker {
     }
 }
 
-#[derive(Debug, Fail)]
+#[derive(Debug, thiserror::Error)]
 pub enum CompactionErr {
-    #[fail(
-        display = "Error when compaction or de-compaction, was expecting type {}, but getting type {}",
-        _0, _1
-    )]
+    #[error("Error when compaction or de-compaction, was expecting type {0}, but getting type {1}")]
     CompactionTypeDontMatch(u8, u8),
 }
 

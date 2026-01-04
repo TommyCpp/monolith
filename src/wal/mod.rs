@@ -1,4 +1,4 @@
-use crc::Hasher32;
+use crc::{Crc, CRC_32_ISO_HDLC};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
@@ -9,6 +9,9 @@ mod writer;
 /// User can still use the remaining 5 bytes to add more metadata
 /// Like WAL for different component
 pub(crate) const WAL_MAGIC_NUMBER: u64 = 0x57414C0000000000u64;
+
+// CRC-32 IEEE (same as crc32::IEEE in old crc crate)
+const CRC32: Crc<u32> = Crc::<u32>::new(&CRC_32_ISO_HDLC);
 
 // Wal File structure
 // |  component  | length  |
@@ -26,7 +29,7 @@ pub struct Entry {
     seq_id: u64,
     entry_type: u8,
     content: Vec<u8>,
-    crc: crc::crc32::Digest, // CRC 32
+    crc_value: u32, // CRC 32 accumulated value
 }
 
 impl Clone for Entry {
@@ -35,7 +38,7 @@ impl Clone for Entry {
             seq_id: self.seq_id,
             entry_type: self.entry_type,
             content: self.content.clone(),
-            crc: crc::crc32::Digest::new_with_initial(crc::crc32::IEEE, self.crc.sum32()),
+            crc_value: self.crc_value,
         }
     }
 }
@@ -46,7 +49,7 @@ impl Default for Entry {
             seq_id: 0,
             entry_type: 0,
             content: vec![],
-            crc: crc::crc32::Digest::new(crc::crc32::IEEE),
+            crc_value: 0,
         }
     }
 }
@@ -57,7 +60,7 @@ impl Entry {
             seq_id,
             entry_type: entry_type as u8,
             content: vec![],
-            crc: crc::crc32::Digest::new(crc::crc32::IEEE),
+            crc_value: 0,
         }
     }
 
@@ -66,18 +69,20 @@ impl Entry {
     }
 
     pub fn get_bytes(&self) -> Vec<u8> {
-        let _crc = self.crc.sum32();
         let mut _res = Vec::<u8>::from(&self.seq_id.to_be_bytes()[..]);
         _res.push(self.entry_type);
         _res.extend_from_slice(&(self.content.len() as u16).to_be_bytes()[..]);
         _res.append(self.content.clone().as_mut());
-        _res.extend_from_slice(&_crc.to_be_bytes()[..]);
+        _res.extend_from_slice(&self.crc_value.to_be_bytes()[..]);
 
         _res
     }
 
     pub fn push(&mut self, mut content: Vec<u8>) {
-        self.crc.write(content.as_slice());
+        // Update CRC with new content
+        let mut digest = CRC32.digest_with_initial(self.crc_value);
+        digest.update(content.as_slice());
+        self.crc_value = digest.finalize();
         self.content.append(content.as_mut())
     }
 }
@@ -120,26 +125,25 @@ pub enum EntryType {
     Default = 0, //
 }
 
-#[derive(Debug, Fail)]
+#[derive(Debug, thiserror::Error)]
 pub enum WalErr {
-    #[fail(display = "Internal error {}", _0)]
+    #[error("Internal error {0}")]
     InternalError(String),
 
-    #[fail(display = "{}", _0)]
+    #[error("{0}")]
     FileIoErr(std::io::Error),
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::wal::Entry;
-    use crc::Hasher32;
+    use crate::wal::{Entry, CRC32};
 
     #[test]
     pub fn test_entry_get_bytes() {
         let mut entry = Entry::default();
         entry.push(vec![1, 2, 3, 4]);
         let bytes = entry.get_bytes();
-        let sum32 = crc::crc32::checksum_ieee(vec![1u8, 2, 3, 4].as_slice());
+        let sum32 = CRC32.checksum(&[1u8, 2, 3, 4]);
         let mut result = vec![0u8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 1, 2, 3, 4];
         result.extend_from_slice(&sum32.to_be_bytes()[..]);
         assert_eq!(bytes, result)
@@ -150,8 +154,8 @@ mod tests {
         let mut entry = Entry::default();
         entry.push(vec![1, 3, 4, 5]);
 
-        let mut entry_clone = entry.clone();
+        let entry_clone = entry.clone();
 
-        assert_eq!(entry_clone.crc.sum32(), entry.crc.sum32());
+        assert_eq!(entry_clone.crc_value, entry.crc_value);
     }
 }

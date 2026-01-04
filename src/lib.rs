@@ -56,5 +56,3 @@ pub const TIKV_BACKEND: &str = "tikv";
 
 #[macro_use]
 extern crate log;
-#[macro_use]
-extern crate failure;

@@ -1,6 +1,6 @@
 #![allow(unused_must_use)]
 
-use clap::{App, Arg};
+use clap::{Arg, Command};
 
 use monolith::indexer::*;
 use monolith::option::{DbOpts, ServerOpts};
@@ -23,38 +23,38 @@ fn main() {
     let default_port = DEFAULT_PORT.to_string();
     let default_worker_num = DEFAULT_WORKER_NUM.to_string();
 
-    let matches = App::new("monolith")
+    let matches = Command::new("monolith")
         .version(env!("CARGO_PKG_VERSION"))
         .about("time series storage")
-        .args(&[
-            Arg::with_name(STORAGE_ARG)
-                .short("s")
+        .args([
+            Arg::new(STORAGE_ARG)
+                .short('s')
                 .long(STORAGE_ARG)
                 .default_value(SLED_BACKEND),
-            Arg::with_name(INDEXER_ARG)
-                .short("i")
+            Arg::new(INDEXER_ARG)
+                .short('i')
                 .long(INDEXER_ARG)
                 .default_value(SLED_BACKEND),
-            Arg::with_name(FILE_DIR_ARG)
-                .short("dir")
+            Arg::new(FILE_DIR_ARG)
+                .short('d')
                 .long(FILE_DIR_ARG)
                 .default_value(env!("PWD")),
-            Arg::with_name(CHUNK_SIZE)
+            Arg::new(CHUNK_SIZE)
                 .long(CHUNK_SIZE)
                 .default_value(DEFAULT_CHUNK_SIZE),
-            Arg::with_name(PORT)
+            Arg::new(PORT)
                 .long(PORT)
-                .default_value(default_port.as_str()),
-            Arg::with_name(WRITE_PATH)
+                .default_value(default_port),
+            Arg::new(WRITE_PATH)
                 .long(WRITE_PATH)
                 .default_value(DEFAULT_WRITE_PATH),
-            Arg::with_name(READ_PATH)
+            Arg::new(READ_PATH)
                 .long(READ_PATH)
                 .default_value(DEFAULT_READ_PATH),
-            Arg::with_name(WORKER_NUM)
+            Arg::new(WORKER_NUM)
                 .long(WORKER_NUM)
-                .default_value(default_worker_num.as_str()),
-            Arg::with_name(TIKV_CONFIG).long(TIKV_CONFIG),
+                .default_value(default_worker_num),
+            Arg::new(TIKV_CONFIG).long(TIKV_CONFIG),
         ])
         .get_matches();
 

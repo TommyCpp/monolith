@@ -17,24 +17,24 @@ use std::sync::Arc;
 ///
 /// Note that the Prometheus remote storage requests using __unframed__ snappy encoding __proto__ object.
 ///
-pub struct MonolithServer<'a, S, I>
+pub struct MonolithServer<S, I>
 where
     S: Sync + Storage + Send + 'static,
     I: Sync + Indexer + Send + 'static,
 {
     db: Arc<MonolithDb<S, I>>,
     port: i32,
-    read_path: &'a str,
-    write_path: &'a str,
+    read_path: String,
+    write_path: String,
     worker_num: usize,
 }
 
-impl<'a, S, I> MonolithServer<'a, S, I>
+impl<S, I> MonolithServer<S, I>
 where
     S: Sync + Storage + Send + 'static,
     I: Sync + Indexer + Send + 'static,
 {
-    pub fn new(opts: ServerOpts<'a>, db: Arc<MonolithDb<S, I>>) -> Self {
+    pub fn new(opts: ServerOpts, db: Arc<MonolithDb<S, I>>) -> Self {
         MonolithServer {
             db,
             port: opts.port,
@@ -179,7 +179,7 @@ where
     }
 }
 
-impl<'a, S, I> Clone for MonolithServer<'a, S, I>
+impl<S, I> Clone for MonolithServer<S, I>
 where
     S: Sync + Send + Storage + 'static,
     I: Sync + Send + Indexer + 'static,

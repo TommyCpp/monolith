@@ -1,6 +1,6 @@
 use assert_cmd::assert::OutputAssertExt;
 use assert_cmd::cargo::CommandCargoExt;
-use failure::_core::time::Duration;
+use std::time::Duration;
 use monolith::utils::get_file_from_dir;
 use monolith::{Result, DB_METADATA_FILENAME, SLED_BACKEND, TIKV_BACKEND};
 use std::env::current_dir;

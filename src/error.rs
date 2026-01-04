@@ -1,5 +1,5 @@
-use failure::_core::convert::Infallible;
-use failure::_core::num::{ParseFloatError, ParseIntError};
+use std::convert::Infallible;
+use std::num::{ParseFloatError, ParseIntError};
 
 use crate::chunk::Chunk;
 use crate::indexer::Indexer;
@@ -8,32 +8,32 @@ use serde_json::Error;
 use std::string::FromUtf8Error;
 use std::sync::Arc;
 
-#[derive(Debug, Fail)]
+#[derive(Debug, thiserror::Error)]
 pub enum MonolithErr {
-    #[fail(display = "Io Error: {}", _0)]
+    #[error("Io Error: {0}")]
     IoError(String),
-    #[fail(display = "Option error")]
+    #[error("Option error")]
     OptionErr,
-    #[fail(display = "Parse error")]
+    #[error("Parse error")]
     ParseErr,
-    #[fail(display = "Not found")]
+    #[error("Not found")]
     NotFoundErr,
     /// Out of the target range, the two param shows the target range.
-    #[fail(display = "Out of range, target range is {}, {}", _0, _1)]
+    #[error("Out of range, target range is {0}, {1}")]
     OutOfRangeErr(u64, u64),
-    #[fail(display = "Internal error, {}", _0)]
+    #[error("Internal error, {0}")]
     InternalErr(String),
     // Logical error, usually indicate a bug inside system
-    #[fail(display = "Error when convert Json with serde")]
+    #[error("Error when convert Json with serde")]
     SerdeJsonErr(serde_json::error::Error),
-    #[fail(display = "Error when convert Yaml with serde")]
+    #[error("Error when convert Yaml with serde")]
     SerdeYamlErr(serde_yaml::Error),
-    #[fail(display = "Error from TiKv")]
+    #[error("Error from TiKv")]
     TiKvErr(tikv_client::Error),
-    #[fail(display = "Error when compaction or de-compaction, {}", _0)]
+    #[error("Error when compaction or de-compaction, {0}")]
     CompactionErr(crate::compaction::CompactionErr),
-    #[fail(display= "Write ahead log error, {}", _0)]
-    WalErr(crate::wal::WalErr)
+    #[error("Write ahead log error, {0}")]
+    WalErr(crate::wal::WalErr),
 }
 
 pub type Result<T> = std::result::Result<T, MonolithErr>;
